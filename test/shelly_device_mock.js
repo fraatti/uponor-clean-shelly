@@ -25,6 +25,27 @@ class Device {
     this.endpoints = new Map(); // path -> {sid, cb}
     this.em1Blocks = opts.em1Blocks || null;
     this.power = 4.0;
+    this.voltage = 236;
+    this.feed = null;          // power feed for em1:0: [{t, p?, u?}] sorted by t
+    this.feedIdx = 0;
+    this.resetReason = opts.resetReason;   // sys.reset_reason (undefined: field absent)
+    this.eventLog = [];        // emitted script events {t, sid, name, data}
+    this.onValue = null;       // hook (key, value, t) on every component value change
+  }
+
+  setFeed(events) { this.feed = events; this.feedIdx = 0; if (events.length) { const e0 = events.find((e) => e.p != null); if (e0) this.power = e0.p; } this.advanceFeed(); }
+  advanceFeed() {
+    const f = this.feed; if (!f) return;
+    while (this.feedIdx < f.length && f[this.feedIdx].t <= this.t) { const e = f[this.feedIdx++]; if (e.p != null) this.power = e.p; if (e.u != null) this.voltage = e.u; }
+  }
+
+  // the device loses power (scripts stop) / gets it back (uptime restarts, scripts start after bootMs)
+  powerOff() { this.autostartIds = [...this.scripts.values()].filter((s) => s.running).map((s) => s.id); for (const id of this.autostartIds) this.stopScript(id); this.queue = []; this.timers = []; }
+  powerOn(bootMs, resetReason) {
+    this.bootT = this.t; this.resetReason = resetReason === undefined ? 1 : resetReason;
+    for (const c of this.comps.values()) if (c.type !== 'group' && !c.config.persisted && c.config.default_value !== undefined) c.value = c.config.default_value;
+    this.run(bootMs || 3000);
+    for (const id of this.autostartIds || []) this.startScript(id);
   }
 
   // ---------------------------------------------------------------- helpers
@@ -74,6 +95,7 @@ class Device {
     if (c.type === 'text' && typeof c.config.max_len === 'number' && value.length > c.config.max_len) throw new Error(`text ${key} too long (${value.length})`);
     const changed = JSON.stringify(c.value) !== JSON.stringify(value);
     c.value = value;
+    if (changed && this.onValue) this.onValue(key, value, this.t);
     if (changed) {
       for (const l of c.listeners) {
         const ev = { component: key, id: c.id, event: 'change', value, source: source || 'script', ts: this.t / 1000 }; // assumed shape
@@ -300,12 +322,14 @@ class Device {
             const u = dev.unix();
             let time = null;
             if (u !== null) { const lm = Math.floor(((u + dev.tzOffsetMin * 60) % 86400) / 60); time = String(Math.floor(lm / 60)).padStart(2, '0') + ':' + String(lm % 60).padStart(2, '0'); }
-            return { uptime: Math.floor(dev.uptimeMs() / 1000), unixtime: u, time, ram_free: 50000 };
+            const o = { uptime: Math.floor(dev.uptimeMs() / 1000), unixtime: u, time, ram_free: 50000 };
+            if (dev.resetReason !== undefined) o.reset_reason = dev.resetReason;
+            return o;
           }
           if (key === 'wifi') return { sta_ip: '192.168.1.50', status: 'got ip' };
           if (key.startsWith('script:')) { const n = Number(key.split(':')[1]); const x = dev.scripts.get(n); return x ? { id: n, running: x.running, mem_used: 9000, mem_peak: 12000, mem_free: 16000 } : null; }
           if (key === 'em1data:0') return { id: 0 };
-          if (key === 'em1:0') return { id: 0, act_power: dev.power, voltage: 236 };
+          if (key === 'em1:0') { dev.advanceFeed(); return { id: 0, act_power: dev.power, voltage: dev.voltage }; }
           const c = dev.comps.get(key); return c ? { value: c.value } : null;
         },
         getComponentConfig: (k, id) => { const key = id === undefined ? k : `${k}:${id}`; const c = dev.comps.get(key); return c ? JSON.parse(JSON.stringify(c.config)) : null; },
@@ -320,6 +344,7 @@ class Device {
           const ev = { component: `script:${sid}`, name: 'script', id: sid, now, info: { component: `script:${sid}`, id: sid, event: name, data: JSON.parse(JSON.stringify(data)), ts: now } }; // assumed shape
           for (const x of dev.scripts.values()) if (x.running) for (const h of x.eventHandlers) dev.post(() => dev.invoke(x.id, () => h.cb(ev, h.ud)));
           dev.emitted = (dev.emitted || 0) + 1;
+          dev.eventLog.push({ t: dev.t, sid, name, data: JSON.parse(JSON.stringify(data)) });
         },
       },
       Script: {

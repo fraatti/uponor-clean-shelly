@@ -15,3 +15,7 @@ test/*.js
 !test/validate.js
 !test/shelly_device_mock.js
 !test/proto_test.js
+!test/v3run.js
+!test/v3_scenarios.js
+!test/v3_realdata.js
+!test/v3_device_test.js

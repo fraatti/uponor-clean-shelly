@@ -28,7 +28,10 @@ function simulate(sc) {
   const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const cuts = (sc.powerCuts || []).slice().sort((a, b) => a.at - b.at);
   const tests = (sc.testAt || []).slice().sort((a, b) => a - b);
+  const pauses = (sc.pauses || []).slice().sort((a, b) => a.at - b.at);   // stop from the radio panel: {at, dur}
   const marks = [];
+  const gt = [];   // ground truth: {t, cyc, ph} at the start of each firmware phase (the self-test dip)
+  const doses = [];
   let pumpIns = 0, batches = 0, cleanings = 0, waitLoops = 0;
   let lastP = null;
 
@@ -41,14 +44,24 @@ function simulate(sc) {
       if (t >= tEnd) throw new Cut('end');
       if (cuts.length && t >= cuts[0].at) throw new Cut('power');
       if (tests.length && t >= tests[0]) throw new Cut('test');
+      if (pauses.length && t >= pauses[0].at) doPause();
       sample(PW[kind]); t += 1000;
     }
   }
-  function phase(kind, dur) { emit('idle', 1); emit(kind, dur - 1 > 0 ? dur - 1 : 0); }
+  const label = (cyc, ph) => { const l = gt[gt.length - 1]; if (!l || l.cyc !== cyc || l.ph !== ph) gt.push({ t, cyc, ph }); };
+  function phase(kind, dur, cyc, ph) { if (ph) label(cyc, ph); if (ph === 'dosing') doses.push(t); emit('idle', 1); emit(kind, dur - 1 > 0 ? dur - 1 : 0); }
   const mark = (s) => marks.push({ t, s });
+  // the outputs go off and the interrupted phase continues with its remaining time (assumed)
+  function doPause() {
+    const p = pauses.shift(); const prev = gt[gt.length - 1];
+    mark('pause ' + p.dur + ' s'); gt.push({ t, cyc: 'paused', ph: 'paused' });
+    for (let k = 0; k < p.dur; k++) { if (t >= tEnd) throw new Cut('end'); sample(PW.idle); t += 1000; }
+    mark('pause ends'); gt.push({ t, cyc: prev.cyc, ph: prev.ph });
+  }
 
   function pumpIn(max, ctx) {
     const n = ++pumpIns; const trip = sc.tripAt ? sc.tripAt(ctx, n) : null;
+    label(ctx === 'post' ? 'cleaning' : ctx === 'wait' ? 'waiting' : 'holiday', 'pump_in');
     mark('pump-in ' + ctx + (trip != null ? ' trip@' + trip : ''));
     emit('idle', 1);
     let s = 0;
@@ -64,17 +77,17 @@ function simulate(sc) {
     let fromChem = hwForced || (sc.highWaterAtStart && sc.highWaterAtStart(n));
     if (!fromChem) {
       const cut = sc.highWaterCutAt ? sc.highWaterCutAt(n) : null;
-      phase('aer', Math.min(FW.PRE_AERATION, cut != null ? cut : 1e9));
+      phase('aer', Math.min(FW.PRE_AERATION, cut != null ? cut : 1e9), 'cleaning', 'pre_aeration');
       if (cut != null && cut <= FW.PRE_AERATION) { mark('high water cut aeration'); }
       else {
         const rest = cut != null ? cut - FW.PRE_AERATION : FW.AERATION;
-        phase('aer', rest); if (cut != null) mark('high water cut aeration');
+        phase('aer', rest, 'cleaning', 'aeration'); if (cut != null) mark('high water cut aeration');
       }
     } else mark('high water at start: skip aeration');
     for (;;) {
-      phase('valve', FW.CHEM_FILLING); phase('dose', FW.DOSING); phase('aer', FW.MIXING);
-      phase('idle', FW.SEDIMENT_1); phase('comp', FW.SLUDGE_RETURN); phase('idle', FW.SEDIMENT_2);
-      mark('pump-out'); phase('comp', FW.PUMP_OUT); batches++; mark('batch +1 = ' + batches);
+      phase('valve', FW.CHEM_FILLING, 'cleaning', 'chem_filling'); phase('dose', FW.DOSING, 'cleaning', 'dosing'); phase('aer', FW.MIXING, 'cleaning', 'mixing');
+      phase('idle', FW.SEDIMENT_1, 'cleaning', 'sedimentation_1'); phase('comp', FW.SLUDGE_RETURN, 'cleaning', 'sludge_removal'); phase('idle', FW.SEDIMENT_2, 'cleaning', 'sedimentation_2');
+      mark('pump-out'); phase('comp', FW.PUMP_OUT, 'cleaning', 'pump_out'); batches++; mark('batch +1 = ' + batches);
       if (sc.outletBlocked && sc.outletBlocked(batches)) { mark('outlet blocked: start level still on'); emit('idle', 1); continue; }
       break;
     }
@@ -86,9 +99,9 @@ function simulate(sc) {
     const start = t; mark('waiting cycle');
     for (;;) {
       const k = ++waitLoops;
-      phase('idle', FW.WAIT_2); phase('comp', FW.SLUDGE_2);
+      phase('idle', FW.WAIT_2, 'waiting', 'waiting'); phase('comp', FW.SLUDGE_2, 'waiting', 'sludge_removal');
       if (sc.highWaterInWaiting && sc.highWaterInWaiting(k)) { mark('high water in waiting check'); return 'cleaning-hw'; }
-      phase('aer', FW.AERATION_2);
+      phase('aer', FW.AERATION_2, 'waiting', 'aeration');
       if (pumpIn(FW.PUMP_IN_2, 'wait')) return 'cleaning';
       if ((t - start) / 1000 >= FW.HOLIDAY_AFTER) return 'holiday';
     }
@@ -96,14 +109,14 @@ function simulate(sc) {
   function holiday() {
     mark('holiday cycle');
     for (;;) {
-      phase('idle', FW.WAIT_3A); phase('aer', FW.AERATION_3);
+      phase('idle', FW.WAIT_3A, 'holiday', 'waiting'); phase('aer', FW.AERATION_3, 'holiday', 'aeration');
       if (pumpIn(FW.PUMP_IN_3, 'holiday')) return 'cleaning';
-      phase('idle', FW.WAIT_3B); phase('comp', FW.SLUDGE_3);
+      phase('idle', FW.WAIT_3B, 'holiday', 'waiting'); phase('comp', FW.SLUDGE_3, 'holiday', 'sludge_removal');
     }
   }
   function testCycle() {
     mark('test cycle');
-    phase('comp', 20); phase('comp', 20); phase('comp', 5); phase('valve', 90); phase('dose', 10); phase('aer', 30);
+    phase('comp', 20, 'test', 'test_comp'); phase('comp', 20); phase('comp', 5); phase('valve', 90, 'test', 'chem_filling'); phase('dose', 10, 'test', 'dosing'); phase('aer', 30, 'test', 'aeration');
     return 'waiting';
   }
 
@@ -119,14 +132,14 @@ function simulate(sc) {
       if (!(e instanceof Cut)) throw e;
       if (e.message === 'end') break;
       if (e.message === 'test') { tests.shift(); state = 'test'; continue; }
-      const c = cuts.shift(); mark('power cut ' + c.dur + ' s');
+      const c = cuts.shift(); mark('power cut ' + c.dur + ' s'); label('off', 'off');
       const until = t + c.dur * 1000; while (t < until && t < tEnd) { sample(PW.off); t += 1000; }
-      mark('power back: boot');
+      mark('power back: boot'); label('boot', 'boot');
       const g = sc.bootGapS != null ? sc.bootGapS : 6; for (let i = 0; i < g && t < tEnd; i++) { sample(PW.idle); t += 1000; }
       state = 'cleaning';
     }
   }
-  return { events: ev, marks, batches, tEnd };
+  return { events: ev, marks, batches, tEnd, gt, doses };
 }
 
 module.exports = { simulate, FW, PW };
