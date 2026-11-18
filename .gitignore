@@ -13,3 +13,5 @@ test/*.js
 !test/compare.js
 !test/eqtest.js
 !test/validate.js
+!test/shelly_device_mock.js
+!test/proto_test.js
