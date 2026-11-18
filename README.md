@@ -9,9 +9,10 @@ Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee si
 | Kansio | Sisältö |
 | --- | --- |
 | `shelly/v2/` | Skripti v2.4 (nykyinen) ja v2.3. `*_shelly.js` on tiivistetty versio, joka mahtuu Shellyn editoriin. |
+| `shelly/v3/proto/` | v3-prototyyppi 1 laitetestiin: `uponor_v3_proto.js`, `uponor_v3_listener.js` ja komponenttien varmuuskopio- ja palautustyökalu `uc_tools.js`. Ohje: `docs/v3-prototyyppitesti.md`. |
 | `shelly/tools/` | `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos). |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.5.0, ohje ja esikatselusivu. |
-| `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla, firmwaresimulaattori ja skenaariot. |
+| `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla, firmwaresimulaattori ja skenaariot. `shelly_device_mock.js` ja `proto_test.js` testaavat v3-prototyypin. |
 | `docs/` | Asennus- ja toimintadokumentaatio, firmwaren pseudokoodi ja v3-suunnitelman tiivistelmä (`v3-suunnitelma.md`). |
 
 ## Asennus (v2.4)
