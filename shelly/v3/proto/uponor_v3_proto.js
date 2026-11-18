@@ -1,19 +1,21 @@
-/* @meta {
-  "vc": {
-    "phase": {"type": "enum", "access": "rc", "config": {"name": "Phase", "options": ["unknown", "pre_aeration", "aeration", "chem_filling", "dosing", "mixing", "sedimentation_1", "sludge_removal", "sedimentation_2", "pump_out", "pump_in", "waiting", "off"], "default_value": "unknown", "persisted": false, "meta": {"ui": {"view": "label", "titles": {"unknown": "Unknown", "pre_aeration": "Pre-aeration", "aeration": "Aeration", "chem_filling": "Chemical filling", "dosing": "Dosing", "mixing": "Mixing", "sedimentation_1": "Sedimentation I", "sludge_removal": "Sludge removal", "sedimentation_2": "Sedimentation II", "pump_out": "Pump-out", "pump_in": "Pump-in", "waiting": "Waiting", "off": "No power"}}}}},
-    "cycle": {"type": "enum", "access": "rc", "config": {"name": "Cycle", "options": ["unknown", "cleaning", "waiting", "holiday", "test"], "default_value": "unknown", "persisted": false, "meta": {"ui": {"view": "label", "titles": {"unknown": "Unknown", "cleaning": "Cleaning", "waiting": "Waiting", "holiday": "Holiday", "test": "Test"}}}}},
-    "status": {"type": "text", "access": "rc", "config": {"name": "Status", "max_len": 255, "default_value": "", "persisted": false, "meta": {"ui": {"view": "label"}}}},
-    "warning": {"type": "enum", "access": "rc", "config": {"name": "Warning", "options": ["none", "no_power", "air_leak", "no_signal", "compressor_idle", "outlet_blocked", "high_water", "paused", "chemical_low", "sludge_due", "sludge_emptied"], "default_value": "none", "persisted": false, "meta": {"ui": {"view": "label", "titles": {"none": "OK", "no_power": "No power to plant", "air_leak": "High power, check air hoses", "no_signal": "Power reading missing", "compressor_idle": "Compressor not running", "outlet_blocked": "Outlet blocked?", "high_water": "High water", "paused": "Process paused?", "chemical_low": "Chemical low", "sludge_due": "Sludge emptying due", "sludge_emptied": "Sludge emptied? Set Sludge to 0"}}}}},
-    "next_pumpout": {"type": "text", "access": "rc", "config": {"name": "Next pump-out", "max_len": 32, "default_value": "", "persisted": false, "meta": {"ui": {"view": "label"}}}},
-    "batches": {"type": "number", "config": {"name": "Batches", "min": 0, "max": 999999, "default_value": 0, "persisted": true, "meta": {"ui": {"view": "field", "step": 1}}}},
-    "chemical": {"type": "number", "config": {"name": "Chemical", "min": 0, "max": 30, "default_value": 0, "persisted": true, "meta": {"ui": {"view": "field", "unit": "l", "step": 0.1}}}},
-    "sludge": {"type": "number", "config": {"name": "Sludge", "min": 0, "max": 9999, "default_value": 0, "persisted": true, "meta": {"ui": {"view": "field", "step": 1}}}},
-    "plant": {"type": "group", "config": {"name": "Uponor Clean"}, "members": ["@phase", "@cycle", "@status", "@warning", "@next_pumpout", "@batches", "@chemical", "@sludge"]}
-  }
-} */
+/* @meta {"vc": {
+"phase": {"type": "enum", "access": "rc", "config": {"name": "Phase", "options": ["unknown"]}},
+"cycle": {"type": "enum", "access": "rc", "config": {"name": "Cycle", "options": ["unknown"]}},
+"status": {"type": "text", "access": "rc", "config": {"name": "Status"}},
+"warning": {"type": "enum", "access": "rc", "config": {"name": "Warning", "options": ["none"]}},
+"next_pumpout": {"type": "text", "access": "rc", "config": {"name": "Next pump-out"}},
+"batches": {"type": "number", "config": {"name": "Batches"}},
+"chemical": {"type": "number", "config": {"name": "Chemical"}},
+"sludge": {"type": "number", "config": {"name": "Sludge"}},
+"plant": {"type": "group", "config": {"name": "Uponor Clean"}, "members": ["@phase", "@cycle", "@status", "@warning", "@next_pumpout", "@batches", "@chemical", "@sludge"]}
+}} */
 
 /*
  * Uponor Clean v3 - device prototype 1
+ *
+ * The firmware reads @meta only from the first 1024 bytes of the file, so the
+ * declaration above is minimal and the full configuration (options, titles,
+ * views, limits) is applied with setConfig() when the script starts.
  *
  * Does NOT detect anything. It checks on the real device that the v3 building
  * blocks work: components declared in @meta, read-only access, user edits of
@@ -33,6 +35,26 @@ let FIELDS = ["batches", "chemical", "sludge"];
 let PHASES = ["unknown", "pre_aeration", "aeration", "chem_filling", "dosing", "mixing", "sedimentation_1", "sludge_removal", "sedimentation_2", "pump_out", "pump_in", "waiting", "off"];
 let CYCLES = ["unknown", "cleaning", "waiting", "holiday", "test"];
 let WARNINGS = ["none", "no_power", "air_leak", "no_signal", "compressor_idle", "outlet_blocked", "high_water", "paused", "chemical_low", "sludge_due", "sludge_emptied"];
+
+// Full component configuration, applied at start (see the note on @meta above).
+let VC_CONFIG = {
+    phase: { options: PHASES, default_value: "unknown", persisted: false, meta: { ui: { view: "label", titles: {
+        unknown: "Unknown", pre_aeration: "Pre-aeration", aeration: "Aeration", chem_filling: "Chemical filling",
+        dosing: "Dosing", mixing: "Mixing", sedimentation_1: "Sedimentation I", sludge_removal: "Sludge removal",
+        sedimentation_2: "Sedimentation II", pump_out: "Pump-out", pump_in: "Pump-in", waiting: "Waiting", off: "No power" } } } },
+    cycle: { options: CYCLES, default_value: "unknown", persisted: false, meta: { ui: { view: "label", titles: {
+        unknown: "Unknown", cleaning: "Cleaning", waiting: "Waiting", holiday: "Holiday", test: "Test" } } } },
+    status: { max_len: 255, default_value: "", persisted: false, meta: { ui: { view: "label" } } },
+    warning: { options: WARNINGS, default_value: "none", persisted: false, meta: { ui: { view: "label", titles: {
+        none: "OK", no_power: "No power to plant", air_leak: "High power, check air hoses", no_signal: "Power reading missing",
+        compressor_idle: "Compressor not running", outlet_blocked: "Outlet blocked?", high_water: "High water",
+        paused: "Process paused?", chemical_low: "Chemical low", sludge_due: "Sludge emptying due",
+        sludge_emptied: "Sludge emptied? Set Sludge to 0" } } } },
+    next_pumpout: { max_len: 32, default_value: "", persisted: false, meta: { ui: { view: "label" } } },
+    batches: { min: 0, max: 999999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } },
+    chemical: { min: 0, max: 30, default_value: 0, persisted: true, meta: { ui: { view: "field", unit: "l", step: 0.1 } } },
+    sludge: { min: 0, max: 9999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } }
+};
 
 let H = {};
 let val = { phase: "unknown", cycle: "unknown", status: "", warning: "none", next_pumpout: "", batches: 0, chemical: 0, sludge: 0 };
@@ -156,6 +178,7 @@ function initHandles() {
         H[r] = Script.getVcHandle(r);
         if (H[r]) {
             ok++;
+            if (VC_CONFIG[r]) H[r].setConfig(VC_CONFIG[r]);
             let cfg = H[r].getConfig();
             log("role " + r + ": id " + (cfg ? cfg.id : "?") + ", name " + JSON.stringify(cfg ? cfg.name : ""));
         } else {

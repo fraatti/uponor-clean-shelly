@@ -90,6 +90,8 @@ class Device {
   }
 
   parseMeta(code) {
+    // device reads @meta only from the first 1024 bytes (seen 2026-11-18); roles beyond are ignored
+    if (code.indexOf('*/') > 1024) throw new Error('@meta block ends after byte 1024 (' + code.indexOf('*/') + '); roles beyond are ignored on the device');
     const lines = code.split('\n');
     let i = 0; while (i < lines.length && lines[i].trim() === '') i++;
     if (i >= lines.length || !lines[i].trim().startsWith('/* @meta')) return null;
@@ -126,9 +128,12 @@ class Device {
         if (res.err) return { err: -110, msg: `role ${r}: ${res.msg}` };
         key = `${d.type}:${res.res.id}`;
         this.comps.get(key).role = r;
+        this.comps.get(key).declared = JSON.stringify(d.config);
       } else {
         const c = this.comps.get(key);
-        Object.assign(c.config, JSON.parse(JSON.stringify(d.config)));
+        // device behaviour seen in the 2026-11-18 test: an unchanged declaration does not
+        // reset settings that the script changed later with setConfig()
+        if (c.declared !== JSON.stringify(d.config)) { Object.assign(c.config, JSON.parse(JSON.stringify(d.config))); c.declared = JSON.stringify(d.config); }
         c.access = (d.access || '*').replace('m', '');
       }
       keys[r] = key;
@@ -202,7 +207,7 @@ class Device {
         this.kvs.set(p.key, p.value); return { res: { etag: 'x', rev: 1 } };
       case 'KVS.Delete': if (!this.kvs.has(p.key)) return { err: -105, msg: 'not found' }; this.kvs.delete(p.key); return { res: { rev: 1 } };
       case 'Shelly.GetComponents': {
-        const all = [...this.comps.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([k, c]) => {
+        const all = [...this.comps.entries()].filter(([k]) => !p.keys || p.keys.includes(k)).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([k, c]) => {
           const o = { key: k };
           if (p.include && p.include.includes('status')) o.status = c.type === 'group' ? { value: c.value.slice() } : { value: c.value };
           if (p.include && p.include.includes('config')) o.config = JSON.parse(JSON.stringify(c.config));

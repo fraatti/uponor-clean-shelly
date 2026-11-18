@@ -24,53 +24,74 @@ function log(s) {
     print(TOOL + s);
 }
 
-// Runs RPC calls one at a time (scripts may have at most 5 calls in flight).
-function runSequence(list, done) {
+let failedCalls = 0;
+
+// One RPC call; the next step starts from its callback, so at most one call
+// is in flight and only one backup record is in memory at a time.
+function callOne(m, p, next) {
+    Shelly.call(m, p, function (res, err, msg) {
+        let what = m + " " + (p.key || p.type || "") + " " + (p.id !== undefined ? p.id : "");
+        if (err) {
+            failedCalls++;
+            log("FAILED " + what + " -> " + err + " " + msg);
+        } else {
+            log("ok " + what);
+        }
+        next();
+    });
+}
+
+// Lists the keys of all dynamic components (small responses, follows paging).
+function listKeys(cb) {
+    let keys = [];
+    function page(offset) {
+        Shelly.call("Shelly.GetComponents", { dynamic_only: true, offset: offset }, function (res, err, msg) {
+            if (err || !res) {
+                log("Shelly.GetComponents failed: " + err + " " + msg);
+                cb(null);
+                return;
+            }
+            let list = res.components || [];
+            for (let k = 0; k < list.length; k++) {
+                keys.push({ key: list[k].key, owner: (list[k].attrs && list[k].attrs.owner) ? list[k].attrs.owner : "" });
+            }
+            if (list.length > 0 && keys.length < res.total) page(keys.length);
+            else cb(keys);
+        });
+    }
+    page(0);
+}
+
+// Reads one component at a time to keep the script's memory use small
+// (a single response with all configs runs a script out of memory).
+function eachComponent(keys, fn, done) {
     let i = 0;
-    let failed = 0;
     function next() {
-        if (i >= list.length) {
-            log("Done: " + list.length + " calls, " + failed + " failed.");
-            if (done) done(failed);
+        if (i >= keys.length) {
+            if (done) done();
             return;
         }
-        let it = list[i];
+        let k = keys[i];
         i++;
-        Shelly.call(it.m, it.p, function (res, err, msg) {
-            if (err) {
-                failed++;
-                log("FAILED " + it.m + " " + JSON.stringify(it.p) + " -> " + err + " " + msg);
-            } else {
-                log("ok " + it.m + " " + (it.p.key || it.p.type || "") + " " + (it.p.id !== undefined ? it.p.id : ""));
-            }
+        Shelly.call("Shelly.GetComponents", { keys: [k.key], include: ["config", "status"] }, function (res, err, msg) {
+            let c = (res && res.components && res.components.length) ? res.components[0] : null;
+            if (err || !c) log("read " + k.key + " failed: " + err + " " + msg);
+            else fn(c, k.owner);
             next();
         });
     }
     next();
 }
 
-// Reads all dynamic components, following the paging of Shelly.GetComponents.
-function readComponents(cb) {
-    let all = [];
-    function page(offset) {
-        Shelly.call("Shelly.GetComponents",
-            { dynamic_only: true, include: ["config", "status"], offset: offset },
-            function (res, err, msg) {
-                if (err || !res) {
-                    log("Shelly.GetComponents failed: " + err + " " + msg);
-                    cb(null);
-                    return;
-                }
-                let list = res.components || [];
-                for (let k = 0; k < list.length; k++) all.push(list[k]);
-                if (list.length > 0 && all.length < res.total) {
-                    page(all.length);
-                } else {
-                    cb(all);
-                }
-            });
-    }
-    page(0);
+function showCurrent(cb) {
+    listKeys(function (keys) {
+        if (!keys) { if (cb) cb(); return; }
+        log("Current dynamic components: " + keys.length);
+        for (let i = 0; i < keys.length; i++) {
+            log("  " + keys[i].key + (keys[i].owner ? "  owner=" + keys[i].owner : ""));
+        }
+        if (cb) cb();
+    });
 }
 
 function typeOf(key) {
@@ -86,125 +107,86 @@ function isVirtualType(t) {
         t === "enum" || t === "group" || t === "button";
 }
 
-function ownerOf(c) {
-    if (c.attrs && c.attrs.owner) return c.attrs.owner;
-    return "";
-}
-
 function storedCount() {
     let n = Script.storage.getItem("n");
     if (typeof n !== "string") return 0;
     return Number(n);
 }
 
-function readBackup() {
-    let n = storedCount();
-    let recs = [];
-    for (let i = 0; i < n; i++) {
-        let s = Script.storage.getItem("c" + i);
-        if (typeof s !== "string") {
-            log("Backup item c" + i + " missing.");
-            return null;
-        }
-        recs.push(JSON.parse(s));
-    }
-    return recs;
-}
-
-function showCurrent(all) {
-    log("Current dynamic components: " + all.length);
-    for (let i = 0; i < all.length; i++) {
-        let c = all[i];
-        let name = c.config && c.config.name ? c.config.name : "";
-        let own = ownerOf(c);
-        log("  " + c.key + "  " + JSON.stringify(name) + (own ? "  owner=" + own : ""));
-    }
-}
-
 function doShow() {
-    readComponents(function (all) {
-        if (all) showCurrent(all);
-        let recs = readBackup();
-        if (!recs || recs.length === 0) {
+    showCurrent(function () {
+        let n = storedCount();
+        if (n === 0) {
             log("No backup stored.");
             return;
         }
-        log("Stored backup: " + recs.length + " components, taken " + Script.storage.getItem("t"));
-        for (let i = 0; i < recs.length; i++) {
-            log("  " + recs[i].k + "  " + JSON.stringify(recs[i].c.name || ""));
+        log("Stored backup: " + n + " components, taken " + Script.storage.getItem("t"));
+        for (let i = 0; i < n; i++) {
+            let r = storedRec(i);
+            log("  " + (r ? r.k + "  " + JSON.stringify(r.c.name || "") : "c" + i + " missing"));
         }
     });
 }
 
 function doBackup() {
-    readComponents(function (all) {
-        if (!all) return;
-        showCurrent(all);
-        let recs = [];
-        for (let i = 0; i < all.length; i++) {
-            let c = all[i];
+    listKeys(function (keys) {
+        if (!keys) return;
+        let todo = [];
+        for (let i = 0; i < keys.length; i++) {
+            if (!isVirtualType(typeOf(keys[i].key))) continue;
+            if (keys[i].owner !== "") continue;   // owned by a script or service
+            todo.push(keys[i]);
+        }
+        if (todo.length === 0) {
+            log("Nothing to back up.");
+            return;
+        }
+        if (todo.length > 10) {
+            log("Too many components for Script.storage (" + todo.length + "). Nothing stored.");
+            return;
+        }
+        let n = 0;
+        let bad = false;
+        eachComponent(todo, function (c) {
             let t = typeOf(c.key);
-            if (!isVirtualType(t)) continue;
-            if (ownerOf(c) !== "") continue;   // owned by a script or service
             let cfg = c.config || {};
             let copy = {};
-            let keys = Object.keys(cfg);
-            for (let j = 0; j < keys.length; j++) {
-                if (keys[j] !== "id") copy[keys[j]] = cfg[keys[j]];
+            let ks = Object.keys(cfg);
+            for (let j = 0; j < ks.length; j++) {
+                if (ks[j] !== "id") copy[ks[j]] = cfg[ks[j]];
             }
             let rec = { k: c.key, c: copy };
             if (c.status && c.status.value !== undefined) {
                 if (t === "group") rec.m = c.status.value;
                 else if (t !== "button") rec.v = c.status.value;
             }
-            recs.push(rec);
-        }
-        if (recs.length === 0) {
-            log("Nothing to back up.");
-            return;
-        }
-        if (recs.length > 10) {
-            log("Too many components for Script.storage (" + recs.length + "). Nothing stored.");
-            return;
-        }
-        for (let i = 0; i < recs.length; i++) {
-            let s = JSON.stringify(recs[i]);
+            let s = JSON.stringify(rec);
             if (s.length > MAX_ITEM) {
-                log("Component " + recs[i].k + " config is " + s.length + " bytes, too long. Nothing stored.");
+                log("Component " + c.key + " config is " + s.length + " bytes, too long.");
+                bad = true;
                 return;
             }
-        }
-        // Old items beyond the new count are ignored, because "n" tells the count.
-        for (let i = 0; i < recs.length; i++) {
-            let s = JSON.stringify(recs[i]);
-            Script.storage.setItem("c" + i, s);
+            Script.storage.setItem("c" + n, s);
+            n++;
             print("BACKUP " + s);
-        }
-        let st = Shelly.getComponentStatus("sys");
-        Script.storage.setItem("t", st && st.unixtime ? String(st.unixtime) : "unknown");
-        Script.storage.setItem("n", String(recs.length));
-        log("Backup stored: " + recs.length + " components. Copy the BACKUP lines above to a text file.");
+        }, function () {
+            if (bad || n !== todo.length) {
+                Script.storage.setItem("n", "0");
+                log("Backup FAILED: " + n + " of " + todo.length + " stored. Nothing will be deleted.");
+                return;
+            }
+            let st = Shelly.getComponentStatus("sys");
+            Script.storage.setItem("t", st && st.unixtime ? String(st.unixtime) : "unknown");
+            Script.storage.setItem("n", String(n));
+            log("Backup stored: " + n + " components. Copy the BACKUP lines above to a text file.");
+        });
     });
 }
 
-function doDelete() {
-    let recs = readBackup();
-    if (!recs || recs.length === 0) {
-        log("No backup stored. Run MODE = \"backup\" first.");
-        return;
-    }
-    let list = [];
-    // groups first, then members
-    for (let i = 0; i < recs.length; i++) {
-        if (typeOf(recs[i].k) === "group") list.push({ m: "Virtual.Delete", p: { key: recs[i].k } });
-    }
-    for (let i = 0; i < recs.length; i++) {
-        if (typeOf(recs[i].k) !== "group") list.push({ m: "Virtual.Delete", p: { key: recs[i].k } });
-    }
-    log("Deleting " + list.length + " components listed in the backup.");
-    runSequence(list, function () {
-        readComponents(function (all) { if (all) showCurrent(all); });
-    });
+function storedRec(i) {
+    let s = Script.storage.getItem("c" + i);
+    if (typeof s !== "string") return null;
+    return JSON.parse(s);
 }
 
 function setMethod(t) {
@@ -215,41 +197,101 @@ function setMethod(t) {
     return "";
 }
 
-function doRestore() {
-    let recs = readBackup();
-    if (!recs || recs.length === 0) {
-        log("No backup stored.");
+function deleteWanted(pass, r) {
+    let isGroup = typeOf(r.k) === "group";
+    return (pass === "g" && isGroup) || (pass === "o" && !isGroup);
+}
+
+// pass "g": delete groups, pass "o": delete the other components.
+// Skips records in a loop (no recursion) and makes one call at a time.
+function deletePass(pass, i, done) {
+    let n = storedCount();
+    let r = null;
+    while (i < n) {
+        r = storedRec(i);
+        if (r && deleteWanted(pass, r)) break;
+        r = null;
+        i++;
+    }
+    if (!r) {
+        done();
         return;
     }
-    let list = [];
-    for (let i = 0; i < recs.length; i++) {
-        let t = typeOf(recs[i].k);
-        if (t === "group") continue;
-        list.push({ m: "Virtual.Add", p: { type: t, id: idOf(recs[i].k), config: recs[i].c } });
+    let next = i + 1;
+    callOne("Virtual.Delete", { key: r.k }, function () { deletePass(pass, next, done); });
+}
+
+function doDelete() {
+    let n = storedCount();
+    if (n === 0) {
+        log("No backup stored. Run MODE = \"backup\" first.");
+        return;
     }
-    for (let i = 0; i < recs.length; i++) {
-        let t = typeOf(recs[i].k);
-        if (t !== "group") continue;
-        list.push({ m: "Virtual.Add", p: { type: t, id: idOf(recs[i].k), config: recs[i].c } });
-    }
-    for (let i = 0; i < recs.length; i++) {
-        let t = typeOf(recs[i].k);
-        let m = setMethod(t);
-        if (m !== "" && recs[i].v !== undefined && recs[i].v !== null) {
-            list.push({ m: m, p: { id: idOf(recs[i].k), value: recs[i].v } });
-        }
-        if (t === "group" && recs[i].m) {
-            list.push({ m: "Group.Set", p: { id: idOf(recs[i].k), value: recs[i].m } });
+    for (let i = 0; i < n; i++) {
+        if (typeof Script.storage.getItem("c" + i) !== "string") {
+            log("Backup item c" + i + " missing. Nothing deleted.");
+            return;
         }
     }
-    log("Restoring " + recs.length + " components with " + list.length + " calls.");
-    runSequence(list, function () {
-        readComponents(function (all) { if (all) showCurrent(all); });
+    log("Deleting " + n + " components listed in the backup.");
+    deletePass("g", 0, function () {
+        deletePass("o", 0, function () {
+            log("Done, " + failedCalls + " failed.");
+            showCurrent();
+        });
     });
 }
 
-log("Mode: " + MODE);
-if (MODE === "backup") doBackup();
-else if (MODE === "delete") doDelete();
-else if (MODE === "restore") doRestore();
-else doShow();
+// pass 1: add components, pass 2: add groups, pass 3: restore values and group members
+function restoreCall(pass, r) {
+    let t = typeOf(r.k);
+    let id = idOf(r.k);
+    if (pass === 1 && t !== "group") return { m: "Virtual.Add", p: { type: t, id: id, config: r.c } };
+    if (pass === 2 && t === "group") return { m: "Virtual.Add", p: { type: t, id: id, config: r.c } };
+    if (pass === 3 && setMethod(t) !== "" && r.v !== undefined && r.v !== null) return { m: setMethod(t), p: { id: id, value: r.v } };
+    if (pass === 3 && t === "group" && r.m) return { m: "Group.Set", p: { id: id, value: r.m } };
+    return null;
+}
+
+function restorePass(pass, i, done) {
+    let n = storedCount();
+    let c = null;
+    while (i < n) {
+        let r = storedRec(i);
+        if (r) c = restoreCall(pass, r);
+        if (c) break;
+        i++;
+    }
+    if (!c) {
+        done();
+        return;
+    }
+    let next = i + 1;
+    callOne(c.m, c.p, function () { restorePass(pass, next, done); });
+}
+
+function doRestore() {
+    let n = storedCount();
+    if (n === 0) {
+        log("No backup stored.");
+        return;
+    }
+    log("Restoring " + n + " components.");
+    restorePass(1, 0, function () {
+        restorePass(2, 0, function () {
+            restorePass(3, 0, function () {
+                log("Done, " + failedCalls + " failed.");
+                showCurrent();
+            });
+        });
+    });
+}
+
+// Started from a timer so that the work does not run inside the initial file execution.
+Timer.set(200, false, function () {
+    log("Mode: " + MODE);
+    if (MODE === "backup") doBackup();
+    else if (MODE === "delete") doDelete();
+    else if (MODE === "restore") doRestore();
+    else doShow();
+});
