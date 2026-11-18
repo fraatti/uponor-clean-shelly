@@ -35,3 +35,16 @@ node proto_test.js        # -v näyttää skriptien konsolin
 ```
 
 Testi ajaa koko laitetestin kulun: varmuuskopio, v2.4-komponenttien poisto, prototyyppi, kuuntelija, käyttäjän muokkaus, uudelleenkäynnistys, uudelleenasennus ja palautus. Dokumentoimattomat yksityiskohdat (esim. tapahtumaolion tarkka muoto) on merkitty jäljitelmään oletuksiksi; laitetesti varmistaa ne.
+
+## v3
+
+```
+cd test
+cp ../shelly/v2/puhdistamo_skripti_v2_4.js .     # vertailua varten
+node v3_scenarios.js        # firmwaresimulaattorin skenaariot (-v: konsoli, suodatin nimen osalla)
+node v3_realdata.js         # tallennettu data, vertailu v2.4:ään (data/*.csv)
+node v3_device_test.js      # komponentit, käyttäjän muokkaukset, KVS-siirtymä, uudelleenasennus
+V3_FILE=../shelly/v3/uponor_clean_v3_shelly.js node v3_scenarios.js   # tiivistetty versio
+```
+
+`v3run.js` ajaa skriptin jäljitelmässä tehosyötteen kanssa (sähkökatkot Shellyn kanssa tai ilman, Shellyn ja skriptin uudelleenkäynnistykset, käyttäjän muokkaukset) ja vertaa vaiheita simulaattorin todellisiin vaiheisiin. Simulaattori (`fwsim.js`) kirjaa jokaisen vaiheen alun ja annostelut, ja siinä voi pysäyttää prosessin paneelista (`pauses`). Tulokset: `docs/v3-testitulokset.md`.

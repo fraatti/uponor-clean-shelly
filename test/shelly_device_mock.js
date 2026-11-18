@@ -301,7 +301,7 @@ class Device {
     return {
       print: (...a) => dev.log(sid, a.join(' ')),
       console: { log: (...a) => dev.log(sid, a.join(' ')) },
-      JSON, Math, Date: class extends Date { constructor(...a) { if (a.length) super(...a); else super(dev.t); } },
+      JSON, Math, Date: class extends Date { constructor(...a) { if (a.length) super(...a); else super(dev.t); } static UTC() { throw new Error('Function "UTC" not found! (device 2.2.0)'); } static parse() { throw new Error('Function "parse" not found? (not verified on the device)'); } },
       Number, String, Object, Array,
       Timer: {
         set: (ms, repeat, cb, ud) => {

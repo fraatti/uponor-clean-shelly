@@ -13,58 +13,60 @@
 let VERSION = "3.0.0";
 let CFG = {
  off_max: 2.0, idle_max: 10.0, valve_max: 24.0, dosing_max: 38.5, comp_max: 52.0, aer_max: 64.0,
- idle_power: 4.0, nominal_voltage: 230,
  debounce_s: 6,
- valve_debounce_s: 10,
- dosing_debounce_s: 6,
- peak_max_s: 12,
- tol_s: 90,
- restart_aeration_s: 1860,
- pumpout_detect_s: 540,
- holiday_wait_detect_s: 1200,
- holiday_min_since_batch_s: 252000,
- pause_margin_s: 300,
- boot_window_s: 300, boot_aer_wait_s: 360,
- dose_l: 0.04, chem_warn_days: 10, default_doses_per_day: 2,
+ dose_l: 0.04,
+ chem_warn_days: 10,
  sludge_limit: 800,
- emptying_hint: true, emptying_delta_w: 0.7, emptying_count: 3, emptying_min_sludge: 100,
- fault_high_w: 62.0, fault_high_s: 120, fault_off_s: 60, fault_signal_s: 600, fault_idle_s: 14400,
+ emptying_hint: true,
+ fault_high_w: 62.0,
  legacy_kvs: true
 };
 let FW = {
  pre: 600, aer: 5400, chem: 90, dose: 10, mix: 120, sed1: 2700, sludge: 120, sed2: 900, out: 780, in_max: 1020,
  wait: 1080, w_sludge: 60, w_aer: 1800, w_in: 600, holiday_after: 256200,
- h_wait1: 3000, h_aer: 600, h_in: 600, h_wait2: 6000, h_sludge: 60
+ h_wait1: 3000, h_aer: 600, h_wait2: 6000
 };
-let ETA_FROM = { pre_aeration: 9950, aeration: 9350, chem_filling: 3940, dosing: 3850, mixing: 3840, sedimentation_1: 3720, sludge_removal: 1020, sedimentation_2: 900 };
-let PHASES = ["unknown", "pre_aeration", "aeration", "chem_filling", "dosing", "mixing", "sedimentation_1", "sludge_removal", "sedimentation_2", "pump_out", "pump_in", "waiting", "off"];
-let CYCLES = ["unknown", "cleaning", "waiting", "holiday", "test"];
-let WARNINGS = ["none", "no_power", "air_leak", "no_signal", "compressor_idle", "outlet_blocked", "high_water", "paused", "chemical_low", "sludge_due", "sludge_emptied"];
-let W_TITLE = {
- none: "OK", no_power: "No power to plant", air_leak: "High power, check air hoses", no_signal: "Power reading missing",
- compressor_idle: "Compressor not running", outlet_blocked: "Outlet blocked?", high_water: "High water",
- paused: "Process paused?", chemical_low: "Chemical low", sludge_due: "Sludge emptying due",
- sludge_emptied: "Sludge emptied? Set Sludge to 0"
-};
-let S_CODE = {
- cleaning: { pre_aeration: "S102", aeration: "S103", chem_filling: "S104", dosing: "S105", mixing: "S106", sedimentation_1: "S107", sludge_removal: "S108", sedimentation_2: "S109", pump_out: "S110", pump_in: "S112" },
- waiting: { waiting: "S201", sludge_removal: "S202", aeration: "S204", pump_in: "S205" }
-};
-let VC_CONFIG = {
- phase: { options: PHASES, default_value: "unknown", persisted: false, meta: { ui: { view: "label", titles: {
-  unknown: "Unknown", pre_aeration: "Pre-aeration", aeration: "Aeration", chem_filling: "Chemical filling",
-  dosing: "Dosing", mixing: "Mixing", sedimentation_1: "Sedimentation I", sludge_removal: "Sludge removal",
-  sedimentation_2: "Sedimentation II", pump_out: "Pump-out", pump_in: "Pump-in", waiting: "Waiting", off: "No power" } } } },
- cycle: { options: CYCLES, default_value: "unknown", persisted: false, meta: { ui: { view: "label", titles: {
-  unknown: "Unknown", cleaning: "Cleaning", waiting: "Waiting", holiday: "Holiday", test: "Test" } } } },
- status: { max_len: 255, default_value: "", persisted: false, meta: { ui: { view: "label" } } },
- warning: { options: WARNINGS, default_value: "none", persisted: false, meta: { ui: { view: "label", titles: W_TITLE } } },
- next_pumpout: { max_len: 32, default_value: "", persisted: false, meta: { ui: { view: "label" } } },
- batches: { min: 0, max: 999999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } },
- chemical: { min: 0, max: 30, default_value: 0, persisted: true, meta: { ui: { view: "field", unit: "l", step: 0.1 } } },
- sludge: { min: 0, max: 9999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } }
-};
-let ROLES = ["phase", "cycle", "status", "warning", "next_pumpout", "batches", "chemical", "sludge"];
+function cleaningSeq() {
+ return ["pre_aeration", "aeration", "chem_filling", "dosing", "mixing", "sedimentation_1", "sludge_removal", "sedimentation_2", "pump_out", "pump_in"];
+}
+function etaFrom(ph) {
+ let i = cleaningSeq().indexOf(ph);
+ return i >= 0 && i < 8 ? [9950, 9350, 3940, 3850, 3840, 3720, 1020, 900][i] : null;
+}
+function warnKeys() {
+ return ["none", "no_power", "air_leak", "no_signal", "compressor_idle", "outlet_blocked", "high_water", "paused", "chemical_low", "sludge_due", "sludge_emptied"];
+}
+function warnTitle(k) {
+ let t = ["OK", "No power to plant", "High power, check air hoses", "Power reading missing", "Compressor not running",
+  "Outlet blocked?", "High water", "Process paused?", "Chemical low", "Sludge emptying due", "Sludge emptied? Set Sludge to 0"];
+ return t[warnKeys().indexOf(k)];
+}
+function vcConfig(role) {
+ let label = { ui: { view: "label" } };
+ if (role === "phase") {
+  let ph = ["unknown"].concat(cleaningSeq()).concat(["waiting", "off"]);
+  let tt = ["Unknown", "Pre-aeration", "Aeration", "Chemical filling", "Dosing", "Mixing", "Sedimentation I",
+   "Sludge removal", "Sedimentation II", "Pump-out", "Pump-in", "Waiting", "No power"];
+  let titles = {};
+  for (let i = 0; i < ph.length; i++) titles[ph[i]] = tt[i];
+  return { options: ph, default_value: "unknown", persisted: false, meta: { ui: { view: "label", titles: titles } } };
+ }
+ if (role === "cycle") {
+  return { options: ["unknown", "cleaning", "waiting", "holiday", "test"], default_value: "unknown", persisted: false,
+   meta: { ui: { view: "label", titles: { unknown: "Unknown", cleaning: "Cleaning", waiting: "Waiting", holiday: "Holiday", test: "Test" } } } };
+ }
+ if (role === "warning") {
+  let ks = warnKeys();
+  let wt = {};
+  for (let j = 0; j < ks.length; j++) wt[ks[j]] = warnTitle(ks[j]);
+  return { options: ks, default_value: "none", persisted: false, meta: { ui: { view: "label", titles: wt } } };
+ }
+ if (role === "status") return { max_len: 255, default_value: "", persisted: false, meta: label };
+ if (role === "next_pumpout") return { max_len: 32, default_value: "", persisted: false, meta: label };
+ if (role === "batches") return { min: 0, max: 999999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } };
+ if (role === "chemical") return { min: 0, max: 30, default_value: 0, persisted: true, meta: { ui: { view: "field", unit: "l", step: 0.1 } } };
+ return { min: 0, max: 9999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } };
+}
 let H = {};
 let shown = {};
 let fieldWritten = { batches: null, chemical: null, sludge: null };
@@ -92,11 +94,8 @@ function log(s) {
 function upS() {
  return Shelly.getUptimeMs() / 1000;
 }
-function sysStatus() {
- return Shelly.getComponentStatus("sys");
-}
 function nowUnix() {
- let s = sysStatus();
+ let s = Shelly.getComponentStatus("sys");
  if (s && typeof s.unixtime === "number") return s.unixtime;
  return null;
 }
@@ -105,19 +104,14 @@ function unixAt(tUp) {
  if (n === null) return null;
  return Math.round(n - (upS() - tUp));
 }
-function upAt(unix) {
- let n = nowUnix();
- if (n === null || unix === null) return null;
- return upS() - (n - unix);
-}
 function near(x, target) {
- return x >= 0 && Math.abs(x - target) <= CFG.tol_s;
+ return x >= 0 && Math.abs(x - target) <= 90;
 }
 function pad2(n) {
  return n < 10 ? "0" + n : "" + n;
 }
 function localOffsetMin() {
- let s = sysStatus();
+ let s = Shelly.getComponentStatus("sys");
  if (!s || typeof s.unixtime !== "number" || typeof s.time !== "string") return null;
  let parts = s.time.split(":");
  let d = Number(parts[0]) * 60 + Number(parts[1]) - Math.floor((s.unixtime % 86400) / 60);
@@ -150,23 +144,10 @@ function isoLocal(unix) {
  return c[0] + "-" + pad2(c[1]) + "-" + pad2(c[2]) + "T" + pad2(c[3]) + ":" + pad2(c[4]) + ":" + pad2(c[5]) +
   (c[6] < 0 ? "-" : "+") + pad2(Math.floor(ao / 60)) + ":" + pad2(ao % 60);
 }
-function hhmm(unix) {
+function timeText(unix, full) {
  let c = civil(unix);
- return c ? pad2(c[3]) + ":" + pad2(c[4]) : "";
-}
-function dateTime(unix) {
- let c = civil(unix);
- return c ? c[0] + "-" + pad2(c[1]) + "-" + pad2(c[2]) + " " + pad2(c[3]) + ":" + pad2(c[4]) : "";
-}
-function localDay(unix) {
- let off = localOffsetMin();
- if (off === null || unix === null) return null;
- return Math.floor((unix + off * 60) / 86400);
-}
-function durText(s) {
- let m = Math.max(0, Math.round(s / 60));
- if (m < 60) return m + " min";
- return Math.floor(m / 60) + " h " + (m % 60) + " min";
+ if (!c) return "";
+ return (full ? c[0] + "-" + pad2(c[1]) + "-" + pad2(c[2]) + " " : "") + pad2(c[3]) + ":" + pad2(c[4]);
 }
 function emit(type, data) {
  data.v = 1;
@@ -238,29 +219,32 @@ function etaUnix() {
  return unixAt(st.etaUp);
 }
 function phaseCode() {
- let t = S_CODE[st.cyc];
- return t && t[st.ph] ? t[st.ph] : "";
+ let i = st.cyc === "cleaning" ? cleaningSeq().indexOf(st.ph) : -1;
+ if (i >= 0) return "S1" + pad2(i === 9 ? 12 : i + 2);
+ i = st.cyc === "waiting" ? ["waiting", "sludge_removal", "", "aeration", "pump_in"].indexOf(st.ph) : -1;
+ return i >= 0 ? "S20" + (i + 1) : "";
 }
 function statusText() {
  let now = upS();
  let synced = nowUnix() !== null;
- let last = cnt.lastBatchUnix ? dateTime(cnt.lastBatchUnix) : "unknown";
+ let last = cnt.lastBatchUnix ? timeText(cnt.lastBatchUnix, true) : "unknown";
  let s;
- if (st.ph === "off") s = "No power" + (st.offSinceUnix ? " since " + hhmm(st.offSinceUnix) : "");
+ if (st.ph === "off") s = "No power" + (st.offSinceUnix ? " since " + timeText(st.offSinceUnix) : "");
  else if (st.restart) s = "Starting after power cut";
  else if (st.ph === "unknown") s = "Synchronising";
  else if (st.cyc === "test") s = "Test cycle";
- else if (st.ph === "pump_out") s = "Pumping out" + (synced ? ", ends " + hhmm(unixAt(st.pumpOutStart + FW.out)) : "");
+ else if (st.ph === "pump_out") s = "Pumping out" + (synced ? ", ends " + timeText(unixAt(st.pumpOutStart + FW.out)) : "");
  else if (st.etaUp !== null) {
-  let left = st.etaUp - now;
+  let m = Math.max(0, Math.round((st.etaUp - now) / 60));
+  let left = (m >= 60 ? Math.floor(m / 60) + " h " : "") + (m % 60) + " min";
   s = (st.restarted ? "Restarted after power cut | " : "") +
-   (synced ? "Pump-out at " + hhmm(etaUnix()) + " (in " + durText(left) + ")" : "Pump-out in " + durText(left));
+   (synced ? "Pump-out at " + timeText(etaUnix()) + " (in " + left + ")" : "Pump-out in " + left);
  }
  else if (st.ph === "pump_in") s = "Pumping in | last pump-out " + last;
- else if (st.cyc === "holiday") s = "Holiday mode" + (st.holidayUnix ? " since " + dateTime(st.holidayUnix) : "") + " | last pump-out " + last;
+ else if (st.cyc === "holiday") s = "Holiday mode" + (st.holidayUnix ? " since " + timeText(st.holidayUnix, true) : "") + " | last pump-out " + last;
  else if (st.cyc === "waiting") s = "Waiting for wastewater | last pump-out " + last;
  else s = "Last pump-out " + last;
- if (topWarning !== "none") s += " | " + W_TITLE[topWarning];
+ if (topWarning !== "none") s += " | " + warnTitle(topWarning);
  return s;
 }
 function refreshOutputs(force) {
@@ -289,7 +273,8 @@ function setPhase(cyc, ph, startUp) {
  refreshOutputs(true);
 }
 function anchorEta(ph, startUp) {
- st.etaUp = ETA_FROM[ph] !== undefined ? startUp + ETA_FROM[ph] : null;
+ let e = etaFrom(ph);
+ st.etaUp = e === null ? null : startUp + e;
 }
 function setWarning(key, on) {
  on = !!on;
@@ -297,9 +282,10 @@ function setWarning(key, on) {
  warn[key] = on;
  emit("warning", { key: key, on: on });
  let top = "none";
- for (let i = 1; i < WARNINGS.length; i++) {
-  if (warn[WARNINGS[i]]) {
-   top = WARNINGS[i];
+ let ks = warnKeys();
+ for (let i = 1; i < ks.length; i++) {
+  if (warn[ks[i]]) {
+   top = ks[i];
    break;
   }
  }
@@ -309,32 +295,27 @@ function setWarning(key, on) {
   refreshOutputs(true);
  }
 }
-function dosesPerDay() {
- let sum = 0;
- let n = 0;
- for (let i = 1; i < cnt.doses.length; i++) {
-  sum += cnt.doses[i];
-  n++;
- }
- if (n < 3) return CFG.default_doses_per_day;
- return Math.max(0.2, sum / n);
-}
 function chemDaysLeft() {
  if (cnt.chem === null) return null;
- return cnt.chem / (CFG.dose_l * dosesPerDay());
+ let sum = 0;
+ let n = cnt.doses.length - 1;
+ for (let i = 1; i <= n; i++) sum += cnt.doses[i];
+ return cnt.chem / (CFG.dose_l * (n < 3 ? 2 : Math.max(0.2, sum / n)));
 }
 function checkCounters() {
  let d = chemDaysLeft();
  setWarning("chemical_low", d !== null && d < CFG.chem_warn_days);
  setWarning("sludge_due", CFG.sludge_limit > 0 && cnt.sludge >= CFG.sludge_limit);
- if (base.hintSince !== null && (cnt.sludge < CFG.emptying_min_sludge || upS() - base.hintSince > 259200)) {
+ if (base.hintSince !== null && (cnt.sludge < 100 || upS() - base.hintSince > 259200)) {
   base.hintSince = null;
   setWarning("sludge_emptied", false);
  }
 }
 function rollChemDay() {
- let day = localDay(nowUnix());
- if (day === null) return;
+ let off = localOffsetMin();
+ let n = nowUnix();
+ if (off === null || n === null) return;
+ let day = Math.floor((n + off * 60) / 86400);
  if (cnt.chemDay === 0) cnt.chemDay = day;
  let shift = day - cnt.chemDay;
  if (shift <= 0) return;
@@ -378,10 +359,10 @@ function pumpInSample(avgW) {
   base.pin = avgW;
   return;
  }
- if (avgW >= base.pin + CFG.emptying_delta_w) {
+ if (avgW >= base.pin + 0.7) {
   base.elevated++;
-  if (base.elevated >= CFG.emptying_count) {
-   if (cnt.sludge >= CFG.emptying_min_sludge && base.hintSince === null) {
+  if (base.elevated >= 3) {
+   if (cnt.sludge >= 100 && base.hintSince === null) {
     base.hintSince = upS();
     setWarning("sludge_emptied", true);
    }
@@ -412,14 +393,10 @@ function enterWaiting(tUp, newEntry) {
  setWarning("high_water", false);
  setPhase("waiting", "waiting", tUp);
 }
-function holidayDue(tUp) {
- let e = unixAt(tUp);
- return e !== null && st.waitEntryUnix !== null && e - st.waitEntryUnix >= FW.holiday_after - 60;
-}
 function holidayPossible() {
  let n = nowUnix();
  if (n !== null && st.waitEntryUnix !== null) return n - st.waitEntryUnix >= FW.holiday_after - 3600;
- if (n !== null && cnt.lastBatchUnix !== null) return n - cnt.lastBatchUnix >= CFG.holiday_min_since_batch_s;
+ if (n !== null && cnt.lastBatchUnix !== null) return n - cnt.lastBatchUnix >= 252000;
  return cnt.lastBatchUnix === null;
 }
 function enterHoliday(sub, tUp) {
@@ -470,9 +447,6 @@ function unknownPhase(tUp, why) {
  setPhase("unknown", "unknown", tUp);
  if (why) log("sync lost: " + why);
 }
-function isWait() {
- return st.ph === "waiting" && (st.cyc === "waiting" || st.cyc === "holiday");
-}
 function holdPhase(t, why) {
  st.hold = { cyc: st.cyc, ph: st.ph, sub: st.sub, at: t, ps: st.phStart, eta: st.etaUp, aer: st.aerStart, po: st.pumpOutStart };
  unknownPhase(t, why);
@@ -521,18 +495,19 @@ function toIdle(from, dur, peaks, t) {
   pumpInEnded();
   if (st.cyc === "holiday") enterHoliday("w2", t);
   else if (st.cyc === "waiting") {
-   if (holidayDue(t)) enterHoliday("w1", t);
+   let e = unixAt(t);
+   if (e !== null && st.waitEntryUnix !== null && e - st.waitEntryUnix >= FW.holiday_after - 60) enterHoliday("w1", t);
    else enterWaiting(t, false);
   }
   else enterWaiting(t, st.cyc === "cleaning" || near(dur, FW.in_max));
  } else if (st.ph === "sludge_removal") enterHoliday("w1", t);
  else if (st.ph === "unknown" && peaks === 0 && dur > 90 && near(dur, FW.sludge)) cleaningStep("sedimentation_2", t);
- else if (st.ph === "unknown" && peaks === 0 && near(dur, FW.h_sludge)) enterHoliday("w1", t);
+ else if (st.ph === "unknown" && peaks === 0 && near(dur, FW.w_sludge)) enterHoliday("w1", t);
  else unknownPhase(t, "");
 }
 function toComp(from, dur, peaks, t) {
  if (from === "IDLE") {
-  let w = isWait();
+  let w = st.ph === "waiting" && (st.cyc === "waiting" || st.cyc === "holiday");
   if (st.ph === "sedimentation_1") cleaningStep("sludge_removal", t);
   else if (st.ph === "sedimentation_2") pumpOutStarts(t, true);
   else if (st.afterPumpOut) {
@@ -579,10 +554,10 @@ function toAer(from, dur, peaks, t) {
   return;
  }
  if (from === "IDLE") {
-  let w = isWait();
+  let w = st.ph === "waiting" && (st.cyc === "waiting" || st.cyc === "holiday");
   if (st.afterPumpOut) startCleaning(t, "start level reached");
   else if (w && st.cyc === "holiday" && st.sub !== "w2") holidayStep("aeration", t, t);
-  else if (w && (st.cyc === "holiday" || dur >= CFG.holiday_wait_detect_s)) holidayStep("aeration", t, t - dur);
+  else if (w && (st.cyc === "holiday" || dur >= 1200)) holidayStep("aeration", t, t - dur);
   else if (near(dur, FW.h_wait1)) holidayStep("aeration", t, t - dur);
   else unknownPhase(t, "");
   return;
@@ -624,12 +599,8 @@ function toValve(from, dur, peaks, t) {
  }
  chemFilling(t, false, false);
 }
-function toDosing(from, dur, peaks, t) {
- if (st.cyc === "test") setPhase("test", "dosing", t);
- else cleaningStep("dosing", t);
-}
 function restartTransition(to, t) {
- if (t - st.restart.since > CFG.boot_aer_wait_s) {
+ if (t - st.restart.since > 360) {
   st.restart = null;
   return false;
  }
@@ -666,7 +637,10 @@ function onTransition(from, to, dur, peaks, t) {
  else if (to === "COMP") toComp(from, dur, peaks, t);
  else if (to === "AER") toAer(from, dur, peaks, t);
  else if (to === "VALVE") toValve(from, dur, peaks, t);
- else if (to === "DOSING") toDosing(from, dur, peaks, t);
+ else if (to === "DOSING") {
+  if (st.cyc === "test") setPhase("test", "dosing", t);
+  else cleaningStep("dosing", t);
+ }
 }
 function bandOfPhase(ph) {
  if (ph === "pre_aeration" || ph === "aeration" || ph === "mixing") return "AER";
@@ -694,30 +668,23 @@ function readPower() {
  let p = typeof s.act_power === "number" ? s.act_power : s.apower;
  if (typeof p !== "number") return false;
  pw.p = p;
- pw.u = typeof s.voltage === "number" && s.voltage > 50 ? s.voltage : CFG.nominal_voltage;
+ pw.u = typeof s.voltage === "number" && s.voltage > 50 ? s.voltage : 230;
  let pn = p;
  if (p > CFG.idle_max) {
-  let r = CFG.nominal_voltage / pw.u;
-  pn = (p - CFG.idle_power) * r * r + CFG.idle_power;
+  let r = 230 / pw.u;
+  pn = (p - 4) * r * r + 4;
  }
  pw.pn = Math.round(pn * 10) / 10;
  pw.lastSeenUp = upS();
  return true;
 }
-function classify(pn) {
- if (pn < CFG.off_max) return "OFF";
- if (pn < CFG.idle_max) return "IDLE";
- if (pn <= CFG.valve_max) return "VALVE";
- if (pn <= CFG.dosing_max) return "DOSING";
- if (pn <= CFG.comp_max) return "COMP";
- if (pn <= CFG.aer_max) return "AER";
- return "BOOST";
-}
 function updateBand(t) {
- let b = classify(pw.pn);
+ let pn = pw.pn;
+ let b = pn < CFG.off_max ? "OFF" : pn < CFG.idle_max ? "IDLE" : pn <= CFG.valve_max ? "VALVE" :
+  pn <= CFG.dosing_max ? "DOSING" : pn <= CFG.comp_max ? "COMP" : pn <= CFG.aer_max ? "AER" : "BOOST";
  if (b === "BOOST" || (b === "AER" && bs.stable === "COMP")) {
   if (bs.boostSince === null) bs.boostSince = t;
-  if (t - bs.boostSince < CFG.peak_max_s) return;
+  if (t - bs.boostSince < 12) return;
   b = "AER";
   if (bs.cand !== "AER") {
    bs.cand = "AER";
@@ -725,7 +692,7 @@ function updateBand(t) {
    bs.candStart = bs.boostSince;
   }
  } else if (bs.boostSince !== null) {
-  if (t - bs.boostSince < CFG.peak_max_s) {
+  if (t - bs.boostSince < 12) {
    if (bs.stable === "COMP") {
     bs.peaks++;
     if (bs.firstPeak === null) bs.firstPeak = bs.boostSince;
@@ -745,7 +712,7 @@ function updateBand(t) {
   bs.candSince = t;
   if (!ramp) bs.candStart = t;
  }
- let need = bs.cand === "VALVE" ? CFG.valve_debounce_s : (bs.cand === "DOSING" ? CFG.dosing_debounce_s : CFG.debounce_s);
+ let need = bs.cand === "VALVE" ? CFG.debounce_s + 4 : CFG.debounce_s;
  if (bs.cand === bs.stable || t - bs.candSince < need) return;
  let from = bs.stable;
  let start = bs.candStart;
@@ -764,23 +731,26 @@ function updateBand(t) {
  if (from === "UNKNOWN") firstBand(bs.stable, start);
  else onTransition(from, bs.stable, dur, peaks, start);
 }
-let NEXT = {
- cleaning: { pre_aeration: "aeration", aeration: "chem_filling", chem_filling: "dosing", dosing: "mixing",
-  mixing: "sedimentation_1", sedimentation_1: "sludge_removal", sludge_removal: "sedimentation_2",
-  sedimentation_2: "pump_out", pump_out: "pump_in" },
- waiting: { waiting: "sludge_removal", sludge_removal: "aeration", aeration: "pump_in" },
- holiday: { aeration: "pump_in", sludge_removal: "waiting" }
-};
 function nextPhase(cyc, ph, sub) {
- if (cyc === "holiday" && ph === "waiting") return sub === "w2" ? "sludge_removal" : "aeration";
- return NEXT[cyc] ? NEXT[cyc][ph] : undefined;
+ if (cyc === "cleaning") {
+  let seq = cleaningSeq();
+  let i = seq.indexOf(ph);
+  return i >= 0 && i < 9 ? seq[i + 1] : null;
+ }
+ if (cyc === "waiting") return ph === "waiting" ? "sludge_removal" : (ph === "sludge_removal" ? "aeration" : (ph === "aeration" ? "pump_in" : null));
+ if (cyc === "holiday") {
+  if (ph === "waiting") return sub === "w2" ? "sludge_removal" : "aeration";
+  return ph === "aeration" ? "pump_in" : (ph === "sludge_removal" ? "waiting" : null);
+ }
+ return null;
 }
 function phaseDur(cyc, ph, sub) {
  if (ph === "sludge_removal") return cyc === "cleaning" ? FW.sludge : FW.w_sludge;
  if (ph === "aeration") return cyc === "cleaning" ? FW.aer : (cyc === "waiting" ? FW.w_aer : FW.h_aer);
  if (ph === "waiting") return cyc === "waiting" ? FW.wait : (sub === "w2" ? FW.h_wait2 : FW.h_wait1);
  if (ph === "pump_in") return cyc === "cleaning" ? FW.in_max : FW.w_in;
- return PHASE_MAX[ph];
+ let i = cleaningSeq().indexOf(ph);
+ return i >= 0 ? [FW.pre, FW.aer, FW.chem, FW.dose, FW.mix, FW.sed1, FW.sludge, FW.sed2, FW.out][i] : null;
 }
 function resumeNext(b, t) {
  let ph = st.ph;
@@ -794,7 +764,7 @@ function resumeNext(b, t) {
   else if (st.cyc === "holiday") sub = "";
   ph = nx;
   if (bandOfPhase(ph) === b) {
-   if (ps > t + 60 || t - ps > phaseDur(st.cyc, ph, sub) + CFG.pause_margin_s) return false;
+   if (ps > t + 60 || t - ps > phaseDur(st.cyc, ph, sub) + 300) return false;
    if (st.ph === "pump_out") finishPumpOut(-1);
    if (st.cyc === "cleaning") anchorEta(ph, ps);
    if (ph === "pump_out") {
@@ -834,7 +804,7 @@ function firstBand(b, t) {
   unknownPhase(t, "stored phase does not match the power");
  }
  if (b === "VALVE") chemFilling(t, false, false);
- else if (b === "DOSING") toDosing("UNKNOWN", -1, 0, t);
+ else if (b === "DOSING") cleaningStep("dosing", t);
  else if (b === "OFF") onTransition("IDLE", "OFF", -1, 0, t);
 }
 function timeRules(t) {
@@ -843,7 +813,7 @@ function timeRules(t) {
   if (bs.firstPeak !== null && bs.firstPeak - bs.since >= 130) {
    pumpOutStarts(bs.partial ? bs.firstPeak - 1 - FW.out : bs.since, !bs.partial);
   } else if (bs.peaks > 0) setPhase(st.cyc, "pump_in", bs.since);
-  else if (t - bs.since >= CFG.pumpout_detect_s) pumpOutStarts(bs.since, !bs.partial);
+  else if (t - bs.since >= 540) pumpOutStarts(bs.since, !bs.partial);
  }
  if (bs.stable === "COMP" && st.ph === "pump_out" && st.pumpOutStart !== null) {
   let pulse = bs.firstPeak !== null ? bs.firstPeak - 1 : null;
@@ -857,7 +827,7 @@ function timeRules(t) {
    bs.nP = 0;
   }
  }
- if (bs.stable === "AER" && t - bs.since >= CFG.restart_aeration_s &&
+ if (bs.stable === "AER" && t - bs.since >= 1860 &&
   (st.ph === "unknown" || ((st.cyc === "waiting" || st.cyc === "holiday") && st.ph === "aeration"))) {
   if (bs.partial) {
    st.aerStart = null;
@@ -869,7 +839,7 @@ function timeRules(t) {
   }
  }
  let idleFor = bs.stable === "IDLE" ? t - bs.since : 0;
- if (st.cyc === "waiting" && st.ph === "waiting" && idleFor >= CFG.holiday_wait_detect_s && holidayPossible()) {
+ if (st.cyc === "waiting" && st.ph === "waiting" && idleFor >= 1200 && holidayPossible()) {
   enterHoliday(st.waitEntryUnix !== null ? "w1" : "", bs.since);
  }
  let expected = 0;
@@ -878,8 +848,7 @@ function timeRules(t) {
  else if (st.ph === "waiting" && st.cyc === "waiting") expected = FW.wait;
  else if (st.ph === "waiting" && st.cyc === "holiday") expected = st.sub === "w1" ? FW.h_wait1 : FW.h_wait2;
  else if (st.ph === "unknown" && !st.restart) expected = FW.h_wait2;
- setWarning("paused", (expected > 0 && idleFor > expected + CFG.pause_margin_s) ||
-  (st.hold !== null && idleFor > CFG.pause_margin_s));
+ setWarning("paused", (expected > 0 && idleFor > expected + 300) || (st.hold !== null && idleFor > 300));
  if (warn.paused) st.etaUp = null;
  if (st.etaUp !== null && t > st.etaUp + 600 && st.ph !== "pump_out") st.etaUp = null;
 }
@@ -888,15 +857,15 @@ function faultRules(t) {
  if (pn !== null && pn > CFG.fault_high_w) {
   if (pw.highSince === null) pw.highSince = t;
  } else pw.highSince = null;
- setWarning("air_leak", pw.highSince !== null && t - pw.highSince >= CFG.fault_high_s);
+ setWarning("air_leak", pw.highSince !== null && t - pw.highSince >= 120);
  if (pn !== null && pn < CFG.off_max) {
   if (pw.offSince === null) pw.offSince = t;
  } else pw.offSince = null;
- setWarning("no_power", pw.offSince !== null && t - pw.offSince >= CFG.fault_off_s);
+ setWarning("no_power", pw.offSince !== null && t - pw.offSince >= 60);
  if (pw.lastCompUp === null || (pn !== null && pn > CFG.valve_max)) pw.lastCompUp = t;
- setWarning("compressor_idle", pn !== null && pw.offSince === null && t - pw.lastCompUp >= CFG.fault_idle_s);
+ setWarning("compressor_idle", pn !== null && pw.offSince === null && t - pw.lastCompUp >= 14400);
  if (pw.lastSeenUp === null) pw.lastSeenUp = t;
- setWarning("no_signal", t - pw.lastSeenUp >= CFG.fault_signal_s);
+ setWarning("no_signal", t - pw.lastSeenUp >= 600);
 }
 let lastDayCheck = 0;
 function tick() {
@@ -929,7 +898,7 @@ function onFieldChange(role) {
   } else if (role === "sludge") {
    if (v < cnt.sludge) cnt.sludgeReset = nowUnix();
    cnt.sludge = Math.round(v);
-   if (cnt.sludge < CFG.emptying_min_sludge) base.elevated = 0;
+   if (cnt.sludge < 100) base.elevated = 0;
    saveSludge();
    emit("sludge", { n: cnt.sludge, reset: cnt.sludgeReset, user: true });
   }
@@ -940,36 +909,29 @@ function onFieldChange(role) {
 }
 function stateObject() {
  let w = [];
- for (let i = 1; i < WARNINGS.length; i++) if (warn[WARNINGS[i]]) w.push(WARNINGS[i]);
+ let ks = warnKeys();
+ for (let i = 1; i < ks.length; i++) if (warn[ks[i]]) w.push(ks[i]);
  let hd = null;
  if (st.cyc === "waiting" && st.waitEntryUnix !== null) hd = st.waitEntryUnix + FW.holiday_after;
  return {
-  version: VERSION, cycle: st.cyc, phase: st.ph, code: phaseCode(), since: unixAt(st.phStart),
+  version: VERSION, cycle: st.cyc, phase: st.ph, code: phaseCode(), since: st.phStart > 0 ? unixAt(st.phStart) : null,
   eta: etaUnix(), last_pumpout: cnt.lastBatchUnix, batches: cnt.batches,
   chemical: { l: cnt.chem, days: chemDaysLeft() }, sludge: { n: cnt.sludge, reset: cnt.sludgeReset },
   warnings: w, holiday_at: hd, holiday_since: st.cyc === "holiday" ? st.holidayUnix : null,
   power: pw.pn, band: bs.stable, time_synced: nowUnix() !== null, uptime: Math.floor(upS())
  };
 }
-function registerEndpoint() {
- HTTPServer.registerEndpoint("state", function (req, res) {
-  res.code = 200;
-  res.headers = [["Content-Type", "application/json"]];
-  res.body = JSON.stringify(stateObject());
-  res.send();
- });
-}
 function initHandles() {
- for (let i = 0; i < ROLES.length; i++) {
-  let r = ROLES[i];
+ let roles = ["phase", "cycle", "status", "warning", "next_pumpout", "batches", "chemical", "sludge"];
+ for (let i = 0; i < roles.length; i++) {
+  let r = roles[i];
   H[r] = Script.getVcHandle(r);
   if (!H[r]) {
    log("component " + r + " missing");
    continue;
   }
-  H[r].setConfig(VC_CONFIG[r]);
+  H[r].setConfig(vcConfig(r));
  }
- VC_CONFIG = null;
  let f = ["batches", "chemical", "sludge"];
  for (let j = 0; j < f.length; j++) if (H[f[j]]) H[f[j]].on("change", onFieldChange(f[j]));
 }
@@ -988,8 +950,13 @@ function applyLoaded(key, v) {
   let h = m[1] ? m[1].split(":") : ["0", "0", "0"];
   let off = localOffsetMin();
   if (d.length === 3 && off !== null) {
-   let ms = Date.UTC(Number(d[2]), Number(d[1]) - 1, Number(d[0]), Number(h[0]), Number(h[1]), Number(h[2] || 0));
-   cnt.lastBatchUnix = Math.round(ms / 1000) - off * 60;
+   let y = Number(d[2]) - (Number(d[1]) <= 2 ? 1 : 0);
+   let era = Math.floor(y / 400);
+   let yoe = y - era * 400;
+   let mo = Number(d[1]);
+   let doy = Math.floor((153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5) + Number(d[0]) - 1;
+   let days = era * 146097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719468;
+   cnt.lastBatchUnix = days * 86400 + Number(h[0]) * 3600 + Number(h[1]) * 60 + Number(h[2] || 0) - off * 60;
   }
  } else if (key === "uc_chem" && v) {
   cnt.chem = typeof v.l === "number" ? v.l : null;
@@ -1003,10 +970,11 @@ function applyLoaded(key, v) {
  } else if (key === "uc_cycle" && v) {
   st.waitEntryUnix = v.we || null;
   st.holidayUnix = v.hd || null;
-  let ps = upAt(v.ps || null);
-  let max = PHASE_MAX[v.p];
+  let n = nowUnix();
+  let ps = n === null || !v.ps ? null : upS() - (n - v.ps);
+  let max = v.p === "waiting" ? FW.h_wait2 : phaseDur(v.c, v.p, v.s);
   let age = ps === null ? -1000 : upS() - ps;
-  if (max !== undefined && age > -60 && age <= max + CFG.pause_margin_s) {
+  if (max && age > -60 && age <= max + 300) {
    st.cyc = v.c;
    st.ph = v.p;
    st.sub = v.s || "";
@@ -1023,10 +991,6 @@ function applyLoaded(key, v) {
   }
  }
 }
-let PHASE_MAX = {
- pre_aeration: 600, aeration: 5400, chem_filling: 90, dosing: 10, mixing: 120, sedimentation_1: 2700,
- sludge_removal: 120, sedimentation_2: 900, pump_out: 780, pump_in: 1020, waiting: 6000
-};
 let LOAD = ["uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "uc_cycle"];
 function loadNext(i) {
  if (i >= LOAD.length) {
@@ -1051,15 +1015,10 @@ function loadNext(i) {
   loadNext(i + 1);
  });
 }
-function powerOnReset(up) {
- if (up >= CFG.boot_window_s) return false;
- let rr = sysStatus().reset_reason;
- if (typeof rr !== "number") return true;
- return rr === 1 || rr === 9 || rr === 14;
-}
 function finishStart() {
  let up = upS();
- let boot = powerOnReset(up);
+ let rr = Shelly.getComponentStatus("sys").reset_reason;
+ let boot = up < 300 && (typeof rr !== "number" || rr === 1 || rr === 9 || rr === 14);
  if (boot) {
   st.restart = { since: 0, reason: "power_cut" };
   st.resumeCheck = false;
@@ -1086,9 +1045,13 @@ function finishStart() {
  Timer.set(1000, true, tick);
  Timer.set(86400000, true, saveBase);
 }
-function start() {
+Timer.set(300, false, function () {
  initHandles();
- registerEndpoint();
+ HTTPServer.registerEndpoint("state", function (req, res) {
+  res.code = 200;
+  res.headers = [["Content-Type", "application/json"]];
+  res.body = JSON.stringify(stateObject());
+  res.send();
+ });
  loadNext(0);
-}
-Timer.set(300, false, start);
+});
