@@ -12,7 +12,7 @@ Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee si
 | `shelly/tools/` | `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos). |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.5.0, ohje ja esikatselusivu. |
 | `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla, firmwaresimulaattori ja skenaariot. |
-| `docs/` | Asennus- ja toimintadokumentaatio, firmwaren pseudokoodi ja v3-suunnitelma. |
+| `docs/` | Asennus- ja toimintadokumentaatio, firmwaren pseudokoodi ja v3-suunnitelman tiivistelmä (`v3-suunnitelma.md`). |
 
 ## Asennus (v2.4)
 
