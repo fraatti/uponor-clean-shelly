@@ -1,0 +1,15 @@
+# Omat mittaukset: Home Assistantin historiavedokset pidetään poissa versionhallinnasta
+*.csv
+test/data/
+
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+test/*.js
+!test/harness.js
+!test/fwsim.js
+!test/scenarios.js
+!test/compare.js
+!test/eqtest.js
+!test/validate.js
