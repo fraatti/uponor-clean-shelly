@@ -1,14 +1,3 @@
-/* @meta {"vc": {
-"phase": {"type": "enum", "access": "rc", "config": {"name": "Phase", "options": ["unknown"]}},
-"cycle": {"type": "enum", "access": "rc", "config": {"name": "Cycle", "options": ["unknown"]}},
-"status": {"type": "text", "access": "rc", "config": {"name": "Status"}},
-"warning": {"type": "enum", "access": "rc", "config": {"name": "Warning", "options": ["none"]}},
-"next_pumpout": {"type": "text", "access": "rc", "config": {"name": "Next pump-out"}},
-"batches": {"type": "number", "config": {"name": "Batches"}},
-"chemical": {"type": "number", "config": {"name": "Chemical"}},
-"sludge": {"type": "number", "config": {"name": "Sludge"}},
-"plant": {"type": "group", "config": {"name": "Uponor Clean"}, "members": ["@phase", "@cycle", "@status", "@warning", "@next_pumpout", "@batches", "@chemical", "@sludge"]}
-}} */
 // Uponor Clean I v3.0.0 - compact version of uponor_clean_v3.js (github.com/fraatti/uponor-clean-shelly)
 let VERSION = "3.0.0";
 let CFG = {
@@ -44,7 +33,8 @@ function warnTitle(k) {
 function vcConfig(role) {
  let label = { ui: { view: "label" } };
  if (role === "phase") {
-  let ph = ["unknown"].concat(cleaningSeq()).concat(["waiting", "off"]);
+  let ph = ["unknown", "pre_aeration", "aeration", "chem_filling", "dosing", "mixing", "sedimentation_1",
+   "sludge_removal", "sedimentation_2", "pump_out", "pump_in", "waiting", "off"];
   let tt = ["Unknown", "Pre-aeration", "Aeration", "Chemical filling", "Dosing", "Mixing", "Sedimentation I",
    "Sludge removal", "Sedimentation II", "Pump-out", "Pump-in", "Waiting", "No power"];
   let titles = {};
@@ -162,7 +152,8 @@ function kvsPump() {
  let k = null;
  let v = null;
  while (!kvsBusy && kvsOrder.length > 0 && v === null) {
-  k = kvsOrder.shift();
+  k = kvsOrder[0];
+  kvsOrder.splice(0, 1);
   v = kvsPending[k];
   kvsPending[k] = null;
   if (v === undefined) v = null;
@@ -320,10 +311,10 @@ function rollChemDay() {
  let shift = day - cnt.chemDay;
  if (shift <= 0) return;
  if (shift > 14) shift = 14;
- for (let i = 0; i < shift; i++) {
-  cnt.doses.unshift(0);
-  if (cnt.doses.length > 14) cnt.doses.pop();
- }
+ let nd = [];
+ for (let i = 0; i < shift; i++) nd.push(0);
+ for (let j = 0; j < cnt.doses.length && nd.length < 14; j++) nd.push(cnt.doses[j]);
+ cnt.doses = nd;
  cnt.chemDay = day;
  saveChem();
 }
@@ -921,22 +912,92 @@ function stateObject() {
   power: pw.pn, band: bs.stable, time_synced: nowUnix() !== null, uptime: Math.floor(upS())
  };
 }
-function initHandles() {
- let roles = ["phase", "cycle", "status", "warning", "next_pumpout", "batches", "chemical", "sludge"];
- for (let i = 0; i < roles.length; i++) {
-  let r = roles[i];
-  H[r] = Script.getVcHandle(r);
-  if (!H[r]) {
-   log("component " + r + " missing");
-   continue;
+let vcMap = {};
+function roleList() {
+ return ["phase", "cycle", "status", "warning", "next_pumpout", "batches", "chemical", "sludge"];
+}
+function roleType(r) {
+ if (r === "status" || r === "next_pumpout") return "text";
+ return r === "batches" || r === "chemical" || r === "sludge" ? "number" : "enum";
+}
+function vcExists(key) {
+ return !!key && !!Shelly.getComponentStatus(key);
+}
+function ensureComponents(done) {
+ let rs = roleList();
+ let names = ["Phase", "Cycle", "Status", "Warning", "Next pump-out", "Batches", "Chemical", "Sludge"];
+ let update = vcMap.v !== VERSION;
+ let i = 0;
+ let added = false;
+ function step() {
+  while (i < rs.length && vcExists(vcMap[rs[i]]) && !update) i++;
+  if (i >= rs.length) {
+   ensureGroup(added || update, done);
+   return;
   }
-  H[r].setConfig(vcConfig(r));
+  let r = rs[i];
+  let cfg = vcConfig(r);
+  cfg.name = names[i];
+  i++;
+  if (vcExists(vcMap[r])) {
+   let t = roleType(r);
+   let m = t === "text" ? "Text.SetConfig" : (t === "number" ? "Number.SetConfig" : "Enum.SetConfig");
+   Shelly.call(m, { id: Number(vcMap[r].split(":")[1]), config: cfg }, function () {
+    step();
+   });
+   return;
+  }
+  Shelly.call("Virtual.Add", { type: roleType(r), config: cfg }, function (res, err, msg) {
+   if (res && typeof res.id === "number") {
+    vcMap[r] = roleType(r) + ":" + res.id;
+    added = true;
+    log("created " + vcMap[r] + " (" + r + ")");
+   } else log("Virtual.Add " + r + " failed: " + err + " " + msg);
+   step();
+  });
+ }
+ step();
+}
+function ensureGroup(changed, done) {
+ let rs = roleList();
+ let members = [];
+ for (let i = 0; i < rs.length; i++) if (vcMap[rs[i]]) members.push(vcMap[rs[i]]);
+ vcMap.v = VERSION;
+ function setMembers() {
+  Shelly.call("Group.Set", { id: Number(vcMap.group.split(":")[1]), value: members }, function () {
+   kvsSave("uc_vc", vcMap);
+   done();
+  });
+ }
+ if (vcExists(vcMap.group)) {
+  if (changed) setMembers();
+  else done();
+  return;
+ }
+ Shelly.call("Virtual.Add", { type: "group", config: { name: "Uponor Clean" } }, function (res) {
+  if (res && typeof res.id === "number") {
+   vcMap.group = "group:" + res.id;
+   setMembers();
+  } else {
+   kvsSave("uc_vc", vcMap);
+   done();
+  }
+ });
+}
+function initHandles() {
+ let rs = roleList();
+ for (let i = 0; i < rs.length; i++) {
+  let r = rs[i];
+  H[r] = vcExists(vcMap[r]) ? Virtual.getHandle(vcMap[r]) : null;
+  if (!H[r]) log("component " + r + " missing");
  }
  let f = ["batches", "chemical", "sludge"];
  for (let j = 0; j < f.length; j++) if (H[f[j]]) H[f[j]].on("change", onFieldChange(f[j]));
 }
 function applyLoaded(key, v) {
- if (key === "uc_cfg" && v) {
+ if (key === "uc_vc" && v) {
+  vcMap = v;
+ } else if (key === "uc_cfg" && v) {
   let ks = Object.keys(v);
   for (let i = 0; i < ks.length; i++) if (CFG[ks[i]] !== undefined) CFG[ks[i]] = v[ks[i]];
  } else if (key === "uc_batch" && v) {
@@ -991,10 +1052,13 @@ function applyLoaded(key, v) {
   }
  }
 }
-let LOAD = ["uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "uc_cycle"];
+let LOAD = ["uc_vc", "uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "uc_cycle"];
 function loadNext(i) {
  if (i >= LOAD.length) {
-  finishStart();
+  ensureComponents(function () {
+   initHandles();
+   finishStart();
+  });
   return;
  }
  let key = LOAD[i];
@@ -1046,7 +1110,6 @@ function finishStart() {
  Timer.set(86400000, true, saveBase);
 }
 Timer.set(300, false, function () {
- initHandles();
  HTTPServer.registerEndpoint("state", function (req, res) {
   res.code = 200;
   res.headers = [["Content-Type", "application/json"]];

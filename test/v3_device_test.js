@@ -11,7 +11,7 @@ let fails = 0;
 const check = (ok, what) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${what}`); if (!ok) fails++; };
 
 check(languageCheck(code).length === 0, 'language subset: ' + (languageCheck(code).join('; ') || 'ok'));
-check(code.indexOf('*/') < 1024 && code.startsWith('/* @meta'), '@meta block first and within 1024 bytes (' + code.indexOf('*/') + ')');
+check(!code.trimStart().startsWith('/* @meta'), 'no @meta block: Home Assistant does not show script-owned components');
 
 // a waiting-cycle trace with one cleaning cycle
 const T0 = Date.parse('2026-11-18T08:00:00Z');
@@ -29,9 +29,11 @@ const sid = dev.addScript('uponor_clean_v3', code);
 const r = dev.startScript(sid);
 check(!r.err, 'script starts: ' + (r.msg || 'ok'));
 dev.run(5000);
-const roles = dev.scripts.get(sid).roles;
+const roles = JSON.parse(dev.kvs.get('uc_vc'));
+roles.plant = roles.group;
 const comp = (role) => dev.comps.get(roles[role]);
-check(Object.keys(roles).length === 9 && dev.vcCount() === 9, `9 components created (${Object.keys(roles).join(',')})`);
+check(dev.vcCount() === 9 && [...dev.comps.values()].every((c) => c.owner === ''), `9 components created with Virtual.Add, not owned (${Object.keys(roles).join(',')})`);
+check(comp('phase').config.name === 'Phase' && comp('next_pumpout').config.name === 'Next pump-out', 'component names');
 check(comp('phase').config.options.length === 13 && comp('warning').config.options.length === 11, 'enum options set with setConfig');
 check(comp('chemical').config.unit === undefined ? comp('chemical').config.meta.ui.unit === 'l' : true, 'chemical unit l');
 check(JSON.stringify(comp('plant').value) === JSON.stringify(['phase', 'cycle', 'status', 'warning', 'next_pumpout', 'batches', 'chemical', 'sludge'].map((x) => roles[x])), 'group members in order');
@@ -40,7 +42,7 @@ const ub = JSON.parse(dev.kvs.get('uc_batch') || 'null');
 check(ub === null || ub.n === 249, 'uc_batch not written before a change');
 
 // external writes: read-only labels refused, fields accepted
-check(dev.externalSet(roles.phase, 'waiting').err !== undefined, 'phase is read-only for other clients');
+check(comp('phase').config.meta.ui.view === 'label' && comp('batches').config.meta.ui.view === 'field', 'labels for outputs, fields for user values');
 dev.run(10 * 60e3);
 check(comp('phase').value === 'aeration' && comp('cycle').value === 'cleaning', `cleaning cycle at power-up seen as ${comp('cycle').value}/${comp('phase').value}`);
 const st1 = JSON.parse(dev.httpGet(`/script/${sid}/state`).body);
@@ -80,10 +82,15 @@ check(comp('phase').value === before, `phase resumed after a script restart (${b
 
 // delete and reinstall: counters come back from KVS
 dev.deleteScript(sid);
-check(dev.vcCount() === 0, 'deleting the script removes its components');
+check(dev.vcCount() === 9, 'deleting the script keeps the components');
 const sid2 = dev.addScript('uponor_clean_v3', code);
 dev.startScript(sid2); dev.run(5000);
-const roles2 = dev.scripts.get(sid2).roles;
+const roles2 = JSON.parse(dev.kvs.get('uc_vc'));
+check(dev.vcCount() === 9 && roles2.phase === roles.phase, 'reinstall reuses the components (uc_vc)');
+// a component deleted by the user is created again
+dev.stopScript(sid2); dev.comps.delete(roles2.warning); dev.startScript(sid2); dev.run(5000);
+const roles3 = JSON.parse(dev.kvs.get('uc_vc'));
+check(dev.vcCount() === 9 && dev.comps.has(roles3.warning) && dev.comps.get(roles3.group).value.includes(roles3.warning), 'missing component recreated and added to the group');
 check(dev.comps.get(roles2.batches).value === 1001 && dev.comps.get(roles2.chemical).value === 17.96 && dev.comps.get(roles2.sludge).value === 1, 'reinstall restores batches, chemical and sludge from KVS');
 const keys = [...dev.kvs.keys()].sort();
 check(keys.every((k) => k.length <= 42 && dev.kvs.get(k).length <= 253), 'KVS keys and values within limits: ' + keys.join(','));

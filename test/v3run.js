@@ -22,7 +22,15 @@ function runV3(o) {
   dev.voltage = o.voltage === undefined ? 230 : o.voltage;
   dev.setFeed(o.events);
   const changes = [];
-  const roleOf = (key) => { const c = dev.comps.get(key); return c ? c.role : null; };
+  // components are created by the script (Virtual.Add) and listed in KVS uc_vc
+  const roleOf = (key) => {
+    const c = dev.comps.get(key); if (c && c.role) return c.role;
+    let m = {}; try { m = JSON.parse(dev.kvs.get('uc_vc') || '{}'); } catch (e) { m = {}; }
+    for (const r of Object.keys(m)) if (m[r] === key) return r;
+    // created but not yet stored: the script names the components
+    const names = { Phase: 'phase', Cycle: 'cycle', Status: 'status', Warning: 'warning', 'Next pump-out': 'next_pumpout', Batches: 'batches', Chemical: 'chemical', Sludge: 'sludge' };
+    return c && names[c.config.name] ? names[c.config.name] : null;
+  };
   dev.onValue = (key, value, t) => changes.push({ t, role: roleOf(key), value });
   const sid = dev.addScript('uponor_clean_v3', code);
   const r = dev.startScript(sid);
@@ -49,7 +57,7 @@ function runV3(o) {
     // readings missing from the recording: the script restarts without a stored phase
     else if (c.kind === 'gap') { dev.stopScript(sid); dev.kvs.delete('uc_cycle'); dev.startScript(sid); }
     else if (c.kind === 'set') {
-      const key = dev.scripts.get(sid).roles[c.u.role];
+      const key = JSON.parse(dev.kvs.get('uc_vc'))[c.u.role];
       const res = dev.externalSet(key, c.u.value);
       if (res.err) throw new Error('user set failed: ' + res.msg);
     } else if (c.kind === 'sample' && powered) {
@@ -61,7 +69,7 @@ function runV3(o) {
   const s = dev.scripts.get(sid);
   const uncaught = dev.logs.filter((l) => /UNCAUGHT/.test(l.s));
   return { dev, sid, changes, states, events: dev.eventLog.filter((e) => e.name === 'uponor').map((e) => Object.assign({ t: e.t }, e.data)),
-    logs: dev.logs, kvs: dev.kvs, uncaught, roles: s.roles };
+    logs: dev.logs, kvs: dev.kvs, uncaught, roles: JSON.parse(dev.kvs.get('uc_vc') || '{}') };
 }
 
 // value of a role at time t from the change log

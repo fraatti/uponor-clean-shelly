@@ -112,11 +112,11 @@ class Device {
   }
 
   parseMeta(code) {
-    // device reads @meta only from the first 1024 bytes (seen 2026-11-18); roles beyond are ignored
-    if (code.indexOf('*/') > 1024) throw new Error('@meta block ends after byte 1024 (' + code.indexOf('*/') + '); roles beyond are ignored on the device');
     const lines = code.split('\n');
     let i = 0; while (i < lines.length && lines[i].trim() === '') i++;
     if (i >= lines.length || !lines[i].trim().startsWith('/* @meta')) return null;
+    // device reads @meta only from the first 1024 bytes (seen 2026-11-18); roles beyond are ignored
+    if (code.indexOf('*/') > 1024) throw new Error('@meta block ends after byte 1024 (' + code.indexOf('*/') + '); roles beyond are ignored on the device');
     const rest = lines.slice(i).join('\n');
     const end = rest.indexOf('*/');
     const body = rest.slice(rest.indexOf('@meta') + 5, end).trim();
@@ -247,6 +247,10 @@ class Device {
         this.comps.delete(p.key);
         for (const g of this.comps.values()) if (g.type === 'group') g.value = g.value.filter(m => m !== p.key);
         return { res: null };
+      }
+      case 'Enum.SetConfig': case 'Text.SetConfig': case 'Number.SetConfig': case 'Boolean.SetConfig': {
+        const c = this.comps.get(`${method.split('.')[0].toLowerCase()}:${p.id}`); if (!c) return { err: -105, msg: 'not found' };
+        Object.assign(c.config, JSON.parse(JSON.stringify(p.config || {}))); return { res: { restart_required: false } };
       }
       case 'Group.Set': {
         const c = this.comps.get(`group:${p.id}`); if (!c) return { err: -105, msg: 'not found' };
@@ -392,7 +396,9 @@ function languageCheck(code) {
   const problems = [];
   const noComments = code.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/\/\/.*$/gm, '');
   const noStrings = noComments.replace(/"(?:\\.|[^"\\])*"/g, '""').replace(/'(?:\\.|[^'\\])*'/g, "''");
-  const rules = [[/=>/, 'arrow function'], [/`/, 'template literal'], [/\bconst\b/, 'const'], [/\bclass\b/, 'class'], [/\.\.\./, 'spread'], [/\basync\b|\bawait\b|\bPromise\b/, 'async/Promise']];
+  const rules = [[/=>/, 'arrow function'], [/`/, 'template literal'], [/\bconst\b/, 'const'], [/\bclass\b/, 'class'], [/\.\.\./, 'spread'], [/\basync\b|\bawait\b|\bPromise\b/, 'async/Promise'],
+    // not available on the device (firmware 2.2.0, tested 18.11.2026)
+    [/\.(shift|unshift|concat)\(/, 'Array shift/unshift/concat'], [/\bDate\.UTC\b/, 'Date.UTC']];
   const lines = noStrings.split('\n');
   lines.forEach((l, i) => { for (const [re, name] of rules) if (re.test(l)) problems.push(`line ${i + 1}: ${name}`); });
   const decl = new Map();
