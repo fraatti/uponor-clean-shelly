@@ -19,8 +19,9 @@
  * blocks work: components declared in @meta, read-only access, user edits of
  * fields, KVS persistence, events to other scripts, the HTTP state endpoint,
  * memory use and the EM1Data history after a reboot.
- * The demo cycles through all phases and warnings every 10 s and simulates a
- * batch every 5 minutes (Batches +1, Sludge +1, Chemical -0.04 l).
+ * The demo cycles through all phases and warnings every 5 s and simulates a
+ * batch one minute after the start and then every 2 minutes
+ * (Batches +1, Sludge +1, Chemical -0.04 l).
  */
 
 let VERSION = "3.0-proto1";
@@ -268,7 +269,7 @@ function onTick() {
         if (!em1Checked) checkEm1Data();
     }
     if (tick % 3 === 0) emit("heartbeat", { tick: tick, phase: val.phase });
-    if (tick % 30 === 0) simulateBatch();
+    if (tick === 12 || (tick > 12 && (tick - 12) % 24 === 0)) simulateBatch();
 }
 
 function applyStore() {
@@ -301,7 +302,7 @@ function start() {
         saveStore();
         emit("start", { reason: "proto", starts: store.starts, version: VERSION });
         log("start number " + store.starts);
-        Timer.set(10000, true, onTick);
+        Timer.set(5000, true, onTick);
     });
 }
 

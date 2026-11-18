@@ -9,13 +9,14 @@ const P = path.join(__dirname, '..', 'shelly', 'v3', 'proto');
 const TOOLS = fs.readFileSync(path.join(P, 'uc_tools.js'), 'utf8');
 const PROTO = fs.readFileSync(path.join(P, 'uponor_v3_proto.js'), 'utf8');
 const LISTEN = fs.readFileSync(path.join(P, 'uponor_v3_listener.js'), 'utf8');
+const PROBE = fs.readFileSync(path.join(P, 'uponor_v3_probe.js'), 'utf8');
 
 let fails = 0;
 function check(cond, what) { console.log((cond ? 'PASS ' : 'FAIL ') + what); if (!cond) fails++; }
 const withMode = (m) => TOOLS.replace(/let MODE = "[a-z]+";/, `let MODE = "${m}";`);
 
 // --- language checks
-for (const [n, c] of [['uc_tools.js', TOOLS], ['uponor_v3_proto.js', PROTO], ['uponor_v3_listener.js', LISTEN]]) {
+for (const [n, c] of [['uc_tools.js', TOOLS], ['uponor_v3_proto.js', PROTO], ['uponor_v3_listener.js', LISTEN], ['uponor_v3_probe.js', PROBE]]) {
   const pr = languageCheck(c);
   check(pr.length === 0, `language check ${n}${pr.length ? ': ' + pr.join('; ') : ''}`);
 }
@@ -40,6 +41,22 @@ const original = JSON.parse(JSON.stringify([...dev.comps.entries()].map(([k, c])
 
 const logsOf = (sid, from = 0) => dev.logs.filter(l => l.sid === sid).slice(from).map(l => l.s);
 const has = (sid, re) => logsOf(sid).some(s => re.test(s));
+
+// --- A. probe next to v2.4: no components, events reach the listener
+const listenA = dev.addScript('uponor-listen', LISTEN);
+const probe = dev.addScript('uponor-probe', PROBE);
+dev.startScript(listenA);
+check(!dev.startScript(probe).err, 'probe starts next to v2.4');
+dev.run(3 * 60000);
+check(dev.vcCount() === 10, 'probe created no components');
+check(has(probe, /KVS.Set ok, start number 1/), 'probe KVS write');
+check(has(probe, /EM1Data blocks in last 24 h: 1/), 'probe EM1Data history');
+check(has(listenA, /raw .*"type":"probe"/), 'listener received probe events');
+const pe = logsOf(probe).map(x => /endpoint: http:\/\/[\d.]+(\/\S+)/.exec(x)).find(Boolean);
+const pr = pe ? dev.httpGet(pe[1]) : { sent: false };
+check(pr.sent && JSON.parse(pr.body).probe === true, 'probe endpoint returns JSON');
+check(!dev.scripts.get(probe).error && !dev.scripts.get(listenA).error, 'no uncaught errors in part A');
+dev.deleteScript(probe); dev.deleteScript(listenA);
 
 // --- 1. backup
 const tools = dev.addScript('uc-tools', withMode('backup'));
@@ -99,14 +116,16 @@ check(parsed && parsed.time.slice(11, 16) === new Date(dev.t + 7200e3).toISOStri
 // --- 8. reboot: numbers persist, KVS start counter grows, values come from KVS
 const chemBefore = dev.comps.get(keyOf('chemical')).value;
 dev.reboot({ autostart: [proto, listen], offMs: 120000 });
-dev.run(70000);
+dev.run(40000);
+check(dev.comps.get(keyOf('chemical')).value === chemBefore, 'Chemical kept over reboot (' + chemBefore + ')');
+dev.run(30000);
 const fromBoot = logsOf(proto).filter(s => /start number/.test(s));
 check(fromBoot.length === 2 && /start number 2/.test(fromBoot[1]), 'second start counted in KVS');
-check(dev.comps.get(keyOf('chemical')).value === chemBefore, 'Chemical kept over reboot (' + chemBefore + ')');
 check(has(proto, /EM1Data blocks in last 30 min: 1/), 'EM1Data probe ran');
 
 // --- 9. delete the prototype: its components go, KVS stays
 const protoKeys = Object.values(dev.scripts.get(proto).roles);
+const chemStored = JSON.parse(dev.kvs.get('uc_proto')).chemical;
 dev.deleteScript(proto);
 check(protoKeys.every(k => !dev.comps.has(k)), 'deleting the script removed its components');
 check(dev.kvs.has('uc_proto'), 'KVS survives script deletion');
@@ -115,7 +134,7 @@ check(dev.kvs.has('uc_proto'), 'KVS survives script deletion');
 const proto2 = dev.addScript('uponor-proto', PROTO);
 check(!dev.startScript(proto2).err, 'reinstalled prototype starts');
 dev.run(30000);
-check(dev.comps.get(dev.scripts.get(proto2).roles.chemical).value === chemBefore, 'Chemical restored from KVS after reinstall');
+check(dev.comps.get(dev.scripts.get(proto2).roles.chemical).value === chemStored, 'Chemical restored from KVS after reinstall (' + chemStored + ')');
 check(logsOf(proto2).some(s => /start number 3/.test(s)), 'KVS start counter continues (3)');
 
 // --- 11. rollback: remove prototype + listener, restore the v2.4 components
