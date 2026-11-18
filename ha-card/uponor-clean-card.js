@@ -1,7 +1,7 @@
-/*! uponor-clean-card v1.6.0 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+/*! uponor-clean-card v1.7.1 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.6.0';
+const UC_VERSION = '1.7.1';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -106,6 +106,8 @@ const UC_I18N = {
     ev_legend_start: 'start level', ev_legend_dose: 'dose', ev_legend_batch: 'batch done', ev_legend_warn: 'warning',
     start_s: 'start', low_s: 'low', alarm_s: 'alarm', sludge_emptied_lbl: 'Sludge emptied', days_ago: '{n} d ago',
     ev_legend_restart: 'restart', chem_title: 'Set the chemical amount',
+    sludge_now: 'Batches since the sludge was emptied', sludge_note: 'Set 0 after the sedimentation tank has been emptied. The Shelly script adds one for every batch.',
+    sludge_title: 'Reset the sludge counter', sludge_to_rem: '≈ {n} d to the reminder', days_ago_est: '≈ {n} d ago', emptied_est: 'emptied ≈ {n} d ago',
   },
   fi: {
     phase: { filling: 'Täyttö', aeration: 'Ilmastus', mixing: 'Sekoitus', dosing: 'Annostelu', settling: 'Laskeutus', waiting: 'Odotus',
@@ -145,7 +147,25 @@ const UC_I18N = {
     ev_legend_start: 'aloitustaso', ev_legend_dose: 'annos', ev_legend_batch: 'panos valmis', ev_legend_warn: 'varoitus',
     start_s: 'aloitus', low_s: 'alaraja', alarm_s: 'hälytys', sludge_emptied_lbl: 'Lietteen tyhjennys', days_ago: '{n} vrk sitten',
     ev_legend_restart: 'uudelleenkäynnistys', chem_title: 'Aseta kemikaalin määrä',
+    sludge_now: 'Panoksia lietteen tyhjennyksestä', sludge_note: 'Aseta 0, kun saostussäiliö on tyhjennetty. Shelly-skripti lisää yhden jokaisesta panoksesta.',
+    sludge_title: 'Nollaa lietelaskuri', sludge_to_rem: '≈ {n} vrk muistutukseen', days_ago_est: '≈ {n} vrk sitten', emptied_est: 'tyhjennetty ≈ {n} vrk sitten',
   },
+};
+
+/* Labels of the visual editor */
+const UC_FORM_LABELS = {
+  en: { name: 'Name', language: 'Language', lang_auto: 'Home Assistant language', view: 'View', view_side: 'Side section', view_top: 'From above',
+    hours: 'Timeline', sludge_emptied: 'Sludge emptied (date)', entities: 'Entities', more: 'Plant settings',
+    power: 'Power', phase: 'Phase', cycle: 'Cycle', message: 'Status text', warning: 'Warning', next_pumpout: 'Next pump-out',
+    batch_counter: 'Batches', chemical: 'Chemical (l)', sludge: 'Sludge (batches)', energy: 'Energy (optional)',
+    batch_volume: 'Batch size', sludge_reminder_batches: 'Sludge reminder (batches)', chemical_capacity: 'Chemical tank size', history_days: 'History',
+    help: { sludge_emptied: 'Optional. With the Sludge entity the card estimates the date from the counter.', language: 'Empty: the language of your Home Assistant profile', hours: 'Empty: 6 h', view: 'Empty: side section' } },
+  fi: { name: 'Nimi', language: 'Kieli', lang_auto: 'Home Assistantin kieli', view: 'Näkymä', view_side: 'Leikkauskuva', view_top: 'Ylhäältä',
+    hours: 'Aikajana', sludge_emptied: 'Liete tyhjennetty (pvm)', entities: 'Entiteetit', more: 'Puhdistamon asetukset',
+    power: 'Teho', phase: 'Vaihe', cycle: 'Jakso', message: 'Tilateksti', warning: 'Varoitus', next_pumpout: 'Seuraava ulospumppaus',
+    batch_counter: 'Panokset', chemical: 'Kemikaali (l)', sludge: 'Liete (panoksia)', energy: 'Energia (valinnainen)',
+    batch_volume: 'Panoksen koko', sludge_reminder_batches: 'Lietemuistutus (panoksia)', chemical_capacity: 'Kemikaaliastian koko', history_days: 'Historia',
+    help: { sludge_emptied: 'Valinnainen. Liete-entiteetin kanssa kortti arvioi päivän laskurista.', language: 'Tyhjä: Home Assistant -profiilisi kieli', hours: 'Tyhjä: 6 h', view: 'Tyhjä: leikkauskuva' } },
 };
 
 function ucFmt(str, vars) {
@@ -675,7 +695,23 @@ class UcModel {
 }
 /* Uponor Clean Card – side section view */
 const UC_Y = (h) => 632 - 0.36 * h;
-const UC_PART = [[642, UC_Y(1125)], [702, 340], [692, 520], [602, 632]];
+// Partition wall traced from the manufacturer's cross-section (Clean I manual, p. 18): it bulges
+// slightly into the process tank and comes down almost vertically to the floor.
+const UC_PART = [[631, UC_Y(1125)], [671, 358], [660, 505], [604, 596]];
+const UC_PART_FOOT = [[597.2, 607.1], [596, 638]];   // quadratic end: tangent continues the curve, ends vertical
+// recesses in the tank bottom [x1, x2, height] (outer outline). The drawing keeps the bottom flat;
+// the manufacturer's drawing has recesses at x 184-245, 363-453, 506-596 and 741-793.
+const UC_NOTCHES = [];
+function ucFloor(floorY, inset, r) {
+  // tank bottom from right to left with the recesses; inset widens them for the inner outline
+  let d = '';
+  for (const [x1, x2, h] of [...UC_NOTCHES].sort((a, b) => b[1] - a[1])) {
+    const X1 = x1 - inset, X2 = x2 + inset, roof = floorY - h;
+    d += ` H${X2 + r} Q${X2} ${floorY} ${X2} ${floorY - r} V${roof + r} Q${X2} ${roof} ${X2 - r} ${roof}` +
+      ` H${X1 + r} Q${X1} ${roof} ${X1} ${roof + r} V${floorY - r} Q${X1} ${floorY} ${X1 - r} ${floorY}`;
+  }
+  return d;
+}
 function ucPartX(y) {
   // x of partition curve at y (bezier sampled)
   let best = UC_PART[0][0], bd = 1e9;
@@ -727,9 +763,11 @@ function ucLedOn(S) {
 
 function ucSideMarkup(T) {
   const y = UC_Y;
-  const part = `M${UC_PART[0][0]} ${UC_PART[0][1]} C${UC_PART[1][0]} ${UC_PART[1][1]} ${UC_PART[2][0]} ${UC_PART[2][1]} ${UC_PART[3][0]} ${UC_PART[3][1]}`;
-  const tankOuter = 'M108 170 H892 Q940 170 942 222 L944 588 Q942 640 892 640 H108 Q58 640 56 588 L58 222 Q60 170 108 170 Z';
-  const tankInner = 'M110 174 H890 Q936 174 938 224 L940 586 Q938 636 890 636 H110 Q62 636 60 586 L62 224 Q64 174 110 174 Z';
+  const [p0, p1, p2, p3] = UC_PART, [f1, f2] = UC_PART_FOOT;
+  const part = `M${p0[0]} ${p0[1]} C${p1[0]} ${p1[1]} ${p2[0]} ${p2[1]} ${p3[0]} ${p3[1]} Q${f1[0]} ${f1[1]} ${f2[0]} ${f2[1]}`;
+  const partRev = `Q${f1[0]} ${f1[1]} ${p3[0]} ${p3[1]} C${p2[0]} ${p2[1]} ${p1[0]} ${p1[1]} ${p0[0]} ${p0[1]}`;
+  const tankOuter = `M108 170 H892 Q940 170 942 222 L944 588 Q942 640 892 640${ucFloor(640, 0, 5)} H108 Q58 640 56 588 L58 222 Q60 170 108 170 Z`;
+  const tankInner = `M110 174 H890 Q936 174 938 224 L940 586 Q938 636 890 636${ucFloor(636, 4, 5)} H110 Q62 636 60 586 L62 224 Q64 174 110 174 Z`;
   const P = UC_SIDE;
   const pipeD = {
     pumpIn: `M${P.pumpIn.intake} ${P.pumpIn.intakeTop} V${P.pumpIn.bot - 10} Q${P.pumpIn.intake} ${P.pumpIn.bot + 4} ${(P.pumpIn.intake + P.pumpIn.leg) / 2} ${P.pumpIn.bot + 4} Q${P.pumpIn.leg} ${P.pumpIn.bot + 4} ${P.pumpIn.leg} ${P.pumpIn.bot - 10} V${P.pumpIn.top + 8} Q${P.pumpIn.leg} ${P.pumpIn.top} ${P.pumpIn.leg + 8} ${P.pumpIn.top} H${P.pumpIn.spoutX - 8} Q${P.pumpIn.spoutX} ${P.pumpIn.top} ${P.pumpIn.spoutX} ${P.pumpIn.top + 8} V${P.pumpIn.spoutY - 18}`,
@@ -777,8 +815,8 @@ function ucSideMarkup(T) {
       <radialGradient id="ucShadow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
       <linearGradient id="ucPipeG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dde1e6"/><stop offset=".45" stop-color="#aab2bb"/><stop offset="1" stop-color="#858d96"/></linearGradient>
       <linearGradient id="ucChemG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e2c65a"/><stop offset=".5" stop-color="#f3dc7e"/><stop offset="1" stop-color="#d9b944"/></linearGradient>
-      <clipPath id="ucL"><path d="M-10 -10 H642 V${UC_PART[0][1]} C702 340 692 520 602 632 V700 H-10 Z"/></clipPath>
-      <clipPath id="ucR"><path d="M642 -10 H1010 V700 H602 V632 C692 520 702 340 642 ${UC_PART[0][1]} Z"/></clipPath>
+      <clipPath id="ucL"><path d="M-10 -10 H${p0[0]} V${p0[1]} ${part.slice(part.indexOf('C'))} V700 H-10 Z"/></clipPath>
+      <clipPath id="ucR"><path d="M${p0[0]} -10 H1010 V700 H${f2[0]} V${f2[1]} ${partRev} Z"/></clipPath>
       <clipPath id="ucChemC"><path d="M712 99 Q712 95 717 95 H753 Q758 95 758 99 V165 Q758 168 755 168 H715 Q712 168 712 165 Z"/></clipPath>
     </defs>
     <rect x="0" y="104" width="1000" height="576" fill="url(#ucSoilG)"/>
@@ -1707,7 +1745,56 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 `;
 
 class UponorCleanCard extends HTMLElement {
-  static getStubConfig() { return { name: UC_DEFAULTS.name, entities: { ...UC_DEFAULTS.entities } }; }
+  /* New card from the card picker: finds the entities of the Shelly script v3 (the Phase sensor
+     and the other entities of the same device). */
+  static getStubConfig(hass) {
+    const cfg = { name: UC_DEFAULTS.name, entities: { ...UC_DEFAULTS.entities } };
+    const st = (hass && hass.states) || {}; const reg = (hass && hass.entities) || {};
+    const phase = Object.keys(st).find((id) => /^sensor\..*_phase$/.test(id) && ((st[id].attributes || {}).options || []).includes('Pump-in'));
+    if (!phase) return cfg;
+    const base = phase.slice('sensor.'.length, -'_phase'.length);
+    const has = (id) => (st[id] ? id : null);
+    Object.assign(cfg.entities, {
+      phase, cycle: has(`sensor.${base}_cycle`), message: has(`sensor.${base}_status`), status: null,
+      warning: has(`sensor.${base}_warning`), next_pumpout: has(`sensor.${base}_next_pump_out`),
+      batch_counter: has(`number.${base}_batches`), chemical: has(`number.${base}_chemical`), sludge: has(`number.${base}_sludge`),
+    });
+    const dev = reg[phase] && reg[phase].device_id;
+    const sameDev = (dc) => Object.keys(st).find((id) => id.startsWith('sensor.') && (st[id].attributes || {}).device_class === dc && (!dev || (reg[id] && reg[id].device_id === dev)));
+    cfg.entities.power = sameDev('power') || cfg.entities.power;
+    cfg.entities.energy = sameDev('energy') || null;
+    return cfg;
+  }
+
+  /* Visual editor (Home Assistant builds the form from this schema) */
+  static getConfigForm() {
+    const fi = /^fi/i.test((document.querySelector('home-assistant') || {}).hass ? document.querySelector('home-assistant').hass.language || '' : navigator.language || '');
+    const L = fi ? UC_FORM_LABELS.fi : UC_FORM_LABELS.en;
+    const ent = (name, domain) => ({ name, selector: { entity: domain ? { domain } : {} } });
+    return {
+      schema: [
+        { name: 'name', selector: { text: {} } },
+        { type: 'grid', name: '', schema: [
+          { name: 'language', selector: { select: { mode: 'dropdown', options: [{ value: 'auto', label: L.lang_auto }, { value: 'fi', label: 'Suomi' }, { value: 'en', label: 'English' }] } } },
+          { name: 'view', selector: { select: { mode: 'dropdown', options: [{ value: 'side', label: L.view_side }, { value: 'top', label: L.view_top }] } } },
+          { name: 'hours', selector: { select: { mode: 'dropdown', options: ['2', '6', '48'].map((v) => ({ value: v, label: v + ' h' })) } } },
+          { name: 'sludge_emptied', selector: { date: {} } },
+        ] },
+        { type: 'expandable', name: 'entities', title: L.entities, schema: [
+          ent('power', 'sensor'), ent('phase', 'sensor'), ent('cycle', 'sensor'), ent('message', 'sensor'), ent('warning', 'sensor'),
+          ent('next_pumpout', 'sensor'), ent('batch_counter'), ent('chemical', 'number'), ent('sludge', 'number'), ent('energy', 'sensor'),
+        ] },
+        { type: 'expandable', name: 'more', flatten: true, title: L.more, schema: [
+          { name: 'batch_volume', selector: { number: { min: 50, max: 500, step: 10, mode: 'box', unit_of_measurement: 'l' } } },
+          { name: 'sludge_reminder_batches', selector: { number: { min: 100, max: 2000, step: 50, mode: 'box' } } },
+          { name: 'chemical_capacity', selector: { number: { min: 5, max: 50, step: 1, mode: 'box', unit_of_measurement: 'l' } } },
+          { name: 'history_days', selector: { number: { min: 2, max: 10, step: 1, mode: 'box', unit_of_measurement: 'd' } } },
+        ] },
+      ],
+      computeLabel: (s) => L[s.name] || undefined,
+      computeHelper: (s) => (L.help && L.help[s.name]) || undefined,
+    };
+  }
 
   constructor() {
     super();
@@ -1722,7 +1809,9 @@ class UponorCleanCard extends HTMLElement {
   setConfig(config) {
     if (!config) throw new Error('Invalid configuration');
     const ent = { ...UC_DEFAULTS.entities, ...(config.entities || {}) };
-    this._cfg = { ...UC_DEFAULTS, ...config, entities: ent };
+    // legacy belongs at the top level; accept it inside entities too
+    const legacy = config.legacy || (config.entities && config.entities.legacy) || null; delete ent.legacy;
+    this._cfg = { ...UC_DEFAULTS, ...config, entities: ent, legacy };
     this._model.batchVolume = +this._cfg.batch_volume || 170; this._model.sludgeLpm = +this._cfg.sludge_return_lpm || 12;
     if (this._view === null) this._view = this._cfg.view === 'top' ? 'top' : 'side';
     if (this._hours === null) this._hours = [2, 6, 48].includes(+this._cfg.hours) ? +this._cfg.hours : 6;
@@ -1911,12 +2000,15 @@ class UponorCleanCard extends HTMLElement {
       this._cursor = t; this._playing = false; this._ctrlState();
     });
     $('more').addEventListener('click', () => { this._logOpen = !this._logOpen; this._renderLog(); });
-    $('kv').addEventListener('click', (e) => { if (e.target.closest('[data-act="chem"]')) this._openChem(); });
+    $('kv').addEventListener('click', (e) => {
+      if (e.target.closest('[data-act="chem"]')) this._openChem(); else if (e.target.closest('[data-act="sludge"]')) this._openSludge();
+    });
+    const save = () => (this._edMode === 'sludge' ? this._saveSludge() : this._saveChem());
     $('chemed').addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.a === 'cancel') this._closeChem(); else if (b.dataset.a === 'save') this._saveChem();
+      if (b.dataset.a === 'cancel') this._closeChem(); else if (b.dataset.a === 'save') save();
     });
-    $('chemed').addEventListener('keydown', (e) => { if (e.key === 'Enter') this._saveChem(); if (e.key === 'Escape') this._closeChem(); });
+    $('chemed').addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') this._closeChem(); });
     $('entries').addEventListener('click', (e) => {
       const el = e.target.closest('.ent'); if (!el) return; const t = +el.dataset.t;
       this._cursor = t; this._playing = false;
@@ -2016,14 +2108,28 @@ class UponorCleanCard extends HTMLElement {
 
   _ctx(now) {
     const cfg = this._cfg; const T = this.T; const c = { T, locale: this._locale };
-    if (cfg.sludge_emptied) {
-      const d0 = Date.parse(cfg.sludge_emptied); if (isFinite(d0)) {
-        const days = Math.max(0, (now - d0) / 86400e3); c.sludgeMM = 60 + 300 * Math.min(1, days / 365);
-        c.sludgeText = ucFmt(T.emptied, { n: Math.round(days) }); c.sludgeDays = Math.round(days);
+    const sr = this._sludgeRem(); if (sr) { c.sludgeDue = sr.n >= sr.m; c.sludgeRem = sr; }
+    let days = null, est = false;
+    const d0 = cfg.sludge_emptied ? Date.parse(cfg.sludge_emptied) : NaN;
+    if (isFinite(d0)) days = Math.max(0, (now - d0) / 86400e3);
+    if (cfg.entities.sludge && sr) {
+      // the Shelly sludge counter is the reference: a reset seen in the history wins, and a configured
+      // date that no longer fits the counter (emptied again later) is replaced by an estimate
+      const hs = this._model.sludge || []; let tReset = null;
+      for (let i = 1; i < hs.length; i++) { const a = parseFloat(hs[i - 1].v), b = parseFloat(hs[i].v); if (isFinite(a) && isFinite(b) && b < a - 3 && hs[i].t <= now) tReset = hs[i].t; }
+      if (tReset !== null && (days === null || (now - tReset) / 86400e3 < days)) days = Math.max(0, (now - tReset) / 86400e3);
+      const perDay = (this._model.stats || {}).perDay;
+      if (perDay > 0.2) {
+        const e = sr.n / perDay; c.sludgeToRem = Math.max(0, (sr.m - sr.n) / perDay);
+        if (days === null || days > e * 2 + 30) { days = e; est = true; }
       }
+      c.sludgeMM = 60 + 300 * Math.min(1, sr.n / sr.m);
+    } else if (days !== null) c.sludgeMM = 60 + 300 * Math.min(1, days / 365);
+    if (days !== null) {
+      c.sludgeDays = Math.round(days); c.sludgeEst = est;
+      c.sludgeText = ucFmt(est ? T.emptied_est : T.emptied, { n: Math.round(days) });
     }
     const ch = this._chem(); c.chemFrac = ch ? ch.frac : null; c.chemLiters = ch ? ch.liters : null;
-    const sr = this._sludgeRem(); if (sr) { c.sludgeDue = sr.n >= sr.m; c.sludgeRem = sr; }
     return c;
   }
   /* config value that is either a number or an entity id */
@@ -2070,8 +2176,25 @@ class UponorCleanCard extends HTMLElement {
     if (!r || r.val === null || bc === null) return null;
     return { n: Math.max(0, Math.round(bc - r.val)), m: +this._cfg.sludge_reminder_batches || 800 };
   }
+  /* Sludge counter of the Shelly script (v3): set to 0 after emptying */
+  _openSludge() {
+    const T = this.T; const ed = this.$('chemed'); this._edMode = 'sludge';
+    ed.innerHTML = `<div class="row"><label for="sl-in">${T.sludge_now}</label><input id="sl-in" type="number" min="0" max="5000" step="1" value="0">
+        <button class="pri" data-a="save">${T.chem_save}</button><button data-a="cancel">${T.chem_cancel}</button></div>
+       <div class="note">${T.sludge_note}</div>`;
+    ed.classList.add('open');
+    const inp = ed.querySelector('input'); if (inp) { inp.focus(); inp.select(); }
+  }
+  async _saveSludge() {
+    const ed = this.$('chemed'); const inp = ed.querySelector('input'); if (!inp) return;
+    const v = Math.round(parseFloat(String(inp.value).replace(',', '.'))); if (!isFinite(v) || v < 0) { inp.focus(); return; }
+    try {
+      await this._hass.callService('number', 'set_value', { entity_id: this._cfg.entities.sludge, value: v });
+      ed.innerHTML = `<div class="note">${this.T.chem_saved}</div>`; setTimeout(() => this._closeChem(), 1500); this._lastChips = 0;
+    } catch (e) { const n = ed.querySelector('.note'); if (n) n.textContent = String(e && e.message ? e.message : e); }
+  }
   _openChem() {
-    const T = this.T; const cfg = this._cfg; const ed = this.$('chemed');
+    const T = this.T; const cfg = this._cfg; const ed = this.$('chemed'); this._edMode = 'chem';
     const am = this._entNum(cfg.chemical_amount), rc = this._entNum(cfg.chemical_refill_counter);
     const live = this._hass && this._hass.states[cfg.entities.batch_counter] ? Math.round(parseFloat(this._hass.states[cfg.entities.batch_counter].state)) : null;
     const ch = this._chem(); const cap = +cfg.chemical_capacity || 20;
@@ -2145,8 +2268,15 @@ class UponorCleanCard extends HTMLElement {
     const ch = this._chem();
     if (ch) kv.push(`<div class="act" data-act="chem" title="${T.chem_title} · ${ucFmt(T.chem_left, { n: ch.left })}"><dt>${T.chemical}</dt><dd class="${ch.frac < 0.1 ? 'warn' : ch.frac < 0.2 ? 'low' : ''}">≈ ${this._num(ch.liters, 1)} ${T.chem_l} · ${Math.round(ch.frac * 100)} %</dd></div>`);
     else if (cfg.entities.chemical || cfg.chemical_amount || cfg.chemical_refill_counter) kv.push(`<div class="act" data-act="chem"><dt>${T.chemical}</dt><dd>–</dd></div>`);
-    const c = this._ctx(now); if (c.sludgeDays !== undefined) add(T.sludge_emptied_lbl, ucFmt(T.days_ago, { n: c.sludgeDays }));
-    if (c.sludgeRem) add(T.sludge_rem, ucFmt(T.sludge_rem_v, { n: c.sludgeRem.n, m: c.sludgeRem.m }), c.sludgeDue ? 'warn' : c.sludgeRem.n > c.sludgeRem.m * 0.9 ? 'low' : '');
+    const c = this._ctx(now); if (c.sludgeDays !== undefined) add(T.sludge_emptied_lbl, ucFmt(c.sludgeEst ? T.days_ago_est : T.days_ago, { n: c.sludgeDays }));
+    if (c.sludgeRem) {
+      const cls = c.sludgeDue ? 'warn' : c.sludgeRem.n > c.sludgeRem.m * 0.9 ? 'low' : '';
+      const v = ucFmt(T.sludge_rem_v, { n: c.sludgeRem.n, m: c.sludgeRem.m });
+      if (cfg.entities.sludge) {
+        const tip = T.sludge_title + (c.sludgeToRem !== undefined ? ' · ' + ucFmt(T.sludge_to_rem, { n: Math.round(c.sludgeToRem) }) : '');
+        kv.push(`<div class="act" data-act="sludge" title="${tip}"><dt>${T.sludge_rem}</dt><dd${cls ? ` class="${cls}"` : ''}>${v}</dd></div>`);
+      } else add(T.sludge_rem, v, cls);
+    }
     const html = kv.join('');
     if (html !== this._kvHtml) { this.$('kv').innerHTML = html; this._kvHtml = html; }
   }

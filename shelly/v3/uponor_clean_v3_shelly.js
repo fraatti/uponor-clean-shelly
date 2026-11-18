@@ -1,4 +1,5 @@
 // Uponor Clean I v3.0.0 - compact version of uponor_clean_v3.js (github.com/fraatti/uponor-clean-shelly)
+// Events: Shelly.emitEvent("uponor", {v, type, ...}) - kept in the first 5 kB for the Home Assistant event entity
 let VERSION = "3.0.0";
 let CFG = {
  off_max: 2.0, idle_max: 10.0, valve_max: 24.0, dosing_max: 38.5, comp_max: 52.0, aer_max: 64.0,

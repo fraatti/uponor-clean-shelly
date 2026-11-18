@@ -1,4 +1,4 @@
-# v3.0.0 – testitulokset 18.11.2026
+# v3.0.0 – testitulokset 18.–19.11.2026
 
 ## Simulaattori (`test/v3_scenarios.js`)
 
@@ -57,6 +57,39 @@ Havainnot:
 - `Sys.GetStatus` antaa `reset_reason` (3 = ohjelmistokäynnistys) ja `utc_offset`.
 - v2.4 ja v3 eivät mahdu muistiin yhtä aikaa (v2.4:n rinnalla vapaata oli 10,5 kt).
 
+## Asennus laitteelle 18.11.2026
+
+v2.4 pysäytettiin ja sen komponentit poistettiin, ja v3 asennettiin skriptiksi 2 (`uponor-clean-v3`, *Run on startup*).
+
+| Mittaus | Tulos |
+| --- | --- |
+| Muisti käytössä | 14,9 kt |
+| Muistin huippu | 17,6 kt |
+| Vapaata muistia | 10,3 kt |
+| Komponentit | 9/10 (8 + ryhmä) |
+| Batches | 249 (v2.4:n KVS-avaimesta) |
+
+Muistin huippu ylittää suunnitellun 16 kt:n, koska komponenttien luonti ja KVS-kirjoitukset tulevat kuivatestin päälle. Vapaata jää noin 10 kt, joten v2.4 tai `uc-tools` ei voi olla samaan aikaan käynnissä.
+
+Havainnot laitteella:
+
+- `Array.prototype.shift`, `unshift` ja `concat` puuttuvat (firmware 2.2.0). `splice`, `slice`, `pop`, `push`, `indexOf` ja `join` toimivat. Skripti käyttää niitä, ja Shelly-jäljitelmä hylkää nyt puuttuvat funktiot.
+- Home Assistantin Shelly-integraatio ei luo entiteettejä skriptin omistamille (`@meta`) komponenteille. Siksi v3 luo tavalliset komponentit `Virtual.Add`-kutsulla ja tallentaa niiden tunnukset KVS-avaimeen `uc_vc`. Skriptin omistamia komponentteja ei voi poistaa `Virtual.Delete`-kutsulla (virhe −107), vaan ne poistuvat skriptin mukana.
+- Home Assistant löytää skriptin tapahtumatyypit vain skriptin ensimmäisestä 5 kt:sta. Tiivistetyn version toinen rivi mainitsee `Shelly.emitEvent("uponor", …)`, jolloin integraatio luo tapahtumaentiteetin.
+- Shellyn käyttöliittymä näyttää lukutilan enum-arvon rikkinäisen kuvan kuvakkeen kanssa (käyttöliittymän ominaisuus, ei vaikuta arvoihin).
+- Ensimmäinen odotusjakso laitteella (Home Assistantin historia): odotus 23.47.39, lietteen palautus 00.05.40, ilmastus 00.06.45, sisäänpumppaus 00.36.45 ja odotus 00.46.40, eli firmwaren 18 min, 1 min, 30 min ja 10 min. Skriptin päivitys (pysäytys ja käynnistys) odotuksen aikana jatkoi samasta vaiheesta. Lyhyet `unavailable`-tilat ovat integraation uudelleenlatauksia.
+
+## Kortti (`test/card_v3_test.js`)
+
+Simuloitu v3-ajo (30 h, puhdistusjaksoja ja lähtö tukossa kerran) syötetään kortille historiana.
+
+| Tarkistus | Tulos |
+| --- | --- |
+| Kortin vaihe = simulaattorin vaihe | 99,9 % (1740 näytettä) |
+| Ulospumppauksen aika Next pump-out -entiteetistä | virhe ≤ 1 s |
+| Kemikaali, lietelaskurin nollaus, editorit | oikein |
+| Kortinvalitsimen entiteettihaku ja editorin kielivalinta | oikein |
+
 ## Tavoitteet
 
 | Tavoite | Tulos |
@@ -68,5 +101,5 @@ Havainnot:
 | Syyskuun tyhjennysvihje 18.9. ja loma 21.9. klo 10.30 | ✓ |
 | Ei vääriä varoituksia | ✓ |
 | Kemikaali = annostelut × 0,04 | ✓ |
-| Muistin huippu ≤ 16 kt, suoritin ≤ 30 % | ✓ (13,8 kt kuivatestissä, 6–9 %) |
+| Muistin huippu ≤ 16 kt, suoritin ≤ 30 % | Kuivatestissä ✓ (13,8 kt, 6–9 %). Asennettuna huippu 17,6 kt, vapaata 10,3 kt. |
 | Tiivistetty versio toimii kuten lähde | ✓ (kaikkien testien tulokset identtiset) |

@@ -3,12 +3,12 @@
 Suunnitelman ajantasainen versio on Claude Docs -dokumentissa (yksityinen):
 https://claude.ai/artifact/KPHL42Q6ccvpDkne5X2qkA
 
-Tähän tiedostoon viedään suunnitelman Markdown-versio, kun se on hyväksytty ja v3:n toteutus alkaa.
+Toteutus ja asennus: `docs/v3-asennus.md`, testit: `docs/v3-testitulokset.md`.
 
 Tiivistelmä (18.11.2026):
 
-- Skripti toimii ilman Home Assistantia ja luo komponenttinsa itse `@meta`-lohkosta (firmware ≥ 2.2.0).
-- Komponentit: Phase, Cycle, Status, Warning, Batches, Chemical, Sludge ja ryhmä Uponor Clean (8/10 paikkaa, 2 varaukseen).
+- Skripti toimii ilman Home Assistantia ja luo komponenttinsa itse (firmware ≥ 2.2.0). Toteutuksessa `@meta`-lohko vaihtui `Virtual.Add`-kutsuun, koska Home Assistant ei näytä skriptin omistamia komponentteja (`docs/v3-testitulokset.md`).
+- Komponentit: Phase, Cycle, Status, Warning, Next pump-out, Batches, Chemical, Sludge ja ryhmä Uponor Clean (9/10 paikkaa).
 - Prosessimalli peilaa ohjausyksikön firmwaren jaksot (puhdistus, odotus, loma, testi) ja vaiheet; ETA ankkuroidaan vaiheiden alkuihin.
 - Kaikki tekstit englanniksi, arvot kieliriippumattomina avaimina.
 - Kemikaali: käyttäjä syöttää litrat täytön jälkeen, −0,04 l / annostelu, varoitus alle 10 vrk:n riittävyydellä.

@@ -2,13 +2,17 @@
 
 An animated Home Assistant card for the **Uponor Clean I** batch wastewater treatment plant. It draws the plant as a cross-section and as a top view of the process-tank riser, animates what the plant is doing, and adds a timeline with history playback and a logbook.
 
-The card does not talk to the plant. It reads the entities that the Shelly EM Mini Gen4 script publishes from the plant's power consumption: cycle status, process message, normalized power and batch counter. It works with script v2.3 and v2.4; v2.4 adds a separate Waiting status, a pump-out estimate for every batch and process warnings.
+![Card (English)](../docs/img/card_side_en.jpg)
+
+The card does not talk to the plant. It reads the entities that the Shelly EM Mini Gen4 script publishes from the plant's power consumption. With **script v3** (`shelly/v3/`) these are Phase, Cycle, Status, Warning, Next pump-out, Batches, Chemical and Sludge; the card takes the phase, the pump-out time, the warnings and the chemical and sludge counters from the script. It also works with script v2.3 and v2.4 (cycle status, process message, normalized power and batch counter), and it can show the v2 history before the v3 entities start (`legacy`).
+
+A Finnish guide with screenshots is in `docs/kortti.md`.
 
 Phase durations come from the control unit's firmware (board A settings, label VERSION 2.1.2): pre-aeration 10 min + aeration 90 min, chemical filling 90 s, dose 10 s, mixing 2 min, sedimentation I 45 min, sludge return 2 min, sedimentation II 15 min, pump-out 13 min, pump-in after pump-out up to 17 min, and the wait cycle (waiting 18 min, sludge return 1 min, aeration 30 min, pump-in 10 min). They match the recorded data to within seconds.
 
 ## Features
 
-- **Side view** based on the manufacturer's cross-section: sedimentation tank (2.5 m³) and process tank (1 m³), curved partition wall, control unit with compressor and valves, chemical tank, pump-in, sludge-return and discharge modules, aerator, and the two pressure-switch sensor tubes.
+- **Side view** based on the manufacturer's cross-section (Clean I manual, p. 18): sedimentation tank (2.5 m³) and process tank (1 m³), curved partition wall that comes down almost vertically to the flat bottom, control unit with compressor and valves, chemical tank, pump-in, sludge-return and discharge modules, aerator, and the two pressure-switch sensor tubes.
 - **Mammoth (airlift) pumps**: air is injected at the bottom of the riser, air slugs and water plugs rise up the pipe, and the water spills over in pulses. Flow weakens as the submergence drops during pump-out.
 - **Aeration**: a bubble plume rises from the aerator, the mixed liquor circulates, and the surface moves. During settling the sludge flocs sink, a clear-water layer forms and the sludge blanket compacts.
 - **Chemical dosing pump** (top view): the chamber fills through the check valve while the air line is vented, then compressed air pushes the dose up the outlet tube; the hole above the liquid breaks the siphon.
@@ -21,20 +25,47 @@ Phase durations come from the control unit's firmware (board A settings, label V
 - **Timeline**: 2 h / 6 h / 48 h, power, estimated process-tank level, phase bar, event markers (start level reached, chemical dose, batch completed, warnings, holiday automation), playback from real time (1 s/s) to 5 min/s (default 30 s/s), and a scrubber.
 - **Phases named as in the firmware**: Waiting (wait and holiday cycles) is shown separately from Settling (sedimentation I and II in a batch), also with script v2.3 data. Progress uses the firmware durations, including the 17-minute pump-in after pump-out and the 50/100-minute waits of the holiday cycle.
 - **Logbook** derived from the history: batch started (with filling time and number of wait cycles, also when high water skips the aeration), chemical dose, pump-out, batch completed, holiday automation, plant restart after a power cut (a batch that starts from rest without pump-in), warnings, data gaps.
-- **Warnings** from script v2.4 (high water, outlet blocked) and v2.3 (high power, no power, compressor not running) appear as a banner, in the logbook and on the timeline.
+- **Warnings** from script v3 (no power, high power, no signal, compressor idle, outlet blocked, high water, paused, chemical low, sludge due, sludge emptied), v2.4 (high water, outlet blocked) and v2.3 (high power, no power, compressor not running) appear as a banner, in the logbook and on the timeline.
 - **Chips**: batch counter, batches over the last 7 days with a per-day bar strip, wastewater per day (batches × 170 l), pump-out ETA or last batch, power, energy per day, process level, chemical left in litres, days since the sludge was emptied, and the sludge reminder count (800 batches).
-- **Chemical amount**: click the Chemical value to enter how much is in the tank now. The card stores it with the current batch counter and counts down 0.4 dl per batch. The level shows in the side view tank, on the top-view lid and in the chemical tank legend.
-- English and Finnish, chosen from the Home Assistant language. Follows the light or dark theme.
+- **Chemical amount**: click the Chemical value to enter how much is in the tank now. With script v3 the card writes it to the Shelly's Chemical number and the script subtracts 0.4 dl per dose; with v2 the card stores it in two helpers with the current batch counter. The level shows in the side view tank, on the top-view lid and in the chemical tank legend.
+- **Sludge counter** (script v3): click the sludge reminder after the sedimentation tank was emptied and save 0. The date of emptying comes from the counter reset in the history, or from `sludge_emptied`; when that date no longer fits the counter, the card estimates it from the counter and the batch rate (shown with ≈).
+- **Visual editor**: name, language, view, timeline, sludge date, entity pickers and plant settings. A card added from the card picker finds the v3 entities by itself.
+- English and Finnish, chosen from the Home Assistant profile language or set per card (`language`). Follows the light or dark theme.
 - Fits on one screen: on wide cards the drawing sits beside a side column (chips and logbook) and the timeline runs underneath. The drawing's height follows the browser window, so the whole card stays visible without scrolling on a typical laptop or desktop screen.
 
 ## Installation
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.5.0`
+   - URL: `/local/uponor-clean-card.js?v=1.7.1`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.
+
+With script v3:
+
+```yaml
+type: custom:uponor-clean-card
+name: Uponor Clean I
+entities:
+  power: sensor.uponor_clean_1_power
+  phase: sensor.storage_room_uponor_clean_1_phase
+  cycle: sensor.storage_room_uponor_clean_1_cycle
+  message: sensor.storage_room_uponor_clean_1_status
+  warning: sensor.storage_room_uponor_clean_1_warning
+  next_pumpout: sensor.storage_room_uponor_clean_1_next_pump_out
+  batch_counter: number.storage_room_uponor_clean_1_batches
+  chemical: number.storage_room_uponor_clean_1_chemical
+  sludge: number.storage_room_uponor_clean_1_sludge
+  energy: sensor.shellyemminig4_000000000000_energy
+sludge_emptied: "2026-09-18"
+legacy:                        # optional: v2 history before the v3 entities start
+  status: select.uponor_clean_1_vc_cycle_status
+  message: text.storage_room_uponor_clean_1_process_message
+  batch_counter: sensor.uponor_clean_1_vc_batch_counter
+```
+
+With script v2.3 or v2.4:
 
 ```yaml
 type: custom:uponor-clean-card
@@ -60,13 +91,20 @@ chemical_refill_counter: input_number.uponor_chemical_refill_counter
 | `entities.message` | `text.storage_room_uponor_clean_1_process_message` | Process message (ETA, Discharge, Holiday automation, Warning, Last) |
 | `entities.batch_counter` | `sensor.uponor_clean_1_vc_batch_counter` | Batch counter |
 | `entities.energy` | none | Optional energy sensor (kWh, total) for the kWh/day chip |
+| `entities.phase` | none | Script v3: Phase sensor. When set, it replaces `status`. |
+| `entities.cycle` | none | Script v3: Cycle sensor (cleaning, waiting, holiday, test) |
+| `entities.warning` | none | Script v3: Warning sensor |
+| `entities.next_pumpout` | none | Script v3: Next pump-out (local ISO time) |
+| `entities.chemical` | none | Script v3: Chemical number (litres). Replaces `chemical_amount` and `chemical_refill_counter`. |
+| `entities.sludge` | none | Script v3: Sludge number (batches since emptying). Replaces `sludge_reset_counter`. |
+| `legacy` | none | Older entities (`status`, `message`, `batch_counter`) whose history is shown before the first value of the current ones |
 | `hours` | `6` | Initial timeline range: 2, 6 or 48 |
 | `view` | `side` | Initial view: `side` or `top` |
 | `language` | `auto` | `auto`, `en` or `fi` |
 | `batch_volume` | `170` | Litres per batch, used for the wastewater estimate |
 | `sludge_return_lpm` | `12` | Estimated sludge-return flow (l/min). Lowers the process-tank level during sludge return (2 min in a batch ≈ 25 l, 1 min in a wait cycle). |
 | `history_days` | `8` | Days of status history loaded for the model and the 7-day statistics |
-| `sludge_emptied` | none | Date the sedimentation tank was emptied (`YYYY-MM-DD`); shows days since emptying and grows the sludge layer in the drawing |
+| `sludge_emptied` | none | Date the sedimentation tank was emptied (`YYYY-MM-DD`); shows days since emptying and grows the sludge layer in the drawing. With `entities.sludge` it is optional: a reset in the history wins, and a date that no longer fits the counter is replaced by an estimate. |
 | `sludge_reset_counter` | none | Batch counter value when the plant's sludge reminder was reset (Test button 10–15 s), as a number or an entity. Shows batches towards the reminder and lights the panel's Alarm light when it is due. |
 | `sludge_reminder_batches` | `800` | Batches until the plant's sludge reminder (E051) |
 | `chemical_amount` | none | Litres in the chemical tank at `chemical_refill_counter`, as an `input_number` entity (recommended) or a number |
@@ -75,9 +113,9 @@ chemical_refill_counter: input_number.uponor_chemical_refill_counter
 | `chemical_dose_dl` | `0.4` | Dose per batch (the manual: about 0.4 dl) |
 | `chemical_fill_liters` | `15` | Amount used when `chemical_amount` is not set |
 
-### Chemical amount with helpers
+### Chemical amount with helpers (script v2)
 
-Create two helpers (Settings → Devices & services → Helpers → Number, or YAML):
+With script v3 use `entities.chemical`; no helpers are needed. For v2, create two helpers (Settings → Devices & services → Helpers → Number, or YAML):
 
 ```yaml
 input_number:
@@ -112,8 +150,8 @@ The plant has no level sensor that Home Assistant can read, so the water levels 
 
 ## Requirements
 
-- Home Assistant with the recorder (the card uses the `history/history_during_period` WebSocket API).
-- The Shelly script v2.3 or newer with the virtual components above. With v2.4, add the option `W` (title `Waiting`) to the Cycle Status enum to get the Waiting status from the script; without it the card still separates waiting from settling by context.
+- Home Assistant with the recorder (the card uses the `history/history_during_period` WebSocket API). The visual editor uses `getConfigForm` (tested on Home Assistant 2026.10); versions without it show the YAML editor.
+- The Shelly script v3 (recommended) or v2.3/v2.4 with the virtual components above. With v2.4, add the option `W` (title `Waiting`) to the Cycle Status enum to get the Waiting status from the script; without it the card still separates waiting from settling by context.
 - A current desktop or mobile browser. On narrow screens the drawing scrolls sideways.
 
 ## Licence

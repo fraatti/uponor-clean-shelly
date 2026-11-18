@@ -14,6 +14,10 @@
  * Requirements: Shelly with an em1 / pm1 power meter, firmware 2.2.0 or newer,
  * the device time zone set.
  *
+ * Events: Shelly.emitEvent("uponor", {v, type, ...}) on phase, batch, warning,
+ * chemical and sludge changes. Home Assistant reads only the first 5 kB of a
+ * script to find its event types, so this line keeps the event entity there.
+ *
  * Persistent data lives in KVS (keys uc_*), so it survives code updates and
  * deleting the script. Settings can be overridden in KVS key "uc_cfg" (JSON).
  *
@@ -67,7 +71,7 @@ function warnTitle(k) {
     return t[warnKeys().indexOf(k)];
 }
 
-// settings of the components (the @meta block holds only the minimum)
+// settings of the components (Virtual.Add at the first start, SetConfig after a version change)
 function vcConfig(role) {
     let label = { ui: { view: "label" } };
     if (role === "phase") {
