@@ -1,5 +1,7 @@
 # Uponor Clean v3 – asennusohje (Shelly)
 
+[English](v3-install.md) | **Suomi**
+
 Skripti `shelly/v3/uponor_clean_v3_shelly.js` seuraa Uponor Clean I -puhdistamon ohjauskeskusta sähkönkulutuksen perusteella. Se tunnistaa jaksot (puhdistus, odotus, loma, testi) ja niiden vaiheet, laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Skripti luo omat virtuaalikomponenttinsa, ja Shellyn käyttöliittymä näyttää ne. Home Assistantia ei tarvita. Home Assistant -käyttö (entiteetit, tapahtumat, automaatiot) on kuvattu ohjeessa [`home-assistant.md`](home-assistant.md) ja kortti ohjeessa [`kortti.md`](kortti.md).
 
 Lähdekoodi on `shelly/v3/uponor_clean_v3.js`. Laitteelle ladataan sen tiivistetty versio `uponor_clean_v3_shelly.js`, josta kommentit on poistettu.

@@ -1,5 +1,7 @@
 # Uponor Clean -kortti Home Assistantiin
 
+[English](../ha-card/README.md) | **Suomi**
+
 Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa: leikkauskuvan ja prosessisäiliön nousuputken ylhäältä, animoituna sen mukaan, mitä ohjauskeskus tekee. Alla on aikajana, jota voi selata ja toistaa, ja oikealla lukemat ja lokikirja. Tiedot tulevat Shelly-skriptin v3 entiteeteistä ([`home-assistant.md`](home-assistant.md)). Kortti toimii myös v2.3- ja v2.4-skriptin entiteeteillä.
 
 ![Kortti puhdistusjakson ilmastuksessa](img/kortti_ilmastus.jpg)

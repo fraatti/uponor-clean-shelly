@@ -1,5 +1,7 @@
 # Shellyn skriptiympäristön rajoitteet
 
+[English](shelly-limits.md) | **Suomi**
+
 Rajoitteet, jotka tulivat vastaan tätä skriptiä tehdessä. Ne on todettu Shelly EM Mini Gen4:llä, firmware 2.2.0 (`20261109-150305/2.2.0-g7968dca`), marraskuussa 2026. Muut laitteet ja firmwareversiot voivat poiketa. Testien Shelly-jäljitelmä (`test/shelly_device_mock.js`) tarkistaa suurimman osan näistä, joten virhe näkyy jo testissä eikä vasta laitteella.
 
 ## Kieli ja kirjasto
@@ -47,6 +49,6 @@ Rajoitteet, jotka tulivat vastaan tätä skriptiä tehdessä. Ne on todettu Shel
 
 | Rajoite | Mitä tapahtuu | Miten kierretty |
 | --- | --- | --- |
-| Web-editorin tekstikentän enimmäispituus on 50 000 merkkiä (`maxlength`). Testattu 19.11.2026: 60 000 merkin liitoksesta jäi 50 000, ja tallennus vei katkaistun koodin laitteelle. Laite itse hyväksyy pidemmän koodin RPC:llä (`Script.PutCode`, testattu 60 000 merkkiä). | Liitos katkeaa **ilman varoitusta**, ja katkaistu skripti tallentuu | Tiivistetty versio (noin 40 000 merkkiä) tai `shelly/tools/lataa_shellyyn.py`, joka kirjoittaa paloina |
+| Web-editorin tekstikentän enimmäispituus on 50 000 merkkiä (`maxlength`). Testattu 19.11.2026: 60 000 merkin liitoksesta jäi 50 000, ja tallennus vei katkaistun koodin laitteelle. Laite itse hyväksyy pidemmän koodin RPC:llä (`Script.PutCode`, testattu 60 000 merkkiä). | Liitos katkeaa **ilman varoitusta**, ja katkaistu skripti tallentuu | Tiivistetty versio (noin 40 000 merkkiä) tai `shelly/tools/lataa_shellyyn.py`, joka kirjoittaa paloina. Ilmoitettu Shellylle web-käyttöliittymän Feedback-lomakkeella. |
 | EM1Data-historia ei näytä lyhyttä uudelleenkäynnistystä aukkona | Shellyn uudelleenkäynnistystä ei erota lyhyestä sähkökatkosta | Käynnistyssyy `Sys.GetStatus`-kutsun `reset_reason`-kentästä |
 | Shellyn käyttöliittymän alapalkissa näkyy laitteen MAC-osoite | Näkyy kuvakaappauksissa | Rajaa alapalkki pois |

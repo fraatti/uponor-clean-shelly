@@ -1,70 +1,69 @@
-# Uponor Clean – Shelly-seuranta
+# Uponor Clean – Shelly monitoring
 
-*English summary: process monitoring for the Uponor Clean I small wastewater treatment plant. A Shelly EM Mini Gen4 script recognises the control unit's cycles and phases from power consumption, counts batches, chemical and sludge, and estimates the next pump-out. A Home Assistant Lovelace card visualises the plant. Version 3 follows the control unit's firmware cycle phase by phase, works without Home Assistant and creates its own virtual components. See `ha-card/README.md` for the card in English.*
+**English** | [Suomi](README.fi.md)
 
-![Kortti](docs/img/kortti_ilmastus.jpg)
+![Card](docs/img/card_side_en.jpg)
 
-Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee siitä ohjauskeskuksen jaksot (puhdistus, odotus, loma, testi) ja vaiheet (ilmastus, kemikaalin täyttö ja annostelu, sekoitus, laskeutus, lietteen palautus, ulospumppaus, sisäänpumppaus, odotus), laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Home Assistant -kortti näyttää prosessin animoituna.
+A Shelly EM Mini Gen4 measures the power consumption of an Uponor Clean I small wastewater treatment plant. From that alone, a Shelly script works out the control unit's cycles (cleaning, waiting, holiday, test) and phases (aeration, chemical filling and dosing, mixing, sedimentation, sludge removal, pump-out, pump-in, waiting), counts batches, chemical and sludge, estimates the next pump-out and warns about faults. A Home Assistant card shows the process animated.
 
-Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa käyttöliittymässä ja Shelly-sovelluksessa. Vaihe, jakso, tila, varoitus ja seuraava ulospumppaus päivittyvät reaaliajassa, ja panoslaskurin kasvu näkyy sovelluksen graafina päivittäin.
+Home Assistant is not required: the script's components also show in the Shelly web UI and the Shelly app. Phase, cycle, status, warning and next pump-out update in real time, and the app charts the batch counter day by day.
 
 <p>
-<img src="docs/img/app_paanakyma.jpg" alt="Shelly-sovellus: komponentit" width="300">
-<img src="docs/img/app_panokset.jpg" alt="Shelly-sovellus: panoslaskurin graafi" width="300">
+<img src="docs/img/app_paanakyma.jpg" alt="Shelly app: components" width="300">
+<img src="docs/img/app_panokset.jpg" alt="Shelly app: batch counter chart" width="300">
 </p>
 
-## Ohjeet
+## Guides
 
-| Ohje | Sisältö |
+| Guide | Contents | Suomeksi |
+| --- | --- | --- |
+| [`docs/v3-install.md`](docs/v3-install.md) | Installing Shelly script v3 (with screenshots), updating, removing, components, warnings, settings and troubleshooting | [`v3-asennus.md`](docs/v3-asennus.md) |
+| [`docs/home-assistant.en.md`](docs/home-assistant.en.md) | Home Assistant: Shelly integration, entities, event entity and automation examples | [`home-assistant.md`](docs/home-assistant.md) |
+| [`ha-card/README.md`](ha-card/README.md) | The Home Assistant card: what it shows, installation, language, options, entering chemical and sludge | [`kortti.md`](docs/kortti.md) |
+| [`docs/shelly-limits.md`](docs/shelly-limits.md) | Limits of the Shelly scripting environment that came up (stack, memory, missing functions, components, Home Assistant) | [`shelly-rajoitteet.md`](docs/shelly-rajoitteet.md) |
+
+Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`](docs/v3-testitulokset.md)), running the tests ([`test/README.md`](test/README.md)), the v3 plan, the prototype tests and the control unit firmware in pseudocode ([`docs/firmware/`](docs/firmware/)).
+
+## Contents
+
+| Folder | Contents |
 | --- | --- |
-| [`docs/v3-asennus.md`](docs/v3-asennus.md) | Shelly-skriptin v3 asennus kuvineen, päivitys, poisto, komponentit, varoitukset, asetukset ja vianetsintä |
-| [`docs/home-assistant.md`](docs/home-assistant.md) | Home Assistant: Shelly-integraatio, entiteetit, tapahtumaentiteetti ja automaatioesimerkit |
-| [`docs/shelly-rajoitteet.md`](docs/shelly-rajoitteet.md) | Shellyn skriptiympäristön rajoitteet, jotka tulivat vastaan (pino, muisti, puuttuvat funktiot, komponentit, Home Assistant) |
-| [`docs/kortti.md`](docs/kortti.md) | Home Assistant -kortti: mitä se näyttää, asennus, kieli, asetukset, kemikaalin ja lietteen syöttö |
-| [`ha-card/README.md`](ha-card/README.md) | Card reference in English (all options, v2 helpers, level model) |
-| [`docs/v3-testitulokset.md`](docs/v3-testitulokset.md) | v3:n testitulokset simulaattorilla, tallennetulla datalla ja laitteella |
-| [`test/README.md`](test/README.md) | Testien ajaminen |
+| `shelly/v3/` | Script v3.0.2: `uponor_clean_v3.js` (source) and `uponor_clean_v3_shelly.js` (compact, loaded on the Shelly). |
+| `shelly/v2/` | Old scripts v2.4 and v2.3 (not in use) and a backup of the v2.4 components (`backup/`). |
+| `shelly/v3/proto/` | v3 prototypes for the device test and the component backup tool `uc_tools.js` (used in the migration). |
+| `shelly/tools/` | `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4). |
+| `ha-card/` | Lovelace card `uponor-clean-card.js` v1.7.1, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
+| `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios and the card test. |
+| `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |
 
-## Sisältö
+## Versions
 
-| Kansio | Sisältö |
+| Version | Status |
 | --- | --- |
-| `shelly/v3/` | Skripti v3.0.2: `uponor_clean_v3.js` (lähde) ja `uponor_clean_v3_shelly.js` (tiivistetty, ladataan Shellyyn). |
-| `shelly/v2/` | Vanhat skriptit v2.4 ja v2.3 (eivät käytössä) sekä v2.4:n komponenttien varmuuskopio (`backup/`). |
-| `shelly/v3/proto/` | v3-prototyypit laitetestiin ja komponenttien varmuuskopiotyökalu `uc_tools.js` (käytetty siirtymässä). Ohje: `docs/v3-prototyyppitesti.md`. |
-| `shelly/tools/` | `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos). |
-| `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.7.1, ohje, esikatselusivu (`preview.html`) ja sen päivitystyökalu (`tools/build_preview.py`). |
-| `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla Shelly-jäljitelmässä, firmwaresimulaattori, skenaariot ja kortin testi. |
-| `docs/` | Ohjeet, kuvat (`img/`), firmwaren pseudokoodi, v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |
+| Script v3.0.2 | In use since 19 Nov 2026 (branch `v3`). v3.0.0–3.0.1 stopped at the start of the first cleaning cycle because the call stack got too deep (see the test results). Does not need Home Assistant, creates its own components, follows the firmware's phases and cycles, chemical and sludge counters, warnings, events. |
+| Card v1.7.1 | In use. v3 entities, v2 history before v3, visual editor and language option, entering chemical and sludge on the card. |
+| Script v2.4.0 | Retired on 18 Nov 2026 and removed from the device on 19 Nov 2026. No migration or return path. |
+| Script v2.3 | Old version. |
 
-## Versiot
+## Tested with
 
-| Versio | Tila |
+The script and the card were built and tested on one installation. Other versions have not been tried.
+
+| Part | Version |
 | --- | --- |
-| Skripti v3.0.2 | Käytössä 19.11.2026 alkaen (haara `v3`). v3.0.0–3.0.1 kaatuivat ensimmäisen puhdistusjakson alussa liian syvään kutsupinoon (`docs/v3-testitulokset.md`). Ei vaadi Home Assistantia, luo komponentit itse, firmwaren mukaiset vaiheet ja jaksot, kemikaali- ja lietelaskuri, varoitukset, tapahtumat. |
-| Kortti v1.7.1 | Käytössä. v3-entiteetit, v2-historia ennen v3:a, visuaalinen editori ja kielivalinta, kemikaalin ja lietteen syöttö kortilta. |
-| Skripti v2.4.0 | Poistettu käytöstä 18.11.2026 ja poistettu laitteelta 19.11.2026. Ei siirtymää eikä paluuta. |
-| Skripti v2.3 | Vanha versio. |
-
-## Testattu ympäristö
-
-Skripti ja kortti on rakennettu ja testattu yhdellä laitteistolla. Muita versioita ei ole kokeiltu.
-
-| Osa | Versio |
-| --- | --- |
-| Puhdistamo | Uponor Clean I, ohjauskeskuksen kannen tarra "VERSION 2.1.2", piirilevy vuodelta 2011 |
+| Plant | Uponor Clean I, control unit label "VERSION 2.1.2", circuit board from 2011 |
 | Shelly | Shelly EM Mini Gen4 (S4EM-001PXCEU16), firmware 2.2.0 (`20261109-150305/2.2.0-g7968dca`) |
-| Home Assistant | 2026.10.2, sisäänrakennettu Shelly-integraatio |
-| Kortti | Home Assistantin käyttöliittymä Chromessa (työpöytä ja kapea näkymä) |
+| Home Assistant | 2026.10.2, built-in Shelly integration |
+| Card | Home Assistant frontend in Chrome (desktop and narrow layout) |
 
-Vanhemmilla Shellyn firmwareilla skriptiä ei ole kokeiltu. Kortin visuaalinen editori vaatii Home Assistantin, jossa on `getConfigForm` (testattu 2026.10.2). Muissa versioissa kortti toimii YAML-asetuksilla.
+The script has not been tried on older Shelly firmware. The card's visual editor needs a Home Assistant version with `getConfigForm` (tested on 2026.10.2); elsewhere the card works with YAML options.
 
-## Huomio ennen julkistamista
+## Before making the repository public
 
-Repo on yksityinen. Ennen julkiseksi muuttamista tarkista:
+The repository is private. Before making it public, check:
 
-- Mittausdataa (Home Assistantin historia-CSV:t) ei ole versionhallinnassa (`.gitignore`). Pidä se poissa jatkossakin.
-- `ha-card/preview.html` sisältää oman laitteen mittausdatasta lasketun esimerkkijakson.
-- `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. Laitteen MAC-osoite on poistettu kuvista, tiedostoista ja koko historiasta (19.11.2026). Kuvakaappauksissa ei saa näkyä Shellyn käyttöliittymän alapalkkia, jossa MAC-osoite on.
-- `docs/firmware/` perustuu kolmannen osapuolen firmwarevedokseen, ja `docs/kortti.md` viittaa Uponorin käsikirjaan. Varmista, että julkaiseminen on ok.
-- Valitse lisenssi (esim. MIT).
+- Measurement data (Home Assistant history CSVs) is not under version control (`.gitignore`). Keep it out.
+- `ha-card/preview.html` contains an example cycle computed from the plant's own measurements.
+- `docs/img/` contains screenshots of the own Shelly and Home Assistant. The device MAC address has been removed from the images, the files and the whole history (19 Nov 2026). Screenshots must not show the bottom bar of the Shelly web UI, which shows the MAC address.
+- `docs/firmware/` is based on a third-party firmware dump, and the card guide refers to the Uponor manual. Make sure publishing them is fine.
+- Choose a license (e.g. MIT).

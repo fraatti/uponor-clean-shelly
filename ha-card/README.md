@@ -1,12 +1,14 @@
 # Uponor Clean Card
 
+**English** | [Suomi](../docs/kortti.md)
+
 An animated Home Assistant card for the **Uponor Clean I** batch wastewater treatment plant. It draws the plant as a cross-section and as a top view of the process-tank riser, animates what the plant is doing, and adds a timeline with history playback and a logbook.
 
 ![Card (English)](../docs/img/card_side_en.jpg)
 
 The card does not talk to the plant. It reads the entities that the Shelly EM Mini Gen4 script publishes from the plant's power consumption. With **script v3** (`shelly/v3/`) these are Phase, Cycle, Status, Warning, Next pump-out, Batches, Chemical and Sludge; the card takes the phase, the pump-out time, the warnings and the chemical and sludge counters from the script. It also works with script v2.3 and v2.4 (cycle status, process message, normalized power and batch counter), and it can show the v2 history before the v3 entities start (`legacy`).
 
-A Finnish guide with screenshots is in `docs/kortti.md`.
+The Shelly script and its Home Assistant entities are described in [`docs/v3-install.md`](../docs/v3-install.md) and [`docs/home-assistant.en.md`](../docs/home-assistant.en.md).
 
 Phase durations come from the control unit's firmware (board A settings, label VERSION 2.1.2): pre-aeration 10 min + aeration 90 min, chemical filling 90 s, dose 10 s, mixing 2 min, sedimentation I 45 min, sludge return 2 min, sedimentation II 15 min, pump-out 13 min, pump-in after pump-out up to 17 min, and the wait cycle (waiting 18 min, sludge return 1 min, aeration 30 min, pump-in 10 min). They match the recorded data to within seconds.
 
@@ -147,6 +149,32 @@ The plant has no level sensor that Home Assistant can read, so the water levels 
 - If pump-out is followed directly by a new chemical filling (outlet blocked), the level stays up, as the start-level switch did not release. If high water skips the aeration, the pump-in before the chemical filling still counts as reaching the start level.
 - The sedimentation tank level rises slowly between fillings and drops during each filling. Its swing is exaggerated so that it is visible.
 - Geometry (heights in mm) is approximate and based on the manual: inlet 1160 mm, outlet 1110 mm, partition top about 1125 mm, start level about 930 mm, pump-out level about 780 mm.
+
+## Screenshots from Home Assistant
+
+The visual editor (**Edit** on the dashboard):
+
+![Card editor](../docs/img/ha_kortin_editori.jpg)
+
+Entering the chemical amount and resetting the sludge counter on the card:
+
+![Chemical](../docs/img/ha_kemikaali.jpg)
+
+![Sludge counter reset](../docs/img/ha_liete.jpg)
+
+The card on the real installation:
+
+![The card in Home Assistant](../docs/img/ha_kortti.jpg)
+
+## Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| The card does not show, *Custom element doesn't exist* | Check the resource URL and type (JavaScript module) and reload the page. |
+| An old version shows after an update | Change the resource's `?v=` number and clear the browser cache. |
+| *Waiting for history…* stays on | The recorder is off or the entities are wrong. Check the entities in the card options. |
+| The phase is *Unknown* | The Shelly script has not recognised the phase yet, or the power reading is missing. See [`docs/v3-install.md`](../docs/v3-install.md). |
+| *Data gap (Shelly or Home Assistant)* in the logbook | Home Assistant or the Shelly did not record readings (e.g. an integration reload or an update). |
 
 ## Requirements
 
