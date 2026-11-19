@@ -58,6 +58,13 @@ Phase ja Cycle näyttävät aluksi `Unknown`, kunnes skripti tunnistaa ensimmäi
 
 ![Uponor Clean -ryhmä](img/shelly_ryhma.jpg)
 
+Samat komponentit näkyvät Shelly-sovelluksessa (Shelly Smart Control) laitteen alla. Batches-komponentilla on pilvitilasto, joten sovelluksen *Charts*-näkymä piirtää panoslaskurin kasvun päiväkohtaisena graafina. Kuvassa graafi jatkuu v2.4:n laskurin historiasta (21.10. alkaen 200 → 249), koska komponentti on sama `number:200`.
+
+<p>
+<img src="img/app_paanakyma.jpg" alt="Shelly-sovellus: komponentit" width="300">
+<img src="img/app_panokset.jpg" alt="Shelly-sovellus: panoslaskurin graafi" width="300">
+</p>
+
 Shellyn käyttöliittymä (firmware 2.2.0) näyttää lukutilassa olevan enum-komponentin arvon rikkinäisen kuvan kuvakkeen kanssa (esim. "Aeration" kuvakkeen vieressä). Se on käyttöliittymän ominaisuus, eikä se vaikuta arvoihin. Home Assistant näyttää arvot normaalisti.
 
 ## 5. Alkuarvot

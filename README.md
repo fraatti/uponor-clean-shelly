@@ -6,6 +6,13 @@
 
 Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee siitä ohjauskeskuksen jaksot (puhdistus, odotus, loma, testi) ja vaiheet (ilmastus, kemikaalin täyttö ja annostelu, sekoitus, laskeutus, lietteen palautus, ulospumppaus, sisäänpumppaus, odotus), laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Home Assistant -kortti näyttää prosessin animoituna.
 
+Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa käyttöliittymässä ja Shelly-sovelluksessa. Vaihe, jakso, tila, varoitus ja seuraava ulospumppaus päivittyvät reaaliajassa, ja panoslaskurin kasvu näkyy sovelluksen graafina päivittäin.
+
+<p>
+<img src="docs/img/app_paanakyma.jpg" alt="Shelly-sovellus: komponentit" width="300">
+<img src="docs/img/app_panokset.jpg" alt="Shelly-sovellus: panoslaskurin graafi" width="300">
+</p>
+
 ## Ohjeet
 
 | Ohje | Sisältö |

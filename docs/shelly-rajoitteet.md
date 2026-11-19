@@ -34,7 +34,7 @@ Rajoitteet, jotka tulivat vastaan tätä skriptiä tehdessä. Ne on todettu Shel
 | Komponenttien tunnukset voivat vaihtua uudelleenasennuksessa | Home Assistantin entiteetit vaihtuvat | Tunnukset tallennetaan KVS:ään ja käytetään uudelleen |
 | `change`-tapahtuma tulee myös skriptin omasta `setValue`-kutsusta, vaikka arvo ei muuttuisi | Skripti luulee käyttäjän muuttaneen arvoa | Verrataan viimeksi kirjoitettuun arvoon |
 | Shellyn käyttöliittymä näyttää lukutilan enum-arvon rikkinäisen kuvan kuvakkeen kanssa | Kosmeettinen | – |
-| Shelly-sovellus piirtää komponentin historiaa vain, jos sen asetuksissa on pilvitilasto (`meta.cloud`, esim. `["counter"]`) | Graafia ei ole | Batches luodaan asetuksella `cloud: ["counter"]`, jolloin sovellus näyttää kasvun päiväkohtaisena graafina |
+| Shelly-sovellus piirtää komponentin historiaa vain, jos sen asetuksissa on pilvitilasto (`meta.cloud`, esim. `["counter"]`) | Graafia ei ole | Batches luodaan asetuksella `cloud: ["counter"]`, jolloin sovellus näyttää kasvun päiväkohtaisena graafina. Kun asetus lisättiin samaan komponenttiin (`number:200`), jota v2.4 oli käyttänyt, graafi jatkui vanhasta historiasta. |
 
 ## Home Assistant
 

@@ -110,7 +110,7 @@ Korjaus:
 - `unixAt` lukee kellon suoraan, ja tilatekstin pitkä lauseke on pilkottu.
 - Käynnistys jatkuu komponenttien luonnin jälkeen uudesta ajastimesta.
 - Shelly-jäljitelmä laskee skriptin kutsupinon jokaisessa natiivikutsussa ja hylkää yli 7 tason ketjut. Ennen korjausta jäljitelmä toisti kaatumisen; korjauksen jälkeen syvin ketju on 7 (`tick > updateBand > onTransition > toAer > pumpInEnded > pumpInSample > log`).
-- Batches-komponentti sai pilvitilaston `counter` (Shelly-sovelluksen päiväkohtainen graafi, kuten v2.4:ssä).
+- Batches-komponentti sai pilvitilaston `counter` (Shelly-sovelluksen päiväkohtainen graafi, kuten v2.4:ssä). Sovelluksen graafi jatkui v2.4:n historiasta (21.10. alkaen 200 → 249), koska komponentti on sama `number:200`.
 
 Laitteella 3.0.2 asennettiin klo 8.05. Ennen käynnistystä `uc_cycle` asetettiin vastaamaan meneillään olevaa jaksoa (esi-ilmastus alkoi 7.31.48, ilmastus 600 s myöhemmin), jolloin skripti jatkoi ilmastuksesta ja arvioi ulospumppauksen klo 10.17. Pysähdyksen ajalta (7.31–8.05) Home Assistantiin ei tullut vaiheita.
 
