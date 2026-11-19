@@ -44,6 +44,6 @@ Repo on yksityinen. Ennen julkiseksi muuttamista tarkista:
 
 - Mittausdataa (Home Assistantin historia-CSV:t) ei ole versionhallinnassa (`.gitignore`). Pidä se poissa jatkossakin.
 - `ha-card/preview.html` sisältää oman laitteen mittausdatasta lasketun esimerkkijakson.
-- `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. MAC-osoite ei näy kuvissa eikä nykyisissä tiedostoissa, mutta se on vanhojen committien tiedostoissa (entiteettitunnus `shellyemminig4_…`). Julkaise siksi uutena repona ilman historiaa tai siivoa historia.
+- `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. Laitteen MAC-osoite on poistettu kuvista, tiedostoista ja koko historiasta (19.11.2026). Kuvakaappauksissa ei saa näkyä Shellyn käyttöliittymän alapalkkia, jossa MAC-osoite on.
 - `docs/firmware/` perustuu kolmannen osapuolen firmwarevedokseen, ja `docs/kortti.md` viittaa Uponorin käsikirjaan. Varmista, että julkaiseminen on ok.
 - Valitse lisenssi (esim. MIT).
