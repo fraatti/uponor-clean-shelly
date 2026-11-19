@@ -1,6 +1,6 @@
 # Uponor Clean -kortti Home Assistantiin
 
-Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa: leikkauskuvan ja prosessisäiliön nousuputken ylhäältä, animoituna sen mukaan, mitä ohjauskeskus tekee. Alla on aikajana, jota voi selata ja toistaa, ja oikealla lukemat ja lokikirja. Tiedot tulevat Shelly-skriptin v3 entiteeteistä (`docs/v3-asennus.md`). Kortti toimii myös v2.3- ja v2.4-skriptin entiteeteillä.
+Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa: leikkauskuvan ja prosessisäiliön nousuputken ylhäältä, animoituna sen mukaan, mitä ohjauskeskus tekee. Alla on aikajana, jota voi selata ja toistaa, ja oikealla lukemat ja lokikirja. Tiedot tulevat Shelly-skriptin v3 entiteeteistä ([`home-assistant.md`](home-assistant.md)). Kortti toimii myös v2.3- ja v2.4-skriptin entiteeteillä.
 
 ![Kortti puhdistusjakson ilmastuksessa](img/kortti_ilmastus.jpg)
 
@@ -70,7 +70,7 @@ entities:
   batch_counter: number.storage_room_uponor_clean_1_batches
   chemical: number.storage_room_uponor_clean_1_chemical
   sludge: number.storage_room_uponor_clean_1_sludge
-  energy: sensor.shellyemminig4_000000000000_energy
+  energy: sensor.uponor_clean_1_energy
 sludge_emptied: "2026-09-18"
 # v2.4:n entiteetit, joiden historia näytetään ennen v3:n alkua
 legacy:

@@ -1,6 +1,6 @@
 # Uponor Clean v3 – asennusohje (Shelly)
 
-Skripti `shelly/v3/uponor_clean_v3_shelly.js` seuraa Uponor Clean I -puhdistamon ohjauskeskusta sähkönkulutuksen perusteella. Se tunnistaa jaksot (puhdistus, odotus, loma, testi) ja niiden vaiheet, laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Skripti luo omat virtuaalikomponenttinsa, ja Shellyn käyttöliittymä näyttää ne. Home Assistantia ei tarvita, mutta sen Shelly-integraatio tuo komponentit entiteeteiksi ja Lovelace-kortti näyttää ne animoituna (`docs/kortti.md`).
+Skripti `shelly/v3/uponor_clean_v3_shelly.js` seuraa Uponor Clean I -puhdistamon ohjauskeskusta sähkönkulutuksen perusteella. Se tunnistaa jaksot (puhdistus, odotus, loma, testi) ja niiden vaiheet, laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Skripti luo omat virtuaalikomponenttinsa, ja Shellyn käyttöliittymä näyttää ne. Home Assistantia ei tarvita. Home Assistant -käyttö (entiteetit, tapahtumat, automaatiot) on kuvattu ohjeessa [`home-assistant.md`](home-assistant.md) ja kortti ohjeessa [`kortti.md`](kortti.md).
 
 Lähdekoodi on `shelly/v3/uponor_clean_v3.js`. Laitteelle ladataan sen tiivistetty versio `uponor_clean_v3_shelly.js`, josta kommentit on poistettu.
 
@@ -9,7 +9,7 @@ Lähdekoodi on `shelly/v3/uponor_clean_v3.js`. Laitteelle ladataan sen tiivistet
 - Shelly, jossa on em1- tai pm1-tehomittaus ja firmware 2.2.0 tai uudempi. Testattu laite on Shelly EM Mini Gen4 (firmware 2.2.0).
 - Shelly mittaa puhdistamon syöttöä ja on samassa sähkönsyötössä. Skripti päättelee Shellyn käynnistyssyystä, oliko kyseessä sähkökatko (ohjauskeskus aloittaa uuden puhdistusjakson) vai Shellyn oma uudelleenkäynnistys (ohjauskeskus jatkaa).
 - Laitteella on vapaana 9 virtuaalikomponenttipaikkaa (raja on 10). Skripti luo 8 komponenttia ja ryhmän.
-- Muistia on vapaana vähintään noin 18 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 15 kt (huippu 18 kt), joten **v2.4 ja v3 eivät voi olla käynnissä yhtä aikaa**. Pysäytä muut skriptit.
+- Muistia on vapaana vähintään noin 18 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 15 kt (huippu 18 kt), joten muut isot skriptit (esim. v2.4) pitää pysäyttää.
 
 ## 2. Aikavyöhyke
 
@@ -52,7 +52,7 @@ Skripti luo komponentit `Virtual.Add`-kutsulla muutamassa sekunnissa ja tallenta
 
 ![Komponentit](img/shelly_komponentit.jpg)
 
-Komponentit eivät ole skriptin omistamia (`@meta`). Home Assistantin Shelly-integraatio ei näytä skriptin omistamia komponentteja, joten skripti luo tavalliset komponentit. Siksi ne myös säilyvät, jos skripti poistetaan.
+Komponentit eivät ole skriptin omistamia (`@meta`), koska Home Assistantin Shelly-integraatio ei näytä skriptin omistamia komponentteja. Siksi ne säilyvät, jos skripti poistetaan (kohta 10).
 
 Phase ja Cycle näyttävät aluksi `Unknown`, kunnes skripti tunnistaa ensimmäisen vaiheen. Odotusjaksossa se tapahtuu yleensä alle tunnissa, puhdistusjaksossa viimeistään seuraavassa vaihteessa. Jos Shelly käynnistyi sähkökatkon jälkeen, skripti tietää heti, että puhdistusjakso alkaa alusta.
 
@@ -64,51 +64,13 @@ Shellyn käyttöliittymä (firmware 2.2.0) näyttää lukutilassa olevan enum-ko
 
 Syötä arvot puhdistamon näytöltä Shellyn kenttiin (kirjoita ja **Save**), Home Assistantissa tai kortilla:
 
-- **Batches**: panoslaskuri. v3 lukee aluksi v2.4:n KVS-avaimen `puhdistamo_batch_count`. Jos arvo eroaa puhdistamon näytöstä, syötä näytön lukema. Laskenta jatkuu siitä.
+- **Batches**: panoslaskuri. Jos laitteella oli v2.4, v3 lukee aluksi sen laskurin (kohta 9). Jos arvo eroaa puhdistamon näytöstä, syötä näytön lukema. Laskenta jatkuu siitä.
 - **Chemical**: kemikaalin määrä astiassa litroina. 0 = ei asetettu (ei kemikaalivaroitusta). Syötä uusi määrä jokaisen täytön jälkeen. Skripti vähentää 0,04 l annostelua kohden.
 - **Sludge**: panokset lietteen edellisestä tyhjennyksestä. Aseta 0, kun saostussäiliö on tyhjennetty. Muistutus tulee 800 panoksessa.
 
 ## 6. Home Assistant
 
-1. **Settings → Devices & services → Shelly → laite → ⋮ → Reload**. Integraatio lukee komponentit vasta uudelleenlatauksessa tai Home Assistantin käynnistyksessä.
-2. Laitteen sivulle tulevat ohjaimet Batches, Chemical ja Sludge sekä sensorit Phase, Cycle, Status, Warning ja Next pump-out.
-
-   ![Laitteen entiteetit Home Assistantissa](img/ha_laite.jpg)
-
-   Entiteettien tunnukset muodostuvat laitteen nimestä ja alueesta, esim. `sensor.storage_room_uponor_clean_1_phase` ja `number.storage_room_uponor_clean_1_sludge`. Enum-sensorien tila on otsikko (`Aeration`, `Waiting`, `OK`).
-3. **Tapahtumat**: integraatio luo skriptille tapahtumaentiteetin (nimeltään esim. `event.storage_room_uponor_clean_1_uponor_clean_v3`), joka on oletuksena pois käytöstä. Ota se käyttöön entiteetin asetuksista. Tässä asennuksessa se on nimetty `event.storage_room_uponor_clean_1_events`. Integraatio lukee tapahtumatyypit skriptin ensimmäisestä 5 kt:sta, joten tiedoston toinen rivi mainitsee `Shelly.emitEvent("uponor", …)`.
-
-   Tapahtuman attribuuteissa ovat `type` ja tyypin tiedot:
-
-   | `type` | Tiedot |
-   | --- | --- |
-   | `phase` | `cycle`, `phase`, `code`, `eta` |
-   | `warning` | `key` (varoituksen avain), `on` (true/false) |
-   | `batch` | `n`, `ts` (ja `user`, jos käyttäjä muutti laskuria) |
-   | `chemical` | `l`, `days` |
-   | `sludge` | `n`, `reset` |
-   | `start` | `reason` (`power_cut` tai `restart`), `version` |
-
-   Esimerkki: ilmoitus varoituksesta.
-
-   ```yaml
-   automation:
-     - alias: Uponor Clean – varoitus
-       triggers:
-         - trigger: state
-           entity_id: event.storage_room_uponor_clean_1_events
-       conditions:
-         - condition: template
-           value_template: "{{ trigger.to_state.attributes.type == 'warning' and trigger.to_state.attributes.on }}"
-       actions:
-         - action: notify.notify
-           data:
-             title: Uponor Clean
-             message: "{{ trigger.to_state.attributes.key }}: {{ states('sensor.storage_room_uponor_clean_1_warning') }}"
-   ```
-
-   Yksinkertaisempi vaihtoehto on laukaista ilmoitus Warning-sensorin tilan muutoksesta (`to` jokin muu kuin `OK`).
-4. Kortti: ks. `docs/kortti.md`.
+Lataa Home Assistantissa Shelly-integraatio uudelleen, jotta komponentit tulevat entiteeteiksi. Entiteetit, tapahtumaentiteetti ja automaatioesimerkit: [`home-assistant.md`](home-assistant.md).
 
 ## 7. Tilakysely
 
@@ -128,28 +90,23 @@ Ajat ovat Unix-sekunteja. `eta` on seuraavan ulospumppauksen alku. `holiday_at` 
 1. Avaa skripti, pysäytä se (**Stop**), korvaa koodi uudella ja tallenna.
 2. Käynnistä. Skripti jatkaa tallennetusta vaiheesta (KVS `uc_cycle`), ja laskurit säilyvät KVS:ssä. Komponentit säilyvät. Jos versionumero muuttui, skripti päivittää komponenttien asetukset.
 
-Päivitä mieluiten odotusjakson aikana, ei ulospumppauksen aikana. Home Assistantissa kannattaa ladata integraatio uudelleen, jos komponentteja tuli lisää.
+Päivitä mieluiten odotusjakson aikana, ei ulospumppauksen aikana. Jos komponentteja tuli lisää, lataa Home Assistantissa Shelly-integraatio uudelleen.
 
 ## 9. Siirtymä v2.4:stä
 
-v2.4 käytti 10 käsin luotua komponenttia, joten ne poistetaan ennen v3:n asennusta. Asetukset on varmuuskopioitu `uc-tools`-skriptiin ja tiedostoon `shelly/v2/backup/v24_components_backup_2026-11-18.json`.
+v2.4 käytti 10 käsin luotua komponenttia, eikä v3 mahdu niiden rinnalle.
 
-1. **Tarkista varmuuskopio.** `uc-tools`: `MODE = "show"`, käynnistä ja katso konsolista, että siinä on 10 komponenttia.
-2. **Pysäytä v2.4** (`Uponor_script`) ja poista siltä *Run on startup*. Tee tämä odotusjakson aikana.
-3. **Poista v2.4:n komponentit.** `uc-tools`: `MODE = "delete"`, tallenna ja käynnistä. Konsolissa pitää lukea `Done, 0 failed.`. Pysäytä `uc-tools`.
-4. **Asenna v3** (kohdat 3–6). Batches tulee v2.4:n KVS-avaimesta ja viimeisin ulospumppaus sen viestistä.
+1. Pysäytä v2.4 (`Uponor_script`) ja poista siltä *Run on startup*. Tee tämä odotusjakson aikana.
+2. Poista v2.4:n komponentit: **Components** → komponentin hammasratas → **Delete**.
+3. Asenna v3 (kohdat 3–6). v3 lukee panoslaskurin ja viimeisimmän ulospumppauksen v2.4:n KVS-avaimista (`puhdistamo_batch_count`, `puhdistamo_process_message`).
 
-v3 päivittää myös v2.4:n KVS-avaimet `puhdistamo_batch_count` ja `puhdistamo_process_message`, joten panosmäärä on ajan tasalla, jos v2.4 otetaan takaisin.
+Paluuta v2.4:ään ei tueta.
 
-## 10. Poisto ja paluu v2.4:ään
+## 10. Poisto
 
-1. Pysäytä v3 ja poista siltä *Run on startup* (tai poista skripti).
-2. Poista v3:n komponentit: **Components** → komponentin hammasratas → **Delete** (8 komponenttia ja ryhmä Uponor Clean). Skriptin poisto ei poista niitä.
-3. Poista KVS-avain `uc_vc` (**Advanced → KVS**). Muuten v3 yrittäisi myöhemmin käyttää samoja komponenttitunnuksia, vaikka niissä olisi nyt muita komponentteja. Muut `uc_*`-avaimet voi jättää, jos v3 halutaan myöhemmin takaisin samoilla laskureilla.
-4. `uc-tools`: `MODE = "restore"`, tallenna ja käynnistä. Komponentit palautuvat samoilla tunnuksilla ja asetuksilla.
-5. Käynnistä `Uponor_script` ja ota *Run on startup* käyttöön. Lataa Home Assistantissa Shelly-integraatio uudelleen.
-
-![KVS-avaimet](img/shelly_kvs.jpg)
+1. Pysäytä skripti ja poista se (**Scripts**).
+2. Poista komponentit: **Components** → komponentin hammasratas → **Delete** (8 komponenttia ja ryhmä Uponor Clean). Skriptin poisto ei poista niitä.
+3. Poista KVS-avaimet `uc_*` (**Advanced → KVS**). Jos `uc_vc` jää, uusi asennus yrittää käyttää samoja komponenttitunnuksia.
 
 ## Komponentit
 
@@ -193,9 +150,11 @@ Asetuksia voi muuttaa KVS-avaimella `uc_cfg` (JSON), esim. `{"sludge_limit": 600
 | `sludge_limit` | 800 | Lietemuistutuksen raja (puhdistamon oletus), 0 = pois |
 | `emptying_hint` | true | Tyhjennysvihje sisäänpumppauksen tehosta |
 | `fault_high_w` | 62 | Ilmavuotovaroituksen raja (W) |
-| `legacy_kvs` | true | Päivitä myös v2.4:n KVS-avaimet |
+| `legacy_kvs` | true | Kirjoita panoslaskuri ja viimeisin ulospumppaus myös v2.4:n KVS-avaimiin (`puhdistamo_*`) |
 
 ## KVS-avaimet
+
+![KVS-avaimet](img/shelly_kvs.jpg)
 
 | Avain | Sisältö |
 | --- | --- |
@@ -211,9 +170,9 @@ Asetuksia voi muuttaa KVS-avaimella `uc_cfg` (JSON), esim. `{"sludge_limit": 600
 
 | Oire | Syy ja korjaus |
 | --- | --- |
-| Konsolissa muistivirhe tai skripti pysähtyy | Toinen skripti on käynnissä. Pysäytä v2.4 ja `uc-tools`. |
+| Konsolissa muistivirhe tai skripti pysähtyy | Toinen skripti on käynnissä. Pysäytä muut skriptit. |
 | Komponentteja ei luoda | Vapaita paikkoja on alle 9. Poista ylimääräiset komponentit (**Components**) ja käynnistä skripti uudelleen. |
 | Komponentti poistettiin vahingossa | Käynnistä skripti uudelleen. Se luo puuttuvan komponentin ja lisää sen ryhmään. |
-| Home Assistant ei näytä entiteettejä | Lataa Shelly-integraatio uudelleen. |
+| Home Assistant ei näytä entiteettejä | Lataa Shelly-integraatio uudelleen ([`home-assistant.md`](home-assistant.md)). |
 | Phase on pitkään `Unknown` | Tehomittaus puuttuu tai puhdistamo on pysähtynyt. Katso tilakysely (`band`, `power`). |
 | Kellonajat puuttuvat | Laitteen kello ei ole synkronoitu (`time_synced: false`). Tarkista verkkoyhteys ja NTP. |

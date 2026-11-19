@@ -3,7 +3,7 @@
 Suunnitelman ajantasainen versio on Claude Docs -dokumentissa (yksityinen):
 https://claude.ai/artifact/KPHL42Q6ccvpDkne5X2qkA
 
-Toteutus ja asennus: `docs/v3-asennus.md`, testit: `docs/v3-testitulokset.md`.
+Toteutus ja asennus: `docs/v3-asennus.md`, Home Assistant: `docs/home-assistant.md`, testit: `docs/v3-testitulokset.md`.
 
 Tiivistelmä (18.11.2026):
 

@@ -57,7 +57,7 @@ entities:
   batch_counter: number.storage_room_uponor_clean_1_batches
   chemical: number.storage_room_uponor_clean_1_chemical
   sludge: number.storage_room_uponor_clean_1_sludge
-  energy: sensor.shellyemminig4_000000000000_energy
+  energy: sensor.uponor_clean_1_energy
 sludge_emptied: "2026-09-18"
 legacy:                        # optional: v2 history before the v3 entities start
   status: select.uponor_clean_1_vc_cycle_status
@@ -75,7 +75,7 @@ entities:
   status: select.uponor_clean_1_vc_cycle_status
   message: text.storage_room_uponor_clean_1_process_message
   batch_counter: sensor.uponor_clean_1_vc_batch_counter
-  energy: sensor.shellyemminig4_000000000000_energy
+  energy: sensor.uponor_clean_1_energy
 sludge_emptied: "2026-09-18"
 chemical_amount: input_number.uponor_chemical_amount
 chemical_refill_counter: input_number.uponor_chemical_refill_counter

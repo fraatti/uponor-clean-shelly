@@ -25,7 +25,7 @@ function loadCsv(path) {
 
 // Build the power feed for the script: raw power + voltage when present, otherwise normalized power (voltage absent).
 function feedFromCsv(csv, mode) {
-  const P = csv['sensor.uponor_clean_1_power'], V = csv['sensor.shellyemminig4_000000000000_voltage'];
+  const P = csv['sensor.uponor_clean_1_power'], V = csv[Object.keys(csv).find((k) => /^sensor\.shelly.*_voltage$/.test(k))];
   const N = csv['sensor.uponor_clean_1_vc_normalized_consumption'];
   const ev = [];
   const useRaw = mode === 'raw' || (mode !== 'norm' && P && P.length > 100);
