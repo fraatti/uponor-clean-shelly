@@ -39,7 +39,7 @@ for (const S of SETS) {
 
   const run = R.runV3({
     events: feed.events.filter((e) => e.t >= t0 - 3600e3), t0, t1, voltage: 230, tzOffsetMin: 180,
-    kvs: { puhdistamo_batch_count: '0', puhdistamo_process_message: '"-"', uc_sludge: '{"n":300,"reset":null}' }, uptimeAtStartS: 86400, resetReason: 3,
+    kvs: { uc_sludge: '{"n":300,"reset":null}' }, uptimeAtStartS: 86400, resetReason: 3,
     scriptRestarts: restarts, dataGapEnds: gapEnds, verbose,
   });
   const problems = [];

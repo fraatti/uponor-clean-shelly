@@ -6,7 +6,7 @@ Kaytto:
   python3 lataa_shellyyn.py <shellyn-ip> <skriptin-id> <tiedosto.js> [--salasana SALASANA] [--kaynnista]
 
 Esimerkki:
-  python3 lataa_shellyyn.py 192.168.1.50 1 puhdistamo_skripti_v2_4.js --kaynnista
+  python3 lataa_shellyyn.py 192.168.1.50 2 shelly/v3/uponor_clean_v3_shelly.js --kaynnista
 
 Vaiheet: pysayttaa skriptin, kirjoittaa koodin 1024 merkin paloina, lukee koodin
 takaisin ja vertaa sita tiedostoon, ja kaynnistaa skriptin vain pyydettaessa.

@@ -9,7 +9,7 @@ Lähdekoodi on `shelly/v3/uponor_clean_v3.js`. Laitteelle ladataan sen tiivistet
 - Shelly, jossa on em1- tai pm1-tehomittaus ja firmware 2.2.0 tai uudempi. Testattu laite on Shelly EM Mini Gen4 (firmware 2.2.0).
 - Shelly mittaa puhdistamon syöttöä ja on samassa sähkönsyötössä. Skripti päättelee Shellyn käynnistyssyystä, oliko kyseessä sähkökatko (ohjauskeskus aloittaa uuden puhdistusjakson) vai Shellyn oma uudelleenkäynnistys (ohjauskeskus jatkaa).
 - Laitteella on vapaana 9 virtuaalikomponenttipaikkaa (raja on 10). Skripti luo 8 komponenttia ja ryhmän.
-- Muistia on vapaana vähintään noin 18 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 15 kt (huippu 18 kt), joten muut isot skriptit (esim. v2.4) pitää pysäyttää.
+- Muistia on vapaana vähintään noin 18 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 15 kt (huippu 19 kt), joten muut isot skriptit pitää pysäyttää.
 
 ## 2. Aikavyöhyke
 
@@ -29,8 +29,8 @@ Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`) ja tarkista **Settin
 
    ![Uusi skripti](img/shelly_uusi_skripti.jpg)
 
-3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 40 000 merkkiä, ja editoriin mahtuu noin 50 000.
-4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.0 started`.
+3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 39 000 merkkiä, ja editoriin mahtuu noin 50 000.
+4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.1 started`.
 
    ![Skriptieditori](img/shelly_editori.jpg)
 
@@ -52,7 +52,7 @@ Skripti luo komponentit `Virtual.Add`-kutsulla muutamassa sekunnissa ja tallenta
 
 ![Komponentit](img/shelly_komponentit.jpg)
 
-Komponentit eivät ole skriptin omistamia (`@meta`), koska Home Assistantin Shelly-integraatio ei näytä skriptin omistamia komponentteja. Siksi ne säilyvät, jos skripti poistetaan (kohta 10).
+Komponentit eivät ole skriptin omistamia (`@meta`), koska Home Assistantin Shelly-integraatio ei näytä skriptin omistamia komponentteja. Siksi ne säilyvät, jos skripti poistetaan (kohta 9).
 
 Phase ja Cycle näyttävät aluksi `Unknown`, kunnes skripti tunnistaa ensimmäisen vaiheen. Odotusjaksossa se tapahtuu yleensä alle tunnissa, puhdistusjaksossa viimeistään seuraavassa vaihteessa. Jos Shelly käynnistyi sähkökatkon jälkeen, skripti tietää heti, että puhdistusjakso alkaa alusta.
 
@@ -64,7 +64,7 @@ Shellyn käyttöliittymä (firmware 2.2.0) näyttää lukutilassa olevan enum-ko
 
 Syötä arvot puhdistamon näytöltä Shellyn kenttiin (kirjoita ja **Save**), Home Assistantissa tai kortilla:
 
-- **Batches**: panoslaskuri. Jos laitteella oli v2.4, v3 lukee aluksi sen laskurin (kohta 9). Jos arvo eroaa puhdistamon näytöstä, syötä näytön lukema. Laskenta jatkuu siitä.
+- **Batches**: panoslaskuri. Syötä puhdistamon näytön lukema. Laskenta jatkuu siitä.
 - **Chemical**: kemikaalin määrä astiassa litroina. 0 = ei asetettu (ei kemikaalivaroitusta). Syötä uusi määrä jokaisen täytön jälkeen. Skripti vähentää 0,04 l annostelua kohden.
 - **Sludge**: panokset lietteen edellisestä tyhjennyksestä. Aseta 0, kun saostussäiliö on tyhjennetty. Muistutus tulee 800 panoksessa.
 
@@ -77,10 +77,10 @@ Lataa Home Assistantissa Shelly-integraatio uudelleen, jotta komponentit tulevat
 `http://<shellyn-ip>/script/<numero>/state` palauttaa JSON-tilan, esim. (19.11.2026, odotusjakson ilmastus):
 
 ```json
-{"version":"3.0.0","cycle":"waiting","phase":"aeration","code":"S204","since":1795039592,
+{"version":"3.0.1","cycle":"waiting","phase":"aeration","code":"S204","since":1795064382,
  "eta":null,"last_pumpout":1794991398,"batches":249,"chemical":{"l":null,"days":null},
  "sludge":{"n":100,"reset":null},"warnings":[],"holiday_at":null,"holiday_since":null,
- "power":56.9,"band":"AER","time_synced":true,"uptime":15843}
+ "power":56.8,"band":"AER","time_synced":true,"uptime":39545}
 ```
 
 Ajat ovat Unix-sekunteja. `eta` on seuraavan ulospumppauksen alku. `holiday_at` on hetki, jolloin odotusjakso siirtyy lomajaksoon, jos aloitustasoa ei saavuteta; se on tiedossa vasta, kun skripti on nähnyt odotusjakson alun. `band` on tehoalue (`OFF`, `IDLE`, `VALVE`, `DOSING`, `COMP`, `AER`).
@@ -92,17 +92,7 @@ Ajat ovat Unix-sekunteja. `eta` on seuraavan ulospumppauksen alku. `holiday_at` 
 
 Päivitä mieluiten odotusjakson aikana, ei ulospumppauksen aikana. Jos komponentteja tuli lisää, lataa Home Assistantissa Shelly-integraatio uudelleen.
 
-## 9. Siirtymä v2.4:stä
-
-v2.4 käytti 10 käsin luotua komponenttia, eikä v3 mahdu niiden rinnalle.
-
-1. Pysäytä v2.4 (`Uponor_script`) ja poista siltä *Run on startup*. Tee tämä odotusjakson aikana.
-2. Poista v2.4:n komponentit: **Components** → komponentin hammasratas → **Delete**.
-3. Asenna v3 (kohdat 3–6). v3 lukee panoslaskurin ja viimeisimmän ulospumppauksen v2.4:n KVS-avaimista (`puhdistamo_batch_count`, `puhdistamo_process_message`).
-
-Paluuta v2.4:ään ei tueta.
-
-## 10. Poisto
+## 9. Poisto
 
 1. Pysäytä skripti ja poista se (**Scripts**).
 2. Poista komponentit: **Components** → komponentin hammasratas → **Delete** (8 komponenttia ja ryhmä Uponor Clean). Skriptin poisto ei poista niitä.
@@ -150,7 +140,6 @@ Asetuksia voi muuttaa KVS-avaimella `uc_cfg` (JSON), esim. `{"sludge_limit": 600
 | `sludge_limit` | 800 | Lietemuistutuksen raja (puhdistamon oletus), 0 = pois |
 | `emptying_hint` | true | Tyhjennysvihje sisäänpumppauksen tehosta |
 | `fault_high_w` | 62 | Ilmavuotovaroituksen raja (W) |
-| `legacy_kvs` | true | Kirjoita panoslaskuri ja viimeisin ulospumppaus myös v2.4:n KVS-avaimiin (`puhdistamo_*`) |
 
 ## KVS-avaimet
 

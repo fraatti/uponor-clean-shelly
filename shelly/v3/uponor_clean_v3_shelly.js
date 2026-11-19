@@ -1,6 +1,6 @@
-// Uponor Clean I v3.0.0 - compact version of uponor_clean_v3.js (github.com/fraatti/uponor-clean-shelly)
+// Uponor Clean I v3.0.1 - compact version of uponor_clean_v3.js (github.com/fraatti/uponor-clean-shelly)
 // Events: Shelly.emitEvent("uponor", {v, type, ...}) - kept in the first 5 kB for the Home Assistant event entity
-let VERSION = "3.0.0";
+let VERSION = "3.0.1";
 let CFG = {
  off_max: 2.0, idle_max: 10.0, valve_max: 24.0, dosing_max: 38.5, comp_max: 52.0, aer_max: 64.0,
  debounce_s: 6,
@@ -8,8 +8,7 @@ let CFG = {
  chem_warn_days: 10,
  sludge_limit: 800,
  emptying_hint: true,
- fault_high_w: 62.0,
- legacy_kvs: true
+ fault_high_w: 62.0
 };
 let FW = {
  pre: 600, aer: 5400, chem: 90, dose: 10, mix: 120, sed1: 2700, sludge: 120, sed2: 900, out: 780, in_max: 1020,
@@ -175,14 +174,6 @@ function kvsSave(key, value) {
 }
 function saveBatch() {
  kvsSave("uc_batch", { n: cnt.batches, ts: cnt.lastBatchUnix });
- if (CFG.legacy_kvs) {
-  kvsSave("puhdistamo_batch_count", JSON.stringify(cnt.batches));
-  let c = civil(cnt.lastBatchUnix);
-  if (c) {
-   kvsSave("puhdistamo_process_message", JSON.stringify("Last: " + pad2(c[2]) + "." + pad2(c[1]) + "." + c[0] + " " +
-    pad2(c[3]) + ":" + pad2(c[4]) + ":" + pad2(c[5])));
-  }
- }
 }
 function saveChem() {
  kvsSave("uc_chem", { l: cnt.chem, day: cnt.chemDay, d: cnt.doses });
@@ -1004,22 +995,6 @@ function applyLoaded(key, v) {
  } else if (key === "uc_batch" && v) {
   cnt.batches = v.n || 0;
   cnt.lastBatchUnix = v.ts || null;
- } else if (key === "puhdistamo_batch_count" && v !== null) {
-  cnt.batches = Number(v) || 0;
- } else if (key === "puhdistamo_process_message" && typeof v === "string" && v.indexOf("Last: ") === 0) {
-  let m = v.slice(6).split(" ");
-  let d = m[0].split(".");
-  let h = m[1] ? m[1].split(":") : ["0", "0", "0"];
-  let off = localOffsetMin();
-  if (d.length === 3 && off !== null) {
-   let y = Number(d[2]) - (Number(d[1]) <= 2 ? 1 : 0);
-   let era = Math.floor(y / 400);
-   let yoe = y - era * 400;
-   let mo = Number(d[1]);
-   let doy = Math.floor((153 * (mo + (mo > 2 ? -3 : 9)) + 2) / 5) + Number(d[0]) - 1;
-   let days = era * 146097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719468;
-   cnt.lastBatchUnix = days * 86400 + Number(h[0]) * 3600 + Number(h[1]) * 60 + Number(h[2] || 0) - off * 60;
-  }
  } else if (key === "uc_chem" && v) {
   cnt.chem = typeof v.l === "number" ? v.l : null;
   cnt.chemDay = v.day || 0;
@@ -1071,10 +1046,6 @@ function loadNext(i) {
    } catch (e) {
     v = null;
    }
-  }
-  if (key === "uc_batch" && v === null) {
-   LOAD.push("puhdistamo_batch_count");
-   LOAD.push("puhdistamo_process_message");
   }
   applyLoaded(key, v);
   loadNext(i + 1);

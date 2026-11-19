@@ -1,4 +1,4 @@
-// v3 install, components, user edits, KVS migration from v2.4, reinstall, endpoint and events
+// v3 install, components, user edits, stored counters, reinstall, endpoint and events
 // on the device mock. Usage: node v3_device_test.js [-v]
 'use strict';
 const fs = require('fs');
@@ -22,9 +22,8 @@ dev.verbose = process.argv.includes('-v');
 dev.bootT = T0 - 2000;
 dev.voltage = 230;
 dev.setFeed(sim.events);
-// v2.4 left these in KVS
-dev.kvs.set('puhdistamo_batch_count', '249');
-dev.kvs.set('puhdistamo_process_message', '"Last: 17.11.2026 21:15:30"');
+// counters from an earlier v3 run
+dev.kvs.set('uc_batch', JSON.stringify({ n: 249, ts: Date.parse('2026-11-17T19:15:30Z') / 1000 }));
 const sid = dev.addScript('uponor_clean_v3', code);
 const r = dev.startScript(sid);
 check(!r.err, 'script starts: ' + (r.msg || 'ok'));
@@ -37,9 +36,9 @@ check(comp('phase').config.name === 'Phase' && comp('next_pumpout').config.name 
 check(comp('phase').config.options.length === 13 && comp('warning').config.options.length === 11, 'enum options set with setConfig');
 check(comp('chemical').config.unit === undefined ? comp('chemical').config.meta.ui.unit === 'l' : true, 'chemical unit l');
 check(JSON.stringify(comp('plant').value) === JSON.stringify(['phase', 'cycle', 'status', 'warning', 'next_pumpout', 'batches', 'chemical', 'sludge'].map((x) => roles[x])), 'group members in order');
-check(comp('batches').value === 249, 'batch count taken over from v2.4 KVS: ' + comp('batches').value);
+check(comp('batches').value === 249, 'batch count from uc_batch: ' + comp('batches').value);
 const ub = JSON.parse(dev.kvs.get('uc_batch') || 'null');
-check(ub === null || ub.n === 249, 'uc_batch not written before a change');
+check(ub && ub.n === 249, 'uc_batch kept');
 
 // external writes: read-only labels refused, fields accepted
 check(comp('phase').config.meta.ui.view === 'label' && comp('batches').config.meta.ui.view === 'field', 'labels for outputs, fields for user values');
@@ -49,7 +48,7 @@ const st1 = JSON.parse(dev.httpGet(`/script/${sid}/state`).body);
 check(st1.eta !== null && Math.abs(st1.eta * 1000 - (sim.marks.find((m) => m.s === 'pump-out').t + 1000)) < 60e3, 'state endpoint gives the pump-out time');
 check(/^2026-11-18T\d\d:\d\d:\d\d\+02:00$/.test(comp('next_pumpout').value), 'next pump-out as local ISO time: ' + comp('next_pumpout').value);
 check(/Pump-out at \d\d:\d\d \(in \d+ h \d+ min\)/.test(comp('status').value), 'status text: ' + comp('status').value);
-check(st1.last_pumpout === Date.parse('2026-11-17T19:15:30Z') / 1000, 'last pump-out parsed from the v2.4 message (local time)');
+check(st1.last_pumpout === Date.parse('2026-11-17T19:15:30Z') / 1000, 'last pump-out from uc_batch');
 
 // user edits
 dev.externalSet(roles.chemical, 0.5);
@@ -64,13 +63,14 @@ dev.externalSet(roles.batches, 1000);
 dev.run(2000);
 check(comp('warning').value === 'none', 'sludge reset clears the reminder');
 check(JSON.parse(dev.kvs.get('uc_sludge')).reset !== null, 'sludge reset time stored');
-check(JSON.parse(dev.kvs.get('uc_batch')).n === 1000 && dev.kvs.get('puhdistamo_batch_count') === '1000', 'user batch count stored (uc_batch and legacy key)');
+check(JSON.parse(dev.kvs.get('uc_batch')).n === 1000, 'user batch count stored');
 
 // run through the pump-out
 dev.run(4 * 3600e3);
 check(comp('batches').value === 1001 && comp('sludge').value === 1, `batch counted: batches ${comp('batches').value}, sludge ${comp('sludge').value}`);
 check(comp('chemical').value === 17.96, 'one dose taken from the chemical: ' + comp('chemical').value);
-check(/^"Last: 18\.11\.2026 \d\d:\d\d:\d\d"$/.test(dev.kvs.get('puhdistamo_process_message')), 'legacy last pump-out message: ' + dev.kvs.get('puhdistamo_process_message'));
+check(JSON.parse(dev.kvs.get('uc_batch')).n === 1001, 'batch stored in uc_batch');
+check(![...dev.kvs.keys()].some((k) => k.startsWith('puhdistamo_')), 'no v2 KVS keys written');
 const types = [...new Set(dev.eventLog.filter((e) => e.name === 'uponor').map((e) => e.data.type))].sort();
 check(JSON.stringify(types) === JSON.stringify(['batch', 'chemical', 'phase', 'sludge', 'start', 'warning']), 'event types: ' + types.join(','));
 check(dev.eventLog.every((e) => e.data.v === 1), 'events carry version 1');

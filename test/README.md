@@ -43,13 +43,13 @@ cd test
 cp ../shelly/v2/puhdistamo_skripti_v2_4.js .     # vertailua varten
 node v3_scenarios.js        # firmwaresimulaattorin skenaariot (-v: konsoli, suodatin nimen osalla)
 node v3_realdata.js         # tallennettu data, vertailu v2.4:ään (data/*.csv)
-node v3_device_test.js      # komponentit, käyttäjän muokkaukset, KVS-siirtymä, uudelleenasennus
+node v3_device_test.js      # komponentit, käyttäjän muokkaukset, KVS, uudelleenasennus
 V3_FILE=../shelly/v3/uponor_clean_v3_shelly.js node v3_scenarios.js   # tiivistetty versio
 ```
 
 `v3run.js` ajaa skriptin jäljitelmässä tehosyötteen kanssa (sähkökatkot Shellyn kanssa tai ilman, Shellyn ja skriptin uudelleenkäynnistykset, käyttäjän muokkaukset) ja vertaa vaiheita simulaattorin todellisiin vaiheisiin. Simulaattori (`fwsim.js`) kirjaa jokaisen vaiheen alun ja annostelut, ja siinä voi pysäyttää prosessin paneelista (`pauses`). Tulokset: `docs/v3-testitulokset.md`.
 
-`v3_device_test.js` tarkistaa asennuksen kulun: komponenttien luonti `Virtual.Add`-kutsulla (ei `@meta`), nimet ja näkymät, käyttäjän muokkaukset, KVS-siirtymä v2.4:stä, tapahtumat, skriptin uudelleenkäynnistys, poisto (komponentit säilyvät), uudelleenasennus (`uc_vc`) ja puuttuvan komponentin uudelleenluonti.
+`v3_device_test.js` tarkistaa asennuksen kulun: komponenttien luonti `Virtual.Add`-kutsulla (ei `@meta`), nimet ja näkymät, käyttäjän muokkaukset, laskurit KVS:ssä (ei v2:n avaimia), tapahtumat, skriptin uudelleenkäynnistys, poisto (komponentit säilyvät), uudelleenasennus (`uc_vc`) ja puuttuvan komponentin uudelleenluonti.
 
 ## Kortti
 

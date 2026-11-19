@@ -72,11 +72,6 @@ entities:
   sludge: number.storage_room_uponor_clean_1_sludge
   energy: sensor.uponor_clean_1_energy
 sludge_emptied: "2026-09-18"
-# v2.4:n entiteetit, joiden historia näytetään ennen v3:n alkua
-legacy:
-  status: select.uponor_clean_1_vc_cycle_status
-  message: text.storage_room_uponor_clean_1_process_message
-  batch_counter: sensor.uponor_clean_1_vc_batch_counter
 ```
 
 | Asetus | Oletus | Merkitys |

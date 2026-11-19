@@ -1,4 +1,4 @@
-# v3.0.0 – testitulokset 18.–19.11.2026
+# v3 – testitulokset 18.–19.11.2026
 
 ## Simulaattori (`test/v3_scenarios.js`)
 
@@ -78,6 +78,20 @@ Havainnot laitteella:
 - Home Assistant löytää skriptin tapahtumatyypit vain skriptin ensimmäisestä 5 kt:sta. Tiivistetyn version toinen rivi mainitsee `Shelly.emitEvent("uponor", …)`, jolloin integraatio luo tapahtumaentiteetin.
 - Shellyn käyttöliittymä näyttää lukutilan enum-arvon rikkinäisen kuvan kuvakkeen kanssa (käyttöliittymän ominaisuus, ei vaikuta arvoihin).
 - Ensimmäinen odotusjakso laitteella (Home Assistantin historia): odotus 23.47.39, lietteen palautus 00.05.40, ilmastus 00.06.45, sisäänpumppaus 00.36.45 ja odotus 00.46.40, eli firmwaren 18 min, 1 min, 30 min ja 10 min. Skriptin päivitys (pysäytys ja käynnistys) odotuksen aikana jatkoi samasta vaiheesta. Lyhyet `unavailable`-tilat ovat integraation uudelleenlatauksia.
+
+## Versio 3.0.1 (19.11.2026)
+
+v2-yhteensopivuus poistettiin: skripti ei enää lue eikä kirjoita v2.4:n KVS-avaimia (`puhdistamo_batch_count`, `puhdistamo_process_message`), ja asetus `legacy_kvs` poistui. Ennen päivitystä panoslaskuri ja viimeisin ulospumppaus kirjoitettiin avaimeen `uc_batch`, koska v3.0.0 luki ne vielä v2.4:n avaimista. Laitteelta poistettiin v2.4-skripti, `uc-tools` ja v2.4:n KVS-avaimet.
+
+| Mittaus | Tulos |
+| --- | --- |
+| Tiivistetty koko | 39 123 merkkiä (3.0.0: 40 415) |
+| Muisti käytössä | 14,9 kt |
+| Muistin huippu | 18,9 kt (sisältää komponenttien asetusten päivityksen versionvaihdossa) |
+| Vapaata muistia | 10,3 kt |
+| Päivitys odotusjakson ilmastuksessa | Jatkoi samasta vaiheesta, Batches 249 ja viimeisin ulospumppaus säilyivät |
+
+Kaikki testit (skenaariot, tallennettu data, laitetesti, kortti) antavat saman tuloksen lähteellä ja tiivistetyllä versiolla.
 
 ## Kortti (`test/card_v3_test.js`)
 

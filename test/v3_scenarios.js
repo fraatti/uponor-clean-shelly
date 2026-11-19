@@ -11,7 +11,7 @@ const H_ = 3600e3;
 const verbose = process.argv.includes('-v');
 const filter = process.argv.slice(2).filter((a) => a !== '-v')[0];
 const fmt = (t) => new Date(t).toLocaleString('fi-FI', { timeZone: 'Europe/Helsinki' });
-const KVS = { puhdistamo_batch_count: '100', puhdistamo_process_message: '"Last: 31.10.2026 22:00:00"' };
+const KVS = { uc_batch: JSON.stringify({ n: 100, ts: Date.parse('2026-10-31T20:00:00Z') / 1000 }) };
 const tripsNormal = (c, n) => ({ 2: 130, 5: 260, 8: 390, 11: 515, 14: 40 })[n] ?? (c === 'post' && n === 3 ? 900 : null);
 
 /* sc: fwsim scenario + { powerUp (script starts with the plant), shellyWithCut, swReboots, expect } */
@@ -95,8 +95,8 @@ for (const S of SC) {
   if (bEv.length !== bSim.length) problems.push(`batches ${bEv.length} != firmware ${bSim.length}`);
   const bErr = bEv.map((e, i) => (bSim[i] === undefined ? null : e.ts - bSim[i]));
   if (bErr.some((d) => d === null || Math.abs(d) > 10)) problems.push('batch times off by ' + bErr.join(','));
-  const lastB = run.kvs.get('puhdistamo_batch_count');
-  if (+lastB !== 100 + bSim.length) problems.push('legacy KVS batch count ' + lastB);
+  const lastB = JSON.parse(run.kvs.get('uc_batch')).n;
+  if (lastB !== 100 + bSim.length) problems.push('KVS batch count ' + lastB);
 
   // pump-out estimate: the last estimate before each pump-out, and every estimate made after
   // the cycle start (from `earlyEtaFrom` in scenarios where high water cuts the aeration)
