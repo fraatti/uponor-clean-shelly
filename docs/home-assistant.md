@@ -2,6 +2,8 @@
 
 Home Assistantin Shelly-integraatio tuo Shelly-skriptin v3 komponentit entiteeteiksi ja skriptin tapahtumat tapahtumaentiteetiksi. Niillä voi tehdä ilmoituksia ja automaatioita, ja Lovelace-kortti näyttää puhdistamon animoituna.
 
+Testattu Home Assistant 2026.10.2:lla ja sen sisäänrakennetulla Shelly-integraatiolla.
+
 - Skriptin asennus Shellyyn: [`v3-asennus.md`](v3-asennus.md)
 - Kortti: [`kortti.md`](kortti.md)
 

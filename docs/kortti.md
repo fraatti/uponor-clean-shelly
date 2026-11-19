@@ -47,7 +47,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.
-3. Lisää kortti näkymään. Kortti on tehty koko leveydelle: käytä **Panel**-näkymää tai **Sections**-näkymää, jossa kortti on koko leveä. Kortinvalitsimesta (*Uponor Clean Card*) lisätty kortti etsii v3-entiteetit itse.
+3. Lisää kortti näkymään (testattu Home Assistant 2026.10.2:lla). Kortti on tehty koko leveydelle: käytä **Panel**-näkymää tai **Sections**-näkymää, jossa kortti on koko leveä. Kortinvalitsimesta (*Uponor Clean Card*) lisätty kortti etsii v3-entiteetit itse.
 
 ## Asetukset
 

@@ -38,6 +38,19 @@ Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee si
 | Skripti v2.4.0 | Poistettu käytöstä 18.11.2026 ja poistettu laitteelta 19.11.2026. Ei siirtymää eikä paluuta. |
 | Skripti v2.3 | Vanha versio. |
 
+## Testattu ympäristö
+
+Skripti ja kortti on rakennettu ja testattu yhdellä laitteistolla. Muita versioita ei ole kokeiltu.
+
+| Osa | Versio |
+| --- | --- |
+| Puhdistamo | Uponor Clean I, ohjauskeskuksen kannen tarra "VERSION 2.1.2", piirilevy vuodelta 2011 |
+| Shelly | Shelly EM Mini Gen4 (S4EM-001PXCEU16), firmware 2.2.0 (`20261109-150305/2.2.0-g7968dca`) |
+| Home Assistant | 2026.10.2, sisäänrakennettu Shelly-integraatio |
+| Kortti | Home Assistantin käyttöliittymä Chromessa (työpöytä ja kapea näkymä) |
+
+Vanhemmilla Shellyn firmwareilla skriptiä ei ole kokeiltu. Kortin visuaalinen editori vaatii Home Assistantin, jossa on `getConfigForm` (testattu 2026.10.2). Muissa versioissa kortti toimii YAML-asetuksilla.
+
 ## Huomio ennen julkistamista
 
 Repo on yksityinen. Ennen julkiseksi muuttamista tarkista:
