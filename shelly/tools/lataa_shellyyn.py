@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Lataa skriptin Shellyyn paloina (Script.PutCode + append), joten selaineditorin
-noin 50 000 merkin liitosraja ei rajoita. Vain Pythonin vakiokirjasto.
+50 000 merkin liitosraja (tekstikentän maxlength) ei rajoita. Vain Pythonin vakiokirjasto.
 
 Kaytto:
   python3 lataa_shellyyn.py <shellyn-ip> <skriptin-id> <tiedosto.js> [--salasana SALASANA] [--kaynnista]

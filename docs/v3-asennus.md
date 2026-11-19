@@ -29,7 +29,7 @@ Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`) ja tarkista **Settin
 
    ![Uusi skripti](img/shelly_uusi_skripti.jpg)
 
-3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 39 000 merkkiä, ja editoriin mahtuu noin 50 000.
+3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 40 000 merkkiä. Editoriin mahtuu enintään 50 000 merkkiä, ja pidempi liitos katkeaa ilman varoitusta, joten lähdetiedostoa `uponor_clean_v3.js` ei voi liittää editoriin.
 4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.2 started`.
 
    ![Skriptieditori](img/shelly_editori.jpg)

@@ -47,6 +47,6 @@ Rajoitteet, jotka tulivat vastaan tätä skriptiä tehdessä. Ne on todettu Shel
 
 | Rajoite | Mitä tapahtuu | Miten kierretty |
 | --- | --- | --- |
-| Selaineditoriin mahtuu noin 50 000 merkkiä | Liitos katkeaa | Tiivistetty versio (noin 40 000 merkkiä) tai `shelly/tools/lataa_shellyyn.py`, joka kirjoittaa paloina |
+| Web-editorin tekstikentän enimmäispituus on 50 000 merkkiä (`maxlength`). Testattu 19.11.2026: 60 000 merkin liitoksesta jäi 50 000, ja tallennus vei katkaistun koodin laitteelle. Laite itse hyväksyy pidemmän koodin RPC:llä (`Script.PutCode`, testattu 60 000 merkkiä). | Liitos katkeaa **ilman varoitusta**, ja katkaistu skripti tallentuu | Tiivistetty versio (noin 40 000 merkkiä) tai `shelly/tools/lataa_shellyyn.py`, joka kirjoittaa paloina |
 | EM1Data-historia ei näytä lyhyttä uudelleenkäynnistystä aukkona | Shellyn uudelleenkäynnistystä ei erota lyhyestä sähkökatkosta | Käynnistyssyy `Sys.GetStatus`-kutsun `reset_reason`-kentästä |
 | Shellyn käyttöliittymän alapalkissa näkyy laitteen MAC-osoite | Näkyy kuvakaappauksissa | Rajaa alapalkki pois |
