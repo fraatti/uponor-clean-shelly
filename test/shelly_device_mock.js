@@ -6,9 +6,17 @@
 const vm = require('vm');
 
 const VC_TYPES = ['boolean', 'number', 'text', 'enum', 'group', 'button'];
+// Call depth: the device stops a script with "Too much recursion - the stack is about to overflow"
+// when the call chain is too deep. On firmware 2.2.0 a native call at 11 script frames failed
+// (tick > ... > statusText > etaUnix > unixAt > nowUnix > Shelly.getComponentStatus) and one at
+// 10 frames worked. The mock counts the script frames at every native call and fails above
+// DEPTH_LIMIT (7), which leaves a margin of several frames.
+const DEPTH_LIMIT = Number(process.env.UC_DEPTH_LIMIT || 7);
+Error.stackTraceLimit = Math.max(Error.stackTraceLimit || 10, 200);
 const VC_LIMIT = 10;
 
 class Device {
+  static maxDepth = { d: 0, chain: '' };   // deepest native call over all devices in this process
   constructor(opts = {}) {
     this.t = opts.startMs || Date.parse('2026-11-18T19:00:00Z'); // wall clock (ms)
     this.bootT = this.t;
@@ -275,13 +283,22 @@ class Device {
 
   // ---------------------------------------------------------------- API seen by the script
   makeApi(sid) {
+    const dev0 = this;
+    const depthCheck = () => {
+      const name = dev0.scripts.get(sid).name;
+      const frames = new Error().stack.split('\n').filter((l) => l.includes('(' + name + ':') || l.includes(' ' + name + ':'));
+      const d = frames.length;
+      if (d > (dev0.maxDepth || 0)) { dev0.maxDepth = d; dev0.maxDepthChain = frames.map((l) => l.trim().split(' ')[1]).reverse().join(' > '); }
+      if (d > (Device.maxDepth.d || 0)) Device.maxDepth = { d, chain: dev0.maxDepthChain };
+      if (d > DEPTH_LIMIT) throw new Error('Too much recursion - call depth ' + d + ' > ' + DEPTH_LIMIT + ': ' + frames.map((l) => l.trim().split(' ')[1]).reverse().join(' > '));
+    };
     const dev = this;
     const s = this.scripts.get(sid);
     const handleFor = (key) => {
       if (!key || !dev.comps.has(key)) return null;
       return {
         getValue: () => { const c = dev.comps.get(key); return c ? c.value : undefined; },
-        setValue: (v) => { const c = dev.comps.get(key); if (c && c.type !== 'group' && c.type !== 'button') s.pendingSets.push([key, v]); },
+        setValue: (v) => { depthCheck(); const c = dev.comps.get(key); if (c && c.type !== 'group' && c.type !== 'button') s.pendingSets.push([key, v]); },
         getStatus: () => { const c = dev.comps.get(key); return c ? { value: Array.isArray(c.value) ? c.value.slice() : c.value } : undefined; },
         getConfig: () => { const c = dev.comps.get(key); return c ? JSON.parse(JSON.stringify(c.config)) : undefined; },
         setConfig: (o) => { const c = dev.comps.get(key); if (c) Object.assign(c.config, o); },
@@ -303,7 +320,7 @@ class Device {
     };
     let inflight = 0;
     return {
-      print: (...a) => dev.log(sid, a.join(' ')),
+      print: (...a) => { depthCheck(); dev.log(sid, a.join(' ')); },
       console: { log: (...a) => dev.log(sid, a.join(' ')) },
       JSON, Math, Date: class extends Date { constructor(...a) { if (a.length) super(...a); else super(dev.t); } static UTC() { throw new Error('Function "UTC" not found! (device 2.2.0)'); } static parse() { throw new Error('Function "parse" not found? (not verified on the device)'); } },
       Number, String, Object, Array,
@@ -316,11 +333,13 @@ class Device {
       },
       Shelly: {
         call: (method, params, cb, ud) => {
+          depthCheck();
           inflight++; if (inflight > 5) throw new Error('more than 5 RPC calls in flight');
           const r = dev.rpc(sid, method, params);
           dev.post(() => { inflight--; dev.invoke(sid, () => { if (cb) cb(r.res === undefined ? undefined : r.res, r.err || 0, r.msg || '', ud); }); });
         },
         getComponentStatus: (k, id) => {
+          depthCheck();
           const key = id === undefined ? k : `${k}:${id}`;
           if (key === 'sys') {
             const u = dev.unix();
@@ -339,11 +358,12 @@ class Device {
         getComponentConfig: (k, id) => { const key = id === undefined ? k : `${k}:${id}`; const c = dev.comps.get(key); return c ? JSON.parse(JSON.stringify(c.config)) : null; },
         getDeviceInfo: () => ({ id: 'shellyemminig4-000000000000', model: 'S4EM-001PXEU16', ver: '2.2.0', fw_id: '20261111-000000/2.2.0-mock', app: 'MiniEM' }),
         getCurrentScriptId: () => sid,
-        getUptimeMs: () => dev.uptimeMs(),
+        getUptimeMs: () => { depthCheck(); return dev.uptimeMs(); },
         addEventHandler: (cb, ud) => { s.eventHandlers.push({ cb, ud }); s.eventSubs = (s.eventSubs || 0) + 1; return s.eventHandlers.length; },
         addStatusHandler: (cb, ud) => { s.statusHandlers.push({ cb, ud }); return s.statusHandlers.length; },
         removeEventHandler: () => true, removeStatusHandler: () => true,
         emitEvent: (name, data) => {
+          depthCheck();
           const now = dev.t / 1000;
           const ev = { component: `script:${sid}`, name: 'script', id: sid, now, info: { component: `script:${sid}`, id: sid, event: name, data: JSON.parse(JSON.stringify(data)), ts: now } }; // assumed shape
           for (const x of dev.scripts.values()) if (x.running) for (const h of x.eventHandlers) dev.post(() => dev.invoke(x.id, () => h.cb(ev, h.ud)));

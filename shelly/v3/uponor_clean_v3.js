@@ -23,10 +23,13 @@
  *
  * Engine rules (verified on the device): no recursion, small RPC responses,
  * at most 5 timers / 5 RPC calls, functions defined before they are called,
- * no Array shift / unshift / concat, no Date.UTC.
+ * no Array shift / unshift / concat, no Date.UTC. The call stack is shallow:
+ * a native call 11 functions deep stopped the script ("Too much recursion"),
+ * so the band handlers only change the state and set flags, and tick() writes
+ * the outputs, KVS and events at the top level.
  */
 
-let VERSION = "3.0.1";
+let VERSION = "3.0.2";
 
 // ------------------------------------------------------------------ settings
 // Can be overridden in KVS key "uc_cfg", e.g. {"sludge_limit": 600}. Script memory is
@@ -94,7 +97,8 @@ function vcConfig(role) {
     }
     if (role === "status") return { max_len: 255, default_value: "", persisted: false, meta: label };
     if (role === "next_pumpout") return { max_len: 32, default_value: "", persisted: false, meta: label };
-    if (role === "batches") return { min: 0, max: 999999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } };
+    // cloud "counter": the Shelly app shows the daily growth as a chart (as v2.4 did)
+    if (role === "batches") return { min: 0, max: 999999, default_value: 0, persisted: true, meta: { cloud: ["counter"], ui: { view: "field", step: 1 } } };
     if (role === "chemical") return { min: 0, max: 30, default_value: 0, persisted: true, meta: { ui: { view: "field", unit: "l", step: 0.1 } } };
     return { min: 0, max: 9999, default_value: 0, persisted: true, meta: { ui: { view: "field", step: 1 } } };
 }
@@ -122,6 +126,8 @@ let warn = {};
 let topWarning = "none";
 let pw = { p: null, pn: null, u: null, lastSeenUp: null, comp: null, highSince: null, offSince: null, lastCompUp: null };
 let lastStatusUp = -1000;
+let statusDirty = false;         // status text to be rewritten by tick()
+let cycleDirty = false;          // uc_cycle to be saved by tick()
 let lastNextIso = "";
 
 // ------------------------------------------------------------------ helpers
@@ -140,9 +146,9 @@ function nowUnix() {
 }
 
 function unixAt(tUp) {
-    let n = nowUnix();
-    if (n === null) return null;
-    return Math.round(n - (upS() - tUp));
+    let s = Shelly.getComponentStatus("sys");
+    if (!s || typeof s.unixtime !== "number") return null;
+    return Math.round(s.unixtime - (Shelly.getUptimeMs() / 1000 - tUp));
 }
 
 // a measured length matches a firmware time (an unknown length, -1, never matches)
@@ -199,11 +205,25 @@ function timeText(unix, full) {
     return (full ? c[0] + "-" + pad2(c[1]) + "-" + pad2(c[2]) + " " : "") + pad2(c[3]) + ":" + pad2(c[4]);
 }
 
+// events are queued and sent by tick() at the end of the same second
+let evq = [];
+
 function emit(type, data) {
     data.v = 1;
     data.type = type;
-    data.ts = nowUnix();
-    Shelly.emitEvent("uponor", data);
+    evq.push(data);
+}
+
+function flushEvents() {
+    if (evq.length === 0) return;
+    let q = evq;
+    evq = [];
+    let n = nowUnix();
+    for (let i = 0; i < q.length; i++) {
+        q[i].ts = n;
+        if (q[i].type === "phase" && q[i].eta !== null) q[i].eta = unixAt(q[i].eta);
+        Shelly.emitEvent("uponor", q[i]);
+    }
 }
 
 // ------------------------------------------------------------------ KVS (one write at a time, latest value wins)
@@ -233,8 +253,7 @@ function kvsPump() {
 function kvsSave(key, value) {
     let s = typeof value === "string" ? value : JSON.stringify(value);
     if (kvsPending[key] === null || kvsPending[key] === undefined) kvsOrder.push(key);
-    kvsPending[key] = s;
-    kvsPump();
+    kvsPending[key] = s;           // written by tick() / the previous write's callback
 }
 
 function saveBatch() {
@@ -296,8 +315,9 @@ function statusText() {
     else if (st.etaUp !== null) {
         let m = Math.max(0, Math.round((st.etaUp - now) / 60));
         let left = (m >= 60 ? Math.floor(m / 60) + " h " : "") + (m % 60) + " min";
-        s = (st.restarted ? "Restarted after power cut | " : "") +
-            (synced ? "Pump-out at " + timeText(etaUnix()) + " (in " + left + ")" : "Pump-out in " + left);
+        let at = synced ? timeText(etaUnix()) : "";
+        s = at ? "Pump-out at " + at + " (in " + left + ")" : "Pump-out in " + left;
+        if (st.restarted) s = "Restarted after power cut | " + s;
     }
     else if (st.ph === "pump_in") s = "Pumping in | last pump-out " + last;
     else if (st.cyc === "holiday") s = "Holiday mode" + (st.holidayUnix ? " since " + timeText(st.holidayUnix, true) : "") + " | last pump-out " + last;
@@ -309,10 +329,14 @@ function statusText() {
 
 function refreshOutputs(force) {
     let now = upS();
-    if (force || now - lastStatusUp >= 60) {
+    if (force || statusDirty || now - lastStatusUp >= 60) {
         lastStatusUp = now;
+        statusDirty = false;
         setVc("status", statusText());
     }
+    setVc("phase", st.ph);
+    setVc("cycle", st.cyc);
+    setVc("warning", topWarning);
     let e = etaUnix();
     let iso = e === null ? "" : isoLocal(e);
     if (iso !== lastNextIso) {
@@ -327,11 +351,9 @@ function setPhase(cyc, ph, startUp) {
     st.ph = ph;
     st.phStart = startUp;
     if (ph !== "pump_out") st.afterPumpOut = false;
-    setVc("phase", ph);
-    setVc("cycle", cyc);
-    emit("phase", { cycle: cyc, phase: ph, code: phaseCode(), eta: etaUnix() });
-    saveCycle();
-    refreshOutputs(true);
+    emit("phase", { cycle: cyc, phase: ph, code: phaseCode(), eta: st.etaUp });   // eta: uptime, to Unix in flushEvents()
+    cycleDirty = true;
+    statusDirty = true;
 }
 
 function anchorEta(ph, startUp) {
@@ -355,8 +377,7 @@ function setWarning(key, on) {
     }
     if (top !== topWarning) {
         topWarning = top;
-        setVc("warning", top);
-        refreshOutputs(true);
+        statusDirty = true;
     }
 }
 
@@ -721,7 +742,7 @@ function restartTransition(to, t) {
     else if (to === "VALVE") chemFilling(t, true, false);
     else return false;
     st.restarted = true;
-    refreshOutputs(true);
+    statusDirty = true;
     return true;
 }
 
@@ -1025,6 +1046,12 @@ function tick() {
         checkCounters();
     }
     refreshOutputs(false);
+    if (cycleDirty) {
+        cycleDirty = false;
+        saveCycle();
+    }
+    kvsPump();
+    flushEvents();
 }
 
 // ------------------------------------------------------------------ user edits of the fields
@@ -1214,8 +1241,11 @@ let LOAD = ["uc_vc", "uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "u
 function loadNext(i) {
     if (i >= LOAD.length) {
         ensureComponents(function () {
-            initHandles();
-            finishStart();
+            // a new timer starts from an empty call stack (the component callbacks are deep)
+            Timer.set(10, false, function () {
+                initHandles();
+                finishStart();
+            });
         });
         return;
     }
@@ -1263,7 +1293,7 @@ function finishStart() {
     checkCounters();
     emit("start", { reason: boot ? "power_cut" : "restart", version: VERSION });
     log("version " + VERSION + " started, uptime " + Math.round(up) + " s, batches " + cnt.batches);
-    refreshOutputs(true);
+    statusDirty = true;
     Timer.set(1000, true, tick);
     Timer.set(86400000, true, saveBase);
 }

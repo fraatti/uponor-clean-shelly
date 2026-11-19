@@ -30,7 +30,7 @@ Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`) ja tarkista **Settin
    ![Uusi skripti](img/shelly_uusi_skripti.jpg)
 
 3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 39 000 merkkiä, ja editoriin mahtuu noin 50 000.
-4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.1 started`.
+4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.2 started`.
 
    ![Skriptieditori](img/shelly_editori.jpg)
 
@@ -77,7 +77,7 @@ Lataa Home Assistantissa Shelly-integraatio uudelleen, jotta komponentit tulevat
 `http://<shellyn-ip>/script/<numero>/state` palauttaa JSON-tilan, esim. (19.11.2026, odotusjakson ilmastus):
 
 ```json
-{"version":"3.0.1","cycle":"waiting","phase":"aeration","code":"S204","since":1795064382,
+{"version":"3.0.2","cycle":"waiting","phase":"aeration","code":"S204","since":1795064382,
  "eta":null,"last_pumpout":1794991398,"batches":249,"chemical":{"l":null,"days":null},
  "sludge":{"n":100,"reset":null},"warnings":[],"holiday_at":null,"holiday_since":null,
  "power":56.8,"band":"AER","time_synced":true,"uptime":39545}
@@ -107,7 +107,7 @@ Päivitä mieluiten odotusjakson aikana, ei ulospumppauksen aikana. Jos komponen
 | Status | text, vain luku | Esim. "Pump-out at 14:35 (in 1 h 12 min)" tai "Waiting for wastewater \| last pump-out 2026-11-18 10:43", ja tärkein varoitus |
 | Warning | enum, vain luku | Tärkein varoitus, ks. alla |
 | Next pump-out | text, vain luku | Seuraavan ulospumppauksen alku paikallisena ISO-aikana, tyhjä kun ei tiedossa |
-| Batches | number | Panoslaskuri, muokattavissa |
+| Batches | number | Panoslaskuri, muokattavissa. Pilvitilasto `counter`: Shelly-sovellus näyttää kasvun päiväkohtaisena graafina. |
 | Chemical | number (l) | Kemikaalia astiassa, vähenee 0,04 l annostelua kohden |
 | Sludge | number | Panokset lietteen tyhjennyksestä, nollataan tyhjennyksessä |
 | Uponor Clean | group | Edelliset samassa ryhmässä |

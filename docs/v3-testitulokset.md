@@ -93,6 +93,34 @@ v2-yhteensopivuus poistettiin: skripti ei enää lue eikä kirjoita v2.4:n KVS-a
 
 Kaikki testit (skenaariot, tallennettu data, laitetesti, kortti) antavat saman tuloksen lähteellä ja tiivistetyllä versiolla.
 
+## Versio 3.0.2 (19.11.2026): kaatuminen puhdistusjakson alussa
+
+Skripti pysähtyi klo 7.31.48, kun laitteella alkoi ensimmäinen puhdistusjakso v3:n aikana (asennuksen jälkeen oli ollut vain odotusjaksoja):
+
+```
+Uncaught Error: Too much recursion - the stack is about to overflow
+ at Shelly.getComponentStatus("sys") in nowUnix < unixAt < etaUnix < statusText < setVc("status", ...
+```
+
+Kutsuketju oli `tick > updateBand > onTransition > toAer > startCleaning > setPhase > refreshOutputs > statusText > etaUnix > unixAt > nowUnix`, eli natiivikutsu 11 funktion syvyydessä. Odotusjakson vastaava ketju (10 tasoa) oli toiminut. Vika oli jo versiossa 3.0.0, mutta testit eivät mitanneet pinon syvyyttä.
+
+Korjaus:
+
+- Tapahtumakäsittelijät vain muuttavat tilaa ja asettavat lippuja. `tick()` kirjoittaa tilatekstin, Phase-, Cycle- ja Warning-komponentit, `uc_cycle`-avaimen, muut KVS-kirjoitukset ja tapahtumat ylimmältä tasolta saman sekunnin lopussa.
+- `unixAt` lukee kellon suoraan, ja tilatekstin pitkä lauseke on pilkottu.
+- Käynnistys jatkuu komponenttien luonnin jälkeen uudesta ajastimesta.
+- Shelly-jäljitelmä laskee skriptin kutsupinon jokaisessa natiivikutsussa ja hylkää yli 7 tason ketjut. Ennen korjausta jäljitelmä toisti kaatumisen; korjauksen jälkeen syvin ketju on 7 (`tick > updateBand > onTransition > toAer > pumpInEnded > pumpInSample > log`).
+- Batches-komponentti sai pilvitilaston `counter` (Shelly-sovelluksen päiväkohtainen graafi, kuten v2.4:ssä).
+
+Laitteella 3.0.2 asennettiin klo 8.05. Ennen käynnistystä `uc_cycle` asetettiin vastaamaan meneillään olevaa jaksoa (esi-ilmastus alkoi 7.31.48, ilmastus 600 s myöhemmin), jolloin skripti jatkoi ilmastuksesta ja arvioi ulospumppauksen klo 10.17. Pysähdyksen ajalta (7.31–8.05) Home Assistantiin ei tullut vaiheita.
+
+| Mittaus | Tulos |
+| --- | --- |
+| Tiivistetty koko | 39 714 merkkiä |
+| Muisti käytössä | 15,1 kt |
+| Muistin huippu | 19,0 kt |
+| Vapaata muistia | 10,1 kt |
+
 ## Kortti (`test/card_v3_test.js`)
 
 Simuloitu v3-ajo (30 h, puhdistusjaksoja ja lähtö tukossa kerran) syötetään kortille historiana.

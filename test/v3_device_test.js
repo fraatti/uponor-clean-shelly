@@ -42,6 +42,7 @@ check(ub && ub.n === 249, 'uc_batch kept');
 
 // external writes: read-only labels refused, fields accepted
 check(comp('phase').config.meta.ui.view === 'label' && comp('batches').config.meta.ui.view === 'field', 'labels for outputs, fields for user values');
+check(JSON.stringify(comp('batches').config.meta.cloud) === '["counter"]', 'Batches has cloud counter statistics (Shelly app chart)');
 dev.run(10 * 60e3);
 check(comp('phase').value === 'aeration' && comp('cycle').value === 'cleaning', `cleaning cycle at power-up seen as ${comp('cycle').value}/${comp('phase').value}`);
 const st1 = JSON.parse(dev.httpGet(`/script/${sid}/state`).body);
@@ -99,3 +100,4 @@ check(timers <= 3, 'timers in use: ' + timers);
 check(!dev.logs.some((l) => /UNCAUGHT/.test(l.s)), 'no uncaught errors');
 console.log(fails ? `\n${fails} check(s) failed` : '\nall checks passed');
 process.exitCode = fails ? 1 : 0;
+console.log(`max call depth ${require('./shelly_device_mock').Device.maxDepth.d}: ${require('./shelly_device_mock').Device.maxDepth.chain}`);

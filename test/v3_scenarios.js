@@ -164,3 +164,4 @@ for (const S of SC) {
 }
 console.log(fails ? `\n${fails} scenario(s) failed` : '\nall scenarios passed');
 process.exitCode = fails ? 1 : 0;
+console.log(`max call depth ${require('./shelly_device_mock').Device.maxDepth.d}: ${require('./shelly_device_mock').Device.maxDepth.chain}`);

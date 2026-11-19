@@ -27,7 +27,7 @@ Odotettu tulos v2.4:llä: syyskuun data 800/800 siirtymää ja 9 panosta, lokaku
 
 ## v3-prototyyppi
 
-`shelly_device_mock.js` jäljittelee yhtä Shelly-laitetta, jossa on useita skriptejä: `@meta`- ja `Virtual.Add`-komponentit ja niiden omistajuus, laitekohtainen 10 komponentin raja, KVS, `Script.storage`, tapahtumat skriptien välillä, HTTP-osoitteet, sähkökatkot ja uudelleenkäynnistys (`reset_reason`). Lisäksi se tarkistaa, ettei koodissa ole Shellyn tukemattomia kieliominaisuuksia (nuolifunktiot, template-literaalit, `const`, luokat, funktion kutsu ennen sen määrittelyä, `Array.shift`/`unshift`/`concat`, `Date.UTC`).
+`shelly_device_mock.js` jäljittelee yhtä Shelly-laitetta, jossa on useita skriptejä: `@meta`- ja `Virtual.Add`-komponentit ja niiden omistajuus, laitekohtainen 10 komponentin raja, KVS, `Script.storage`, tapahtumat skriptien välillä, HTTP-osoitteet, sähkökatkot ja uudelleenkäynnistys (`reset_reason`). Jokaisessa natiivikutsussa se laskee skriptin kutsupinon syvyyden ja kaataa skriptin yli 7 tason ketjussa (laite kaatui 11 tasossa; raja muutettavissa ympäristömuuttujalla `UC_DEPTH_LIMIT`). `v3_device_test.js` ja `v3_scenarios.js` tulostavat lopuksi syvimmän ketjun. Lisäksi se tarkistaa, ettei koodissa ole Shellyn tukemattomia kieliominaisuuksia (nuolifunktiot, template-literaalit, `const`, luokat, funktion kutsu ennen sen määrittelyä, `Array.shift`/`unshift`/`concat`, `Date.UTC`).
 
 ```
 cd test
