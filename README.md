@@ -40,8 +40,9 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 
 | Version | Status |
 | --- | --- |
-| Script v3.0.2 | In use since 19 Nov 2026 (branch `v3`). v3.0.0–3.0.1 stopped at the start of the first cleaning cycle because the call stack got too deep (see the test results). Does not need Home Assistant, creates its own components, follows the firmware's phases and cycles, chemical and sludge counters, warnings, events. |
+| Script v3.0.2 | In use since 19 Nov 2026 (release [v3.0.2](../../releases/tag/v3.0.2)). v3.0.0–3.0.1 stopped at the start of the first cleaning cycle because the call stack got too deep (see the test results). Does not need Home Assistant, creates its own components, follows the firmware's phases and cycles, chemical and sludge counters, warnings, events. |
 | Card v1.7.3 | In use. v3 entities, v2 history before v3, visual editor and language option, entering chemical and sludge on the card. |
+| Recorder 1.0 | New on 21 Nov 2026: `shelly/tools/nauhuri.ps1` records the power for troubleshooting ([guide](docs/v3-install.md#recording-for-troubleshooting)). |
 | Script v2.4.0 | Retired on 18 Nov 2026 and removed from the device on 19 Nov 2026. No migration or return path. |
 | Script v2.3 | Old version. |
 

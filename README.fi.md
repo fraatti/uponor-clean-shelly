@@ -40,8 +40,9 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 
 | Versio | Tila |
 | --- | --- |
-| Skripti v3.0.2 | Käytössä 19.11.2026 alkaen (haara `v3`). v3.0.0–3.0.1 kaatuivat ensimmäisen puhdistusjakson alussa liian syvään kutsupinoon (`docs/v3-testitulokset.md`). Ei vaadi Home Assistantia, luo komponentit itse, firmwaren mukaiset vaiheet ja jaksot, kemikaali- ja lietelaskuri, varoitukset, tapahtumat. |
+| Skripti v3.0.2 | Käytössä 19.11.2026 alkaen (julkaisu [v3.0.2](../../releases/tag/v3.0.2)). v3.0.0–3.0.1 kaatuivat ensimmäisen puhdistusjakson alussa liian syvään kutsupinoon (`docs/v3-testitulokset.md`). Ei vaadi Home Assistantia, luo komponentit itse, firmwaren mukaiset vaiheet ja jaksot, kemikaali- ja lietelaskuri, varoitukset, tapahtumat. |
 | Kortti v1.7.3 | Käytössä. v3-entiteetit, v2-historia ennen v3:a, visuaalinen editori ja kielivalinta, kemikaalin ja lietteen syöttö kortilta. |
+| Nauhuri 1.0 | Uusi 21.11.2026: `shelly/tools/nauhuri.ps1` nauhoittaa tehon vianetsintää varten ([ohje](docs/v3-asennus.md#nauhoitus-vianetsintää-varten)). |
 | Skripti v2.4.0 | Poistettu käytöstä 18.11.2026 ja poistettu laitteelta 19.11.2026. Ei siirtymää eikä paluuta. |
 | Skripti v2.3 | Vanha versio. |
 
