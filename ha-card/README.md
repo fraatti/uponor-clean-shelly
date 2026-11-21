@@ -41,7 +41,7 @@ Phase durations come from the control unit's firmware (board A settings, label V
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.3`
+   - URL: `/local/uponor-clean-card.js?v=1.7.4`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.

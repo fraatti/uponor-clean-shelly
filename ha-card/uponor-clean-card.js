@@ -1,7 +1,7 @@
-/*! uponor-clean-card v1.7.3 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+/*! uponor-clean-card v1.7.4 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.7.3';
+const UC_VERSION = '1.7.4';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -742,12 +742,6 @@ const UC_SIDE = {
   sludge: { leg: 726, bot: 585, top: 188, spoutX: 540, spoutY: 254, src: 'proc', dst: 'sao', color: '#6B4A22', hose: 'brown', phase: 'sludge' },
   discharge: { leg: 852, intake: 880, intakeTop: 351, bot: 578, top: 232, spoutX: 1000, spoutY: 232, src: 'proc', dst: 'out', color: '#7FB2DE', hose: 'red', phase: 'discharge' },
 };
-/* Liquid colours: sedimentation-tank water, clear process water, mixed liquor (activated sludge) */
-const UC_LIQ = { sao: '#8F8A74', clear: '#8DBDE6', mixed: '#8A6A3E', sludge: '#6B4A22' };
-function ucMixColor(a, b, f) {
-  const p = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b); f = ucClamp(f, 0, 1);
-  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * f).toString(16).padStart(2, '0')).join('');
-}
 function ucRoundPath(pts, r = 10) {
   let d = `M${pts[0][0]} ${pts[0][1]}`;
   for (let i = 1; i < pts.length - 1; i++) {
@@ -788,11 +782,15 @@ function ucSideMarkup(T) {
     discharge: `M${P.discharge.intake + 24} ${P.discharge.intakeTop} H${P.discharge.intake + 8} Q${P.discharge.intake} ${P.discharge.intakeTop} ${P.discharge.intake} ${P.discharge.intakeTop + 8} V${P.discharge.bot - 10} Q${P.discharge.intake} ${P.discharge.bot + 4} ${(P.discharge.intake + P.discharge.leg) / 2} ${P.discharge.bot + 4} Q${P.discharge.leg} ${P.discharge.bot + 4} ${P.discharge.leg} ${P.discharge.bot - 10} V${P.discharge.top + 8} Q${P.discharge.leg} ${P.discharge.top} ${P.discharge.leg + 8} ${P.discharge.top} H934`,
   };
   const pipe = (d) => `<path d="${d}" class="pipe-o" stroke-width="12"/><path d="${d}" class="pipe-i" stroke-width="7.5"/>`;
-  const tube = (x, top, bot, id, color) => `
+  // The water in a tube is painted like the tank liquid it came from: the tank's gradient, then
+  // the mixed-liquor (-wm) and chemical-tint (-wt) layers when they are present at the opening.
+  const tube = (x, top, bot, id, color, paint) => `
     <g class="stube" id="${id}">
       <rect x="${x - 9}" y="${top}" width="18" height="${bot - top}" rx="3" class="tube-o"/>
       <rect x="${x - 6}" y="${top + 3}" width="12" height="${bot - top - 3}" class="tube-air"/>
-      <rect id="${id}-w" x="${x - 6}" y="${bot}" width="12" height="0" class="tube-w"/>
+      <rect id="${id}-w" x="${x - 6}" y="${bot}" width="12" height="0" fill="${paint}"/>
+      <rect id="${id}-wm" x="${x - 6}" y="${bot}" width="12" height="0" fill="url(#ucMixG)" opacity="0"/>
+      <rect id="${id}-wt" x="${x - 6}" y="${bot}" width="12" height="0" class="w-tint" opacity="0"/>
       <path d="M${x - 5} ${top + 6} V${bot - 4}" class="tube-hl"/>
       <rect x="${x - 11}" y="${top - 6}" width="22" height="8" rx="2" class="cap"/>
       <circle cx="${x}" cy="${top - 10}" r="4" fill="#3BA3E8"/>
@@ -881,8 +879,8 @@ function ucSideMarkup(T) {
     <rect x="934" y="${y(UC_GEO.outletMM) - 7}" width="66" height="14" fill="url(#ucPipeG)"/>
     <path id="s-outflow" d="M858 ${y(UC_GEO.outletMM)} H1000" class="outflow"/>
     <!-- sensor tubes -->
-    <g><title>${T.overflow}</title>${tube(520, 184, y(UC_GEO.blackTubeBottomMM), 'tb', '#444')}</g>
-    <g><title>${T.start_level}</title>${tube(812, 182, y(UC_GEO.greenTubeBottomMM), 'tg', UC_HOSE.green)}</g>
+    <g><title>${T.overflow}</title>${tube(520, 184, y(UC_GEO.blackTubeBottomMM), 'tb', '#444', 'url(#ucSaoG)')}</g>
+    <g><title>${T.start_level}</title>${tube(812, 182, y(UC_GEO.greenTubeBottomMM), 'tg', UC_HOSE.green, 'url(#ucClearG)')}</g>
     <!-- aerator -->
     <path d="M756 188 V566" class="rigid"/><path d="M754.5 190 V562" class="rigid-hl"/>
     <rect x="748" y="562" width="16" height="9" rx="2" class="nut"/>
@@ -971,7 +969,7 @@ class UcSide {
     this.slugs = {}; const sg = this.q('s-slugs'); const lg = this.q('s-liquid');
     this.liquid = {};
     for (const k of Object.keys(UC_SIDE)) {
-      this.liquid[k] = { riser: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), intake: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), stream: mk('path', lg, { class: 'stream', stroke: UC_SIDE[k].color }), flow: mk('path', lg, { class: 'pflow' }) };
+      this.liquid[k] = { riser: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), mix: mk('path', lg, { class: 'liq', stroke: 'url(#ucMixG)' }), tint: mk('path', lg, { class: 'liq liq-tint' }), intake: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), stream: mk('path', lg, { class: 'stream', stroke: UC_SIDE[k].color }), flow: mk('path', lg, { class: 'pflow' }) };
       this.slugs[k] = []; for (let j = 0; j < 6; j++) this.slugs[k].push(mk('rect', sg, { width: 6, height: 12, rx: 3, x: UC_SIDE[k].leg - 3, class: 'slug' }));
     }
     this.sparts = []; const spg = this.q('s-sparts');
@@ -1100,13 +1098,20 @@ class UcSide {
 
     // mammoth pumps
     const srcY = { sao: saoY, proc: procY };
-    const procCol = ucMixColor(UC_LIQ.mixed, UC_LIQ.clear, S.clarity);
+    // Liquid in the risers and sensor tubes is painted with the same semi-transparent gradients as
+    // the tank around the opening (light and dark theme alike): the clear-water gradient, then the
+    // mixed liquor when the opening is under the top of the mixed layer, then the chemical tint.
+    const mixO = 0.55 + 0.35 * S.clarity;
+    const inMixed = (yPx) => S.clarity < 0.02 || yPx >= mixedTop;
     for (const [k, m] of Object.entries(UC_SIDE)) {
       const on = (k === 'pumpIn' && active.filling) || (k === 'sludge' && active.sludge) || (k === 'discharge' && active.discharge);
       const L = this.liquid[k]; const lvl = srcY[m.src];
       // what fills the riser: the pumped liquid while pumping, otherwise the liquid around the intake
-      const col = on ? m.color : k === 'pumpIn' ? UC_LIQ.sao : k === 'sludge' ? ucMixColor(procCol, UC_LIQ.sludge, S.clarity) : procCol;
-      L.riser.setAttribute('stroke', col); L.intake.setAttribute('stroke', col); L.stream.setAttribute('stroke', m.color);
+      // (the sludge return takes it from the bottom, which is always under the mixed layer)
+      const proc = !on && m.src === 'proc';
+      const mixA = proc && (k === 'sludge' || inMixed(m.intakeTop)) ? mixO : 0, tintA = proc ? S.tint : 0;
+      L.riser.setAttribute('stroke', on ? m.color : m.src === 'sao' ? 'url(#ucSaoG)' : 'url(#ucClearG)');
+      L.riser.style.opacity = on ? '' : '1'; L.stream.setAttribute('stroke', m.color);
       const riserTopLiquid = on ? m.top : Math.max(lvl, m.top);
       // one liquid path through the U at the bottom and round the bends at the top, like the pipe itself
       const dir = m.spoutX < m.leg ? -1 : 1;
@@ -1122,6 +1127,8 @@ class UcSide {
         (k === 'discharge' ? ' H934' : ` H${m.spoutX - dir * 8} Q${m.spoutX} ${m.top} ${m.spoutX} ${m.top + 8} V${m.spoutY - 18}`);
       d += on ? ' ' + top : ` V${riserTopLiquid.toFixed(1)}`;
       L.riser.setAttribute('d', d);
+      L.mix.setAttribute('d', mixA > 0 ? d : ''); L.mix.style.opacity = mixA.toFixed(2);
+      L.tint.setAttribute('d', tintA > 0.001 ? d : ''); L.tint.style.opacity = tintA.toFixed(3);
       L.intake.setAttribute('d', '');
       // water moving over the bend and along the top pipe, in pulses
       if (on) {
@@ -1179,18 +1186,18 @@ class UcSide {
     }
     q('s-comp').classList.toggle('buzz', !!S.running);
     // sensor tubes
-    const tubeUpd = (id, xBottomMM, outerMM, tripMM) => {
+    const tubeUpd = (id, xBottomMM, outerMM, tripMM, mixA, tintA) => {
       const sub = outerMM - xBottomMM;
       const inner = sub > 0 ? outerMM - Math.min(10, sub * 0.02) : outerMM;
       const yb = y(xBottomMM), yi = y(Math.max(inner, xBottomMM));
-      const w = q(id + '-w'); w.setAttribute('y', yi.toFixed(1)); w.setAttribute('height', Math.max(0, yb - yi).toFixed(1));
+      for (const s of ['-w', '-wm', '-wt']) { const w = q(id + s); w.setAttribute('y', yi.toFixed(1)); w.setAttribute('height', Math.max(0, yb - yi).toFixed(1)); }
+      q(id + '-wm').style.opacity = mixA.toFixed(2); q(id + '-wt').style.opacity = tintA.toFixed(3);
       const f = ucClamp(sub / (tripMM - xBottomMM), 0, 1);
       q(id + '-g').setAttribute('stroke-dasharray', `${(f * 44).toFixed(1)} 44`);
       q(id + '-g0').classList.toggle('trip', f >= 0.999);
     };
-    tubeUpd('tg', UC_GEO.greenTubeBottomMM, S.levelMM, UC_GEO.startMM);
-    tubeUpd('tb', UC_GEO.blackTubeBottomMM, S.saoMM, UC_GEO.alarmMM);
-    q('tg-w').style.fill = procCol; q('tb-w').style.fill = UC_LIQ.sao;
+    tubeUpd('tg', UC_GEO.greenTubeBottomMM, S.levelMM, UC_GEO.startMM, inMixed(y(UC_GEO.greenTubeBottomMM)) ? mixO : 0, S.tint);
+    tubeUpd('tb', UC_GEO.blackTubeBottomMM, S.saoMM, UC_GEO.alarmMM, 0, 0);
 
     // chemical tank + inset
     const chemFrac = ctx.chemFrac !== null && ctx.chemFrac !== undefined ? ctx.chemFrac : 0.6;
@@ -1711,7 +1718,7 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 .w-tint { fill:#E8C21C; }
 .floc { fill:#5A3D1C; opacity:.72; } .bubble { fill:rgba(255,255,255,.6); stroke:#4A8CCB; stroke-width:.8; }
 .pipe-o { fill:none; stroke:#8d959e; stroke-linejoin:round; } .pipe-i { fill:none; stroke:var(--uc-card); stroke-linejoin:round; opacity:.92; }
-.liq { fill:none; stroke-width:7; stroke-linejoin:round; opacity:.8; }
+.liq { fill:none; stroke-width:7; stroke-linejoin:round; opacity:.8; } .liq-tint { stroke:#E8C21C; }
 .slug { fill:#fff; stroke:#8fb7dc; stroke-width:.8; }
 .stream { fill:none; stroke-width:4; stroke-dasharray:9 5; stroke-linecap:round; }
 .pflow { fill:none; stroke:#fff; stroke-opacity:.6; stroke-width:2.4; stroke-dasharray:5 11; stroke-linecap:round; stroke-linejoin:round; }
@@ -1731,7 +1738,7 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 .valve { opacity:.35; stroke:#333; stroke-width:.6; } .valve.on { opacity:1; stroke:#fff; stroke-width:1.6; }
 .chem-tank { fill:rgba(250,250,246,.9); stroke:#b8bbb5; stroke-width:1.2; } .chem-liq { opacity:.82; } .chem-pump { fill:#8a8f96; }
 .chem-drip { fill:none; stroke:#E8C21C; stroke-width:2; stroke-dasharray:3 5; animation:ucflow .5s linear infinite; }
-.tube-o { fill:#B9BFC7; } .tube-air { fill:var(--uc-card); } .tube-w { fill:#5B9BD5; opacity:.6; } .cap { fill:#7d848c; }
+.tube-o { fill:#B9BFC7; } .tube-air { fill:var(--uc-card); } .cap { fill:#7d848c; }
 .gauge-bg { fill:var(--uc-card); stroke:rgba(127,127,127,.35); stroke-width:3; } .gauge-bg.trip { fill:rgba(46,160,67,.3); }
 .rigid { stroke:#8E959E; stroke-width:5; fill:none; } .nut { fill:#4a4f55; } .ball { fill:#3c4046; }
 .flare, .funnel { fill:none; stroke:#9AA2AC; stroke-width:3; stroke-linejoin:round; }

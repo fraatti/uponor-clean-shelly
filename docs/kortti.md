@@ -47,7 +47,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
 
 1. Kopioi `ha-card/uponor-clean-card.js` Home Assistantin kansioon `/config/www/` (esim. File editor -lisäosalla tai Samballa).
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.3`
+   - URL: `/local/uponor-clean-card.js?v=1.7.4`
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.
