@@ -174,3 +174,29 @@ Asetuksia voi muuttaa KVS-avaimella `uc_cfg` (JSON), esim. `{"sludge_limit": 600
 | Home Assistant ei näytä entiteettejä | Lataa Shelly-integraatio uudelleen ([`home-assistant.md`](home-assistant.md)). |
 | Phase on pitkään `Unknown` | Tehomittaus puuttuu tai puhdistamo on pysähtynyt. Katso tilakysely (`band`, `power`). |
 | Kellonajat puuttuvat | Laitteen kello ei ole synkronoitu (`time_synced: false`). Tarkista verkkoyhteys ja NTP. |
+| Vaiheet tunnistetaan väärin, panoksia ei tule tai tulee vääriä varoituksia | Puhdistamon tehotasot voivat poiketa tästä asennuksesta. Nauhoita teho (alla) ja lähetä nauhoitus. |
+
+## Nauhoitus vianetsintää varten
+
+Jos skripti ei toimi toisella puhdistamolla, nopein tapa selvittää syy on nauhoittaa Shellyn mittaama teho 1–2 vuorokauden ajalta. Nauhoituksesta näkee puhdistamon tehotasot ja vaiheiden kestot, ja sen voi ajaa skriptin läpi testiympäristössä.
+
+**Ensin Shellyn oma minuuttidata.** EM-mallit (esim. EM Mini Gen4) tallentavat minuutin keskiarvot itse. Avaa selaimessa `http://<shellyn-ip>/em1data/0/data.csv`, niin saat menneiden päivien datan heti. Siitä näkee, ovatko tehotasot aivan erilaiset, mutta muutaman sekunnin venttiilipulssit eivät näy.
+
+**Tarkka nauhoitus Windowsissa: `shelly/tools/nauhuri.ps1`.** Nauhuri hakee Shellyltä tehon ja jännitteen kerran sekunnissa ja tallentaa ne CSV-tiedostoon. Se ei vaadi asennuksia, koska PowerShell on Windowsissa valmiina.
+
+1. Lataa tiedosto: avaa GitHubissa `shelly/tools/nauhuri.ps1` ja valitse **Download raw file**. Tallenna se kansioon, johon haluat nauhoituksen.
+2. Napsauta tiedostoa hiiren oikealla painikkeella ja valitse **Suorita PowerShellillä** (Windows 11: ensin *Näytä lisää vaihtoehtoja*). Jos Windows estää ajon, valitse tiedoston **Ominaisuudet** ja rasti **Poista esto**. Vaihtoehtoisesti aja PowerShellissä `powershell -ExecutionPolicy Bypass -File .\nauhuri.ps1`.
+3. Anna Shellyn IP-osoite. Sen näkee Shelly-sovelluksesta (laite → asetukset → laitteen tiedot) tai reitittimestä. Jos laitteessa on salasana, nauhuri kysyy sen (käyttäjätunnus on aina `admin`).
+4. Anna nauhoituksen pituus tunteina (oletus 48). Nauhuri estää Windowsia menemästä lepotilaan. Pidä kannettava verkkovirrassa ja kansi auki, ja pidä kone samassa verkossa Shellyn kanssa. Nauhoituksen voi lopettaa aiemmin painamalla **Q**.
+5. Lopuksi nauhuri pakkaa tiedostot zip-tiedostoksi `uponor_PPKKVV_TTMM.zip` samaan kansioon. Lähetä se vianetsijälle.
+
+| Tiedosto | Sisältö |
+| --- | --- |
+| `uponor_….csv` | Rivi sekunnissa: aika, teho (W), jännite (V), virta (A), tehokerroin, taajuus ja, jos skripti on asennettu, sen vaihe, jakso, tehokaista ja vaiheen alku. 48 tuntia on noin 15 Mt. |
+| `uponor_…_minutes.csv` | Shellyn oma minuuttidata viimeiseltä 7 päivältä (EM-mallit) |
+| `uponor_…_info.json` | Laitteen malli ja firmware, mittauskanava, Wi-Fi-signaalin voimakkuus, skriptit, skriptin tila alussa ja lopussa ja sen KVS-avaimet (`uc_*`) |
+| `uponor_…_log.txt` | Yhteyskatkot ja Shellyn uudelleenkäynnistykset |
+
+Tiedostoissa ei ole laitteen MAC-osoitetta, laitetunnusta, IP-osoitetta eikä Wi-Fi-verkon nimeä. Nauhuri toimii Gen2-laitteilla ja uudemmilla, joissa on tehomittaus (em1, pm1, switch tai em).
+
+Nauhoituksen analysointi: `node test/v3_recording.js uponor_….csv` (ks. [`test/README.md`](../test/README.md)).

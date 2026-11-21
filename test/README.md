@@ -51,6 +51,24 @@ V3_FILE=../shelly/v3/uponor_clean_v3_shelly.js node v3_scenarios.js   # tiiviste
 
 `v3_device_test.js` tarkistaa asennuksen kulun: komponenttien luonti `Virtual.Add`-kutsulla (ei `@meta`), nimet ja näkymät, käyttäjän muokkaukset, laskurit KVS:ssä (ei v2:n avaimia), tapahtumat, skriptin uudelleenkäynnistys, poisto (komponentit säilyvät), uudelleenasennus (`uc_vc`) ja puuttuvan komponentin uudelleenluonti.
 
+## Nauhoitukset
+
+`v3_recording.js` analysoi nauhurilla (`shelly/tools/nauhuri.ps1`) tehdyn nauhoituksen: yhteyskatkot, jännite, puhdistamon tehotasot skriptin tehokaistoja vasten (normalisoituna 230 V:iin), skriptin v3 ajo nauhoitusta vasten jäljitelmässä (jaksot, vaiheet, panokset, varoitukset) ja, jos nauhoituksessa on laitteen skriptin vaiheet, niiden vertailu jäljitelmän ajoon. Tiedoston `_info.json` asetukset (`uc_cfg`) otetaan mukaan. Muita kaistarajoja voi kokeilla valitsimella `--cfg`.
+
+```
+cd test
+node v3_recording.js ~/Lataukset/uponor_20261121_2319.csv
+node v3_recording.js uponor_20261121_2319.csv --cfg '{"comp_max":55,"aer_max":70}'
+node v3_recording.js uponor_20261121_2319.csv -v      # kaikki vaiheet ja skriptin konsoli
+```
+
+`shelly_http_mock.js` on nauhurin testiä varten tehty Shellyn HTTP-rajapinnan jäljitelmä: `/shelly`, `/rpc` (em1, pm1, switch tai em), skriptin `/script/2/state`, minuuttidata, digest-tunnistus (SHA-256) ja sähkökatko. Nauhuri ajetaan PowerShell 7:llä:
+
+```
+node test/shelly_http_mock.js --port 8099 --password salainen --outage 12-20 &
+pwsh -File shelly/tools/nauhuri.ps1 -Ip 127.0.0.1:8099 -Password salainen -Hours 0.01 -OutDir /tmp/rec -NoWait
+```
+
 ## Kortti
 
 `card_v3_test.js` ajaa simuloidun v3-ajon, syöttää sen kortille Home Assistantin historiana jsdomissa ja tarkistaa vaiheet, ulospumppauksen ajan, kemikaalin, lietelaskurin, editorit ja kortinvalitsimen entiteettihaun. Tarvitsee jsdomin (`npm install jsdom`).

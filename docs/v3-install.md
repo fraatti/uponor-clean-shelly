@@ -174,3 +174,29 @@ Settings can be changed with the KVS key `uc_cfg` (JSON), for example `{"sludge_
 | Home Assistant shows no entities | Reload the Shelly integration ([`home-assistant.en.md`](home-assistant.en.md)). |
 | Phase stays `Unknown` for a long time | The power reading is missing or the plant has stopped. Check the state endpoint (`band`, `power`). |
 | Clock times are missing | The device clock is not synchronised (`time_synced: false`). Check the network connection and NTP. |
+| Phases are recognised wrongly, no batches are counted or false warnings come | The plant's power levels may differ from this installation. Record the power (below) and send the recording. |
+
+## Recording for troubleshooting
+
+If the script does not work on another plant, the quickest way to find the cause is to record the power that the Shelly measures over 1–2 days. The recording shows the plant's power levels and phase lengths, and it can be run through the script in the test environment.
+
+**First, the Shelly's own minute data.** The EM models (e.g. EM Mini Gen4) store one-minute averages themselves. Open `http://<shelly-ip>/em1data/0/data.csv` in a browser to get the past days' data at once. It shows whether the power levels are completely different, but valve pulses of a few seconds do not show.
+
+**An exact recording on Windows: `shelly/tools/nauhuri.ps1`.** The recorder reads the power and voltage from the Shelly once a second and saves them to a CSV file. It needs no installation, as PowerShell comes with Windows.
+
+1. Download the file: open `shelly/tools/nauhuri.ps1` on GitHub and choose **Download raw file**. Save it in the folder where you want the recording.
+2. Right-click the file and choose **Run with PowerShell** (Windows 11: *Show more options* first). If Windows blocks it, open the file's **Properties** and tick **Unblock**. Alternatively, run `powershell -ExecutionPolicy Bypass -File .\nauhuri.ps1` in PowerShell.
+3. Enter the Shelly's IP address. The Shelly app shows it (device → settings → device information), as does the router. If the device has a password, the recorder asks for it (the user name is always `admin`).
+4. Enter the recording time in hours (default 48). The recorder keeps Windows from going to sleep. Keep a laptop plugged in with the lid open, and keep the computer on the same network as the Shelly. Press **Q** to stop earlier.
+5. At the end the recorder packs the files into `uponor_YYYYMMDD_HHMM.zip` in the same folder. Send it to whoever is helping you.
+
+| File | Contents |
+| --- | --- |
+| `uponor_….csv` | One row a second: time, power (W), voltage (V), current (A), power factor, frequency and, if the script is installed, its phase, cycle, power band and phase start. 48 hours is about 15 MB. |
+| `uponor_…_minutes.csv` | The Shelly's own minute data for the last 7 days (EM models) |
+| `uponor_…_info.json` | Device model and firmware, measuring channel, Wi-Fi signal strength, scripts, the script's state at the start and end and its KVS keys (`uc_*`) |
+| `uponor_…_log.txt` | Connection breaks and Shelly restarts |
+
+The files contain no MAC address, device id, IP address or Wi-Fi network name. The recorder works on Gen2 devices and newer with power metering (em1, pm1, switch or em).
+
+Analysing a recording: `node test/v3_recording.js uponor_….csv` (see [`test/README.md`](../test/README.md)).

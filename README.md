@@ -31,7 +31,7 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | `shelly/v3/` | Script v3.0.2: `uponor_clean_v3.js` (source) and `uponor_clean_v3_shelly.js` (compact, loaded on the Shelly). |
 | `shelly/v2/` | Old scripts v2.4 and v2.3 (not in use) and a backup of the v2.4 components (`backup/`). |
 | `shelly/v3/proto/` | v3 prototypes for the device test and the component backup tool `uc_tools.js` (used in the migration). |
-| `shelly/tools/` | `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4). |
+| `shelly/tools/` | `nauhuri.ps1` (Windows recorder for troubleshooting: power once a second to CSV), `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4). |
 | `ha-card/` | Lovelace card `uponor-clean-card.js` v1.7.2, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
 | `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios and the card test. |
 | `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |
