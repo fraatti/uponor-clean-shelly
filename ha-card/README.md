@@ -39,7 +39,7 @@ Phase durations come from the control unit's firmware (board A settings, label V
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.1`
+   - URL: `/local/uponor-clean-card.js?v=1.7.2`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.
@@ -148,7 +148,8 @@ The plant has no level sensor that Home Assistant can read, so the water levels 
 - During pump-out the level falls quickly at first and slower towards the end, as an airlift pump loses flow when its submergence drops.
 - If pump-out is followed directly by a new chemical filling (outlet blocked), the level stays up, as the start-level switch did not release. If high water skips the aeration, the pump-in before the chemical filling still counts as reaching the start level.
 - The sedimentation tank level rises slowly between fillings and drops during each filling. Its swing is exaggerated so that it is visible.
-- Geometry (heights in mm) is approximate and based on the manual: inlet 1160 mm, outlet 1110 mm, partition top about 1125 mm, start level about 930 mm, pump-out level about 780 mm.
+- Geometry (heights in mm) is approximate and based on the manual: inlet 1160 mm, outlet 1110 mm, partition top about 1125 mm, start level about 930 mm, pump-out level about 780 mm, alarm level about 1100 mm.
+- The start and alarm sensors are 10 mbar pressure switches. A switch trips when the water is about 10 cm above the open end of its tube (10 mbar ≈ 102 mm of water, plus a little as the trapped air compresses). The tube ends are therefore drawn about 105 mm below the trip levels: the green tube at about 825 mm and the black tube at about 995 mm. The green tube end is above the pump-out level, so the air column resets after every pump-out.
 
 ## Screenshots from Home Assistant
 

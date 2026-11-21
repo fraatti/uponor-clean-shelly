@@ -1,7 +1,7 @@
-/*! uponor-clean-card v1.7.1 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+/*! uponor-clean-card v1.7.2 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.7.1';
+const UC_VERSION = '1.7.2';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -43,8 +43,10 @@ const UC_GEO = {
   outletMM: 1110,
   inletMM: 1160,
   blanketMM: 430,    // settled sludge blanket top in process tank
-  greenTubeBottomMM: 300,
-  blackTubeBottomMM: 700,
+  // the pressure switches trip at 10 mbar, i.e. when the water is about 10 cm above the open end of the
+  // sensor tube (102 mm water column plus a little for the trapped air compressing)
+  greenTubeBottomMM: 825,  // start level 930 - 105
+  blackTubeBottomMM: 995,  // alarm level 1100 - 105
 };
 
 /* Phase durations (s) of the control unit firmware (board A settings, VERSION 2.1.2) */
@@ -77,7 +79,7 @@ const UC_I18N = {
     last_h: 'last {n} h', batches: 'Batches', week: '7 d', per_day: '/d', wastewater: 'Wastewater',
     power: 'Power', energy: 'Energy', chemical: 'Chemical', eta: 'Pump-out in', last_batch: 'Last batch',
     level: 'Level', level_est: 'Level (est.)', est: 'est.', process_level: 'Process tank', sludge_layer: 'Sludge',
-    emptied: 'emptied {n} d ago', compressor: 'compressor', off: 'off',
+    emptied: 'emptied {n} d ago', compressor: 'compressor', power_lbl: 'power', off: 'off',
     logbook: 'Logbook', entries: '{n} entries', show_more: 'Show more', show_less: 'Show less',
     ev_start: 'Start level reached – batch started (filling {d}, {n} wait cycles)',
     ev_start_short: 'Start level reached – batch started (filling {d})',
@@ -118,7 +120,7 @@ const UC_I18N = {
     last_h: 'viim. {n} h', batches: 'Panokset', week: '7 vrk', per_day: '/vrk', wastewater: 'Jätevesi',
     power: 'Teho', energy: 'Energia', chemical: 'Kemikaali', eta: 'Ulospumppaus', last_batch: 'Viim. panos',
     level: 'Pinta', level_est: 'Pinta (arvio)', est: 'arvio', process_level: 'Prosessisäiliö', sludge_layer: 'Liete',
-    emptied: 'tyhjennetty {n} vrk sitten', compressor: 'kompressori', off: 'pois',
+    emptied: 'tyhjennetty {n} vrk sitten', compressor: 'kompressori', power_lbl: 'teho', off: 'pois',
     logbook: 'Lokikirja', entries: '{n} merkintää', show_more: 'Näytä lisää', show_less: 'Näytä vähemmän',
     ev_start: 'Aloitustaso saavutettu – panos alkoi (täyttö {d}, {n} odotusjaksoa)',
     ev_start_short: 'Aloitustaso saavutettu – panos alkoi (täyttö {d})',
@@ -676,7 +678,7 @@ class UcModel {
       const s = this.segs[k];
       if (s.p === 'dosing') {
         const x = (t - (s.t0 + 90e3)) / 1000;
-        if (x > 0) st.tint = 0.4 * Math.exp(-x / 300);
+        if (x > 0) st.tint = 0.14 * Math.exp(-x / 150);
         break;
       }
     }
@@ -913,7 +915,7 @@ function ucSideMarkup(T) {
     <text x="340" y="668" class="tlbl" text-anchor="middle">${T.sed_tank}</text>
     <text x="790" y="668" class="tlbl" text-anchor="middle">${T.proc_tank}</text>
     <!-- value pills -->
-    <g id="p-power" class="pill-g"><text x="492" y="122" class="plbl" text-anchor="middle">${T.compressor}</text>
+    <g id="p-power" class="pill-g"><text x="492" y="122" class="plbl" text-anchor="middle">${T.power_lbl}</text>
       <rect x="452" y="128" width="80" height="22" rx="11" class="pill"/><text x="492" y="144" class="pval" text-anchor="middle">–</text></g>
     <g id="p-proc" class="pill-g"><text x="856" y="122" class="plbl" text-anchor="middle">${T.level_est}</text>
       <rect x="806" y="128" width="100" height="22" rx="11" class="pill blue"/><text x="856" y="144" class="pval" text-anchor="middle">–</text></g>
@@ -958,7 +960,7 @@ class UcSide {
     this.slugs = {}; const sg = this.q('s-slugs'); const lg = this.q('s-liquid');
     this.liquid = {};
     for (const k of Object.keys(UC_SIDE)) {
-      this.liquid[k] = { riser: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), intake: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), stream: mk('path', lg, { class: 'stream', stroke: UC_SIDE[k].color }) };
+      this.liquid[k] = { riser: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), intake: mk('path', lg, { class: 'liq', stroke: UC_SIDE[k].color }), stream: mk('path', lg, { class: 'stream', stroke: UC_SIDE[k].color }), flow: mk('path', lg, { class: 'pflow' }) };
       this.slugs[k] = []; for (let j = 0; j < 6; j++) this.slugs[k].push(mk('rect', sg, { width: 6, height: 12, rx: 3, x: UC_SIDE[k].leg - 3, class: 'slug' }));
     }
     this.sparts = []; const spg = this.q('s-sparts');
@@ -1095,15 +1097,28 @@ class UcSide {
       const col = on ? m.color : k === 'pumpIn' ? UC_LIQ.sao : k === 'sludge' ? ucMixColor(procCol, UC_LIQ.sludge, S.clarity) : procCol;
       L.riser.setAttribute('stroke', col); L.intake.setAttribute('stroke', col); L.stream.setAttribute('stroke', m.color);
       const riserTopLiquid = on ? m.top : Math.max(lvl, m.top);
-      let d = `M${m.leg} ${m.bot} V${riserTopLiquid.toFixed(1)}`;
-      if (on) d += k === 'discharge' ? ' H934' : ` H${m.spoutX} V${m.spoutY - 18}`;
-      L.riser.setAttribute('d', d);
+      // one liquid path through the U at the bottom and round the bends at the top, like the pipe itself
+      const dir = m.spoutX < m.leg ? -1 : 1;
+      let d;
       if (m.intake) {
-        const it = k === 'discharge' ? Math.max(m.intakeTop, lvl) : Math.max(m.intakeTop, lvl);
-        L.intake.setAttribute('d', `M${m.intake} ${m.bot} V${it.toFixed(1)}` + (k === 'discharge' && lvl <= m.intakeTop + 4 ? ` H${m.intake + 24}` : ''));
-        L.intake.style.display = lvl > m.intakeTop + 12 && k === 'discharge' ? '' : (k === 'pumpIn' ? '' : 'none');
-        if (k === 'discharge') L.intake.style.display = lvl < m.intakeTop + 8 ? '' : '';
-      } else L.intake.setAttribute('d', '');
+        const mid = (m.intake + m.leg) / 2;
+        const funnel = k === 'discharge' && lvl <= m.intakeTop + 4;
+        d = funnel ? `M${m.intake + 24} ${m.intakeTop} H${m.intake + 8} Q${m.intake} ${m.intakeTop} ${m.intake} ${m.intakeTop + 8}`
+          : `M${m.intake} ${Math.max(m.intakeTop, lvl).toFixed(1)}`;
+        d += ` V${m.bot - 10} Q${m.intake} ${m.bot + 4} ${mid} ${m.bot + 4} Q${m.leg} ${m.bot + 4} ${m.leg} ${m.bot - 10}`;
+      } else d = `M${m.leg} ${m.bot}`;
+      const top = `V${m.top + 8} Q${m.leg} ${m.top} ${m.leg + dir * 8} ${m.top}` +
+        (k === 'discharge' ? ' H934' : ` H${m.spoutX - dir * 8} Q${m.spoutX} ${m.top} ${m.spoutX} ${m.top + 8} V${m.spoutY - 18}`);
+      d += on ? ' ' + top : ` V${riserTopLiquid.toFixed(1)}`;
+      L.riser.setAttribute('d', d);
+      L.intake.setAttribute('d', '');
+      // water moving over the bend and along the top pipe, in pulses
+      if (on) {
+        L.flow.setAttribute('d', `M${m.leg} ${m.top + 8} Q${m.leg} ${m.top} ${m.leg + dir * 8} ${m.top}` +
+          (k === 'discharge' ? ' H934' : ` H${m.spoutX - dir * 8} Q${m.spoutX} ${m.top} ${m.spoutX} ${m.top + 8} V${m.spoutY - 18}`));
+        L.flow.style.display = ''; L.flow.style.strokeDashoffset = (-t * 70 * S.flow).toFixed(1);
+        L.flow.style.opacity = (0.5 + 0.5 * Math.abs(Math.sin(t * 5.5))).toFixed(2);
+      } else L.flow.style.display = 'none';
       // stream
       if (on && k !== 'discharge') {
         const ty = k === 'pumpIn' ? procY : saoY;
@@ -1111,23 +1126,24 @@ class UcSide {
         L.stream.style.display = ''; L.stream.style.strokeDashoffset = (-t * 70 * S.flow).toFixed(1);
         L.stream.style.opacity = (0.55 + 0.45 * Math.abs(Math.sin(t * 5.5))).toFixed(2);
       } else L.stream.style.display = 'none';
-      // slugs
-      const len = m.bot - 14 - m.top;
+      // air slugs rise in the riser and release where the pipe bends over
+      const yLo = m.bot - 14, yHi = m.top + 7, len = yLo - yHi;
       this.slugs[k].forEach((s, j) => {
         if (!on) { s.style.display = 'none'; return; }
-        s.style.display = '';
         const v = 150 * (0.4 + 0.6 * S.flow);
         const hh = 9 + 16 * ucHash(j, 21 + k.length) * (1.3 - S.flow * 0.3);
-        const ph = (t * v + j * (len / 6) + ucHash(j, 22) * 20) % len;
-        s.setAttribute('y', (m.bot - 14 - ph - hh).toFixed(1));
-        s.setAttribute('height', Math.min(hh, ph + 1).toFixed(1));
+        const ph = (t * v + j * (len / 6) + ucHash(j, 22) * 20) % (len + hh);
+        const y1 = Math.min(yLo, yLo + hh - ph), y0 = Math.max(yHi, yLo - ph);
+        if (y1 - y0 < 1.5) { s.style.display = 'none'; return; }
+        s.style.display = '';
+        s.setAttribute('y', y0.toFixed(1)); s.setAttribute('height', (y1 - y0).toFixed(1));
       });
     }
     // splash at targets
     const spl = [];
     if (active.filling) spl.push([UC_SIDE.pumpIn.spoutX, procY]);
     if (active.sludge) spl.push([UC_SIDE.sludge.spoutX, saoY]);
-    if (S.sub === 'dose' || (S.tint > 0.3)) spl.push([767, procY]);
+    if (S.sub === 'dose' || (S.tint > 0.12)) spl.push([767, procY]);
     this.splashes.forEach((e, i) => {
       const s = spl[i]; if (!s) { e.style.display = 'none'; return; }
       e.style.display = ''; const ph = (t * 1.6 + i * 0.37) % 1;
@@ -1170,7 +1186,7 @@ class UcSide {
     const cl = q('s-chem-liq'); const ch = 64 * chemFrac; cl.setAttribute('y', (168 - ch).toFixed(1)); cl.setAttribute('height', ch.toFixed(1));
     q('s-chem-pct').textContent = ctx.chemLiters !== null && ctx.chemLiters !== undefined ? `${ctx.chemLiters.toLocaleString(ctx.locale, { maximumFractionDigits: 1 })} l`
       : ctx.chemFrac !== null && ctx.chemFrac !== undefined ? `${Math.round(ctx.chemFrac * 100)} %` : '';
-    q('s-chem-drip').style.display = S.sub === 'dose' || S.tint > 0.32 ? '' : 'none';
+    q('s-chem-drip').style.display = S.sub === 'dose' || S.tint > 0.125 ? '' : 'none';
     q('s-chem-drip').setAttribute('d', `M762 118 H767 V${procY.toFixed(1)}`);
     // pills (4 Hz)
     if (t - this.pillT > 0.25 || t < this.pillT) {
@@ -1399,7 +1415,7 @@ class UcTop {
     if (on.blue) spots.push([498, 292], [498, 292], [498, 292]);
     if (on.brown) spots.push([700, 484], [700, 484]);
     if (on.red) spots.push(['in', M.discharge.x, M.discharge.y], ['in', M.discharge.x, M.discharge.y]);
-    if (S.sub === 'dose' || S.tint > 0.3) spots.push([426, 142]);
+    if (S.sub === 'dose' || S.tint > 0.12) spots.push([426, 142]);
     this.rip.forEach((e, i) => {
       const s = spots[i]; if (!s) { e.style.display = 'none'; return; }
       e.style.display = '';
@@ -1687,6 +1703,7 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 .liq { fill:none; stroke-width:7; stroke-linejoin:round; opacity:.8; }
 .slug { fill:#fff; stroke:#8fb7dc; stroke-width:.8; }
 .stream { fill:none; stroke-width:4; stroke-dasharray:9 5; stroke-linecap:round; }
+.pflow { fill:none; stroke:#fff; stroke-opacity:.6; stroke-width:2.4; stroke-dasharray:5 11; stroke-linecap:round; stroke-linejoin:round; }
 .splash { fill:none; stroke:#4A8CCB; stroke-width:1.2; }
 .outflow { stroke:#7FB2DE; stroke-width:7; stroke-dasharray:10 6; fill:none; }
 .pipe-h { fill:#B9BFC7; }

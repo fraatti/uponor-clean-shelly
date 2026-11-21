@@ -13,7 +13,7 @@ Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa:
 - Mammuttipumput: ilma puhalletaan nousuputken alaosaan, ja vesi purkautuu sykäyksinä. Ulospumppauksessa virtaus heikkenee pinnan laskiessa.
 - Ilmastus: kuplat nousevat ilmastimesta ja liete kiertää. Laskeutuksessa liete painuu pohjaan ja pinnalle muodostuu kirkas vesikerros.
 - Annostelu: kemikaalipumpun kammio täyttyy ja paineilma nostaa annoksen.
-- Anturiputket: aloitustason (vihreä letku) ja hälytystason (musta letku) ilmapatsas ja paineen osoitin.
+- Anturiputket: aloitustason (vihreä letku) ja hälytystason (musta letku) ilmapatsas ja paineen osoitin. Anturit ovat 10 mbar:n painekytkimiä. Kytkin laukeaa, kun vesi on noin 10 cm putken avoimen pään yläpuolella (10 mbar ≈ 102 mm vesipatsasta, ja lisäksi loukkuun jäänyt ilma puristuu hieman kokoon). Siksi putkien päät on piirretty noin 105 mm laukaisutasojen alapuolelle: vihreä noin 825 mm:iin (aloitustaso noin 930 mm) ja musta noin 995 mm:iin (hälytystaso noin 1100 mm). Vihreän putken pää on ulospumppaustason (noin 780 mm) yläpuolella, joten ilmapatsas nollautuu jokaisen ulospumppauksen jälkeen.
 - Venttiilien letkut syttyvät sen mukaan, mitä ohjauskeskus ohjaa.
 - Pinnat ovat arvioita vaiheiden historiasta, eivät mittauksia.
 
@@ -45,7 +45,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
 
 1. Kopioi `ha-card/uponor-clean-card.js` Home Assistantin kansioon `/config/www/` (esim. File editor -lisäosalla tai Samballa).
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.1`
+   - URL: `/local/uponor-clean-card.js?v=1.7.2`
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.
