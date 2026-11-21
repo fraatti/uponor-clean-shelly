@@ -6,6 +6,8 @@
 
 A Shelly EM Mini Gen4 measures the power consumption of an Uponor Clean I small wastewater treatment plant. From that alone, a Shelly script works out the control unit's cycles (cleaning, waiting, holiday, test) and phases (aeration, chemical filling and dosing, mixing, sedimentation, sludge removal, pump-out, pump-in, waiting), counts batches, chemical and sludge, estimates the next pump-out and warns about faults. A Home Assistant card shows the process animated.
 
+**[Try the card in the demo](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut)**: it runs on recorded plant data in the browser, no Home Assistant needed.
+
 Home Assistant is not required: the script's components also show in the Shelly web UI and the Shelly app. Phase, cycle, status, warning and next pump-out update in real time, and the app charts the batch counter day by day.
 
 <p>
@@ -17,6 +19,7 @@ Home Assistant is not required: the script's components also show in the Shelly 
 
 | Guide | Contents | Suomeksi |
 | --- | --- | --- |
+| [`docs/features.md`](docs/features.md) | What the script does and does not do: phases, counters, estimates, warnings, limitations and accuracy | [`ominaisuudet.md`](docs/ominaisuudet.md) |
 | [`docs/v3-install.md`](docs/v3-install.md) | Installing Shelly script v3 (with screenshots), updating, removing, components, warnings, settings and troubleshooting | [`v3-asennus.md`](docs/v3-asennus.md) |
 | [`docs/home-assistant.en.md`](docs/home-assistant.en.md) | Home Assistant: Shelly integration, entities, event entity and automation examples | [`home-assistant.md`](docs/home-assistant.md) |
 | [`ha-card/README.md`](ha-card/README.md) | The Home Assistant card: what it shows, installation, language, options, entering chemical and sludge | [`kortti.md`](docs/kortti.md) |

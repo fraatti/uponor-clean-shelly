@@ -6,6 +6,8 @@ Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa:
 
 ![Kortti puhdistusjakson ilmastuksessa](img/kortti_ilmastus.jpg)
 
+[Kokeile korttia demossa](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut): se pyörii selaimessa tallennetulla datalla.
+
 ## Mitä kortti näyttää
 
 **Leikkauskuva** perustuu valmistajan poikkileikkaukseen (Clean I -käsikirja, s. 18): saostussäiliö (2,5 m³), prosessisäiliö (1 m³) ja niiden välinen kaareva väliseinä, ohjauskeskus kompressoreineen ja venttiileineen, kemikaaliastia, sisäänpumppaus-, lietteenpalautus- ja ulospumppausmoduuli, ilmastin sekä aloitus- ja hälytystason anturiputket.

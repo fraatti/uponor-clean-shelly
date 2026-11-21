@@ -4,6 +4,8 @@
 
 The script `shelly/v3/uponor_clean_v3_shelly.js` follows the control unit of an Uponor Clean I wastewater treatment plant from its power consumption. It recognises the cycles (cleaning, waiting, holiday, test) and their phases, counts batches, chemical and sludge, estimates the next pump-out and warns about faults. The script creates its own virtual components, and the Shelly web UI and app show them. Home Assistant is not required. Using it with Home Assistant (entities, events, automations) is described in [`home-assistant.en.md`](home-assistant.en.md) and the card in [`ha-card/README.md`](../ha-card/README.md).
 
+What the script does and does not do: [`features.md`](features.md).
+
 The source code is `shelly/v3/uponor_clean_v3.js`. The device gets its compact version `uponor_clean_v3_shelly.js`, with the comments stripped.
 
 ## 1. Requirements

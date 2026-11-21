@@ -6,6 +6,8 @@ An animated Home Assistant card for the **Uponor Clean I** batch wastewater trea
 
 ![Card (English)](../docs/img/card_side_en.jpg)
 
+[Try the card in the demo](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut): it runs on recorded data in the browser.
+
 The card does not talk to the plant. It reads the entities that the Shelly EM Mini Gen4 script publishes from the plant's power consumption. With **script v3** (`shelly/v3/`) these are Phase, Cycle, Status, Warning, Next pump-out, Batches, Chemical and Sludge; the card takes the phase, the pump-out time, the warnings and the chemical and sludge counters from the script. It also works with script v2.3 and v2.4 (cycle status, process message, normalized power and batch counter), and it can show the v2 history before the v3 entities start (`legacy`).
 
 The Shelly script and its Home Assistant entities are described in [`docs/v3-install.md`](../docs/v3-install.md) and [`docs/home-assistant.en.md`](../docs/home-assistant.en.md).

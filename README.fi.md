@@ -6,6 +6,8 @@
 
 Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee siitä ohjauskeskuksen jaksot (puhdistus, odotus, loma, testi) ja vaiheet (ilmastus, kemikaalin täyttö ja annostelu, sekoitus, laskeutus, lietteen palautus, ulospumppaus, sisäänpumppaus, odotus), laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Home Assistant -kortti näyttää prosessin animoituna.
 
+**[Kokeile korttia demossa](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut)**: se pyörii selaimessa tallennetulla puhdistamon datalla ilman Home Assistantia.
+
 Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa käyttöliittymässä ja Shelly-sovelluksessa. Vaihe, jakso, tila, varoitus ja seuraava ulospumppaus päivittyvät reaaliajassa, ja panoslaskurin kasvu näkyy sovelluksen graafina päivittäin.
 
 <p>
@@ -17,6 +19,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 
 | Ohje | Sisältö | English |
 | --- | --- | --- |
+| [`docs/ominaisuudet.md`](docs/ominaisuudet.md) | Mitä skripti osaa ja mitä ei: vaiheet, laskurit, ennusteet, varoitukset, rajoitukset ja tarkkuus | [`features.md`](docs/features.md) |
 | [`docs/v3-asennus.md`](docs/v3-asennus.md) | Shelly-skriptin v3 asennus kuvineen, päivitys, poisto, komponentit, varoitukset, asetukset ja vianetsintä | [`v3-install.md`](docs/v3-install.md) |
 | [`docs/home-assistant.md`](docs/home-assistant.md) | Home Assistant: Shelly-integraatio, entiteetit, tapahtumaentiteetti ja automaatioesimerkit | [`home-assistant.en.md`](docs/home-assistant.en.md) |
 | [`docs/kortti.md`](docs/kortti.md) | Home Assistant -kortti: mitä se näyttää, asennus, kieli, asetukset, kemikaalin ja lietteen syöttö | [`ha-card/README.md`](ha-card/README.md) |
