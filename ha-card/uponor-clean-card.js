@@ -1,7 +1,7 @@
-/*! uponor-clean-card v1.7.2 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+/*! uponor-clean-card v1.7.3 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.7.2';
+const UC_VERSION = '1.7.3';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -219,7 +219,17 @@ function ucFromHA(list) {
     out.push({ t, v: s });
   }
   out.sort((a, b) => a.t - b.t);
-  return out;
+  return ucDropBlips(out);
+}
+/* Home Assistant marks every entity unavailable for a moment when the Shelly integration reloads or
+   reconnects (e.g. after a change in the Shelly's settings). Such blips are not data gaps: entries
+   'unavailable'/'unknown' followed by a new value within UC_BLIP_MS are dropped. */
+const UC_BLIP_MS = 10e3;
+function ucDropBlips(arr) {
+  let blips = 0;
+  for (let i = 0; i + 1 < arr.length; i++) if ((arr[i].v === 'unavailable' || arr[i].v === 'unknown') && arr[i + 1].t - arr[i].t < UC_BLIP_MS) blips++;
+  if (!blips) return arr;
+  return arr.filter((e, i) => !((e.v === 'unavailable' || e.v === 'unknown') && i + 1 < arr.length && arr[i + 1].t - e.t < UC_BLIP_MS));
 }
 function ucMergeSeries(a, b) {
   // merge sorted series, dedupe by time
@@ -279,6 +289,7 @@ class UcModel {
 
   build(now) {
     this.now = now;
+    for (const k of ['status', 'message', 'batch', 'power', 'energy', 'cycle', 'warn3', 'next', 'chem', 'sludge']) this[k] = ucDropBlips(this[k]);
     this._segments(now);
     this._classify();
     this._levels(now);

@@ -45,7 +45,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
 
 1. Kopioi `ha-card/uponor-clean-card.js` Home Assistantin kansioon `/config/www/` (esim. File editor -lisäosalla tai Samballa).
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.2`
+   - URL: `/local/uponor-clean-card.js?v=1.7.3`
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.
@@ -125,4 +125,4 @@ v2-skriptin asetukset (`status`, `sludge_reset_counter`, `chemical_amount`, `che
 | Vanha versio näkyy päivityksen jälkeen | Vaihda resurssin `?v=`-numero ja tyhjennä selaimen välimuisti. |
 | *Odotetaan historiaa…* jää näkyviin | Recorder ei ole käytössä tai entiteetit ovat väärät. Tarkista entiteetit asetuksista. |
 | Vaihe on *Tuntematon* | Shelly-skripti ei ole vielä tunnistanut vaihetta, tai teho puuttuu. Ks. `docs/v3-asennus.md`. |
-| Lokikirjassa *Datakatko (Shelly tai Home Assistant)* | Home Assistant tai Shelly ei tallentanut lukemia (esim. integraation uudelleenlataus tai päivitys). |
+| Lokikirjassa *Datakatko (Shelly tai Home Assistant)* | Home Assistant tai Shelly ei tallentanut lukemia vähintään 10 sekuntiin (esim. sähkö- tai verkkokatko, Home Assistantin päivitys). Lyhyemmät katkot, kuten Shelly-integraation uudelleenlataus Shellyn asetusten muuttuessa, eivät näy: kortti käyttää niiden ajan viimeistä tunnettua arvoa. |

@@ -9,6 +9,8 @@ const R = require('./v3run');
 const F = require('./fwsim');
 
 let fails = 0;
+const ucVal = (arr, t) => { let v = null; for (const e of arr) { if (e.t <= t) v = e.v; else break; } return v; };
+const ucOk = (v) => v !== null && v !== 'unavailable' && v !== 'unknown';
 const check = (ok, what) => { console.log(`${ok ? 'PASS' : 'FAIL'} ${what}`); if (!ok) fails++; };
 
 const T0 = Date.parse('2026-11-16T22:00:00Z');
@@ -29,6 +31,15 @@ for (const id of Object.keys(hist)) {
   states[id] = { entity_id: id, state: l.s, last_changed: new Date(l.lc * 1000).toISOString(), attributes: id === ENT.phase ? { options: Object.values(TITLES.phase) } : {} };
 }
 states['sensor.uc_power'].attributes = { device_class: 'power' };
+// Home Assistant blips (the Shelly integration reloads): every entity unavailable for 0.2 s, three times,
+// and one real 5-minute gap. Only the real gap is a data gap.
+const BLIPS = [T0 + 5 * 3600e3 + 7e3, T0 + 5 * 3600e3 + 270e3, T0 + 6 * 3600e3 + 33e3], GAP = T0 + 12 * 3600e3 + 17e3;
+for (const id of Object.keys(hist)) {
+  const a = hist[id];
+  const add = (t, dur) => { const prev = a.filter((e) => e.lc * 1000 < t).pop(); if (!prev) return; a.push({ s: 'unavailable', lc: t / 1000 }, { s: prev.s, lc: (t + dur) / 1000 }); a.sort((x, y) => x.lc - y.lc); };
+  for (const t of BLIPS) add(t, 200);
+  add(GAP, 300e3);
+}
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { pretendToBeVisual: true, runScripts: 'outside-only' });
 const w = dom.window;
@@ -72,6 +83,9 @@ setTimeout(async () => {
     const po = gt.find((x) => x.ph === 'pump_out' && x.t > sed.t);
     const S2 = m.stateAt(sed.t + 600e3);
     check(S2.eta !== null && Math.abs(S2.eta - (po.t + 1000 - (sed.t + 600e3)) / 1000) <= 60, 'pump-out time from the Next pump-out entity');
+    const off = m.events.filter((e) => e.type === 'offline');
+    check(off.length === 1 && Math.abs(off[0].t - GAP) < 1000, `only the 5-minute gap is a data gap (${off.length} data gap events)`);
+    check(BLIPS.every((t) => m.stateAt(t + 100).phase !== 'offline' && ucOk(ucVal(m.batch, t + 100)) && ucOk(ucVal(m.power, t + 100))), 'values at a blip are the last known values');
     const ch = card._chem();
     check(ch && Math.abs(ch.liters - Number(states[ENT.chemical].state)) < 1e-9, 'chemical from the entity: ' + (ch && ch.liters));
     // the sludge counter was reset 10 h before NOW: the reset in the history wins over the configured date

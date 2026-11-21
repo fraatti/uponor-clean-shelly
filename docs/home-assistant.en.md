@@ -134,5 +134,5 @@ The Lovelace card `ha-card/uponor-clean-card.js` shows the plant as a cross-sect
 | --- | --- |
 | No entities | Reload the Shelly integration (section 1). Check on the Shelly's **Components** page that the script has created the components. |
 | No event entity | It is disabled by default (section 3). If it is not there even as disabled, check that the script's second line has `Shelly.emitEvent("uponor"` and reload the integration. |
-| Entities are `unavailable` for a moment | An integration reload, a Shelly restart or a network outage. The card's logbook shows *Data gap*. |
+| Entities are `unavailable` for a moment | An integration reload, a Shelly restart or a network outage. The integration also reloads when the Shelly's settings change (e.g. a script is saved), and all entities are then `unavailable` for less than a second. The card's logbook shows only breaks of 10 seconds or more as *Data gap*. |
 | Phase stays `Unknown` for a long time | See the troubleshooting in the installation guide ([`v3-install.md`](v3-install.md#troubleshooting)). |

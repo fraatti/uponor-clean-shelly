@@ -134,5 +134,5 @@ Lovelace-kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon leikkausku
 | --- | --- |
 | Entiteettejä ei näy | Lataa Shelly-integraatio uudelleen (kohta 1). Tarkista Shellyn **Components**-sivulta, että skripti on luonut komponentit. |
 | Tapahtumaentiteettiä ei ole | Se on oletuksena pois käytöstä (kohta 3). Jos sitä ei ole edes käytöstä poistettuna, tarkista, että skriptin toisella rivillä on `Shelly.emitEvent("uponor"`, ja lataa integraatio uudelleen. |
-| Entiteetit ovat hetken `unavailable` | Integraation uudelleenlataus, Shellyn uudelleenkäynnistys tai verkkokatko. Kortin lokikirjassa näkyy *Datakatko*. |
+| Entiteetit ovat hetken `unavailable` | Integraation uudelleenlataus, Shellyn uudelleenkäynnistys tai verkkokatko. Integraatio latautuu uudelleen myös silloin, kun Shellyn asetuksia muutetaan (esim. skriptin tallennus), jolloin kaikki entiteetit ovat alle sekunnin `unavailable`. Kortin lokikirjassa näkyvät *Datakatkona* vain vähintään 10 sekunnin katkot. |
 | Phase on pitkään `Unknown` | Ks. asennusohjeen vianetsintä ([`v3-asennus.md`](v3-asennus.md#vianetsintä)). |

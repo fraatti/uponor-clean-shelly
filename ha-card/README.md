@@ -39,7 +39,7 @@ Phase durations come from the control unit's firmware (board A settings, label V
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.2`
+   - URL: `/local/uponor-clean-card.js?v=1.7.3`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.
@@ -175,7 +175,7 @@ The card on the real installation:
 | An old version shows after an update | Change the resource's `?v=` number and clear the browser cache. |
 | *Waiting for history…* stays on | The recorder is off or the entities are wrong. Check the entities in the card options. |
 | The phase is *Unknown* | The Shelly script has not recognised the phase yet, or the power reading is missing. See [`docs/v3-install.md`](../docs/v3-install.md). |
-| *Data gap (Shelly or Home Assistant)* in the logbook | Home Assistant or the Shelly did not record readings (e.g. an integration reload or an update). |
+| *Data gap (Shelly or Home Assistant)* in the logbook | Home Assistant or the Shelly did not record readings for 10 seconds or more (e.g. a power or network outage, a Home Assistant update). Shorter breaks, such as the Shelly integration reloading when the Shelly's settings change, are not shown: the card uses the last known value for them. |
 
 ## Requirements
 
