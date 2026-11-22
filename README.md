@@ -66,12 +66,12 @@ The script and the card were built and tested on one installation. Other version
 
 The script has not been tried on older Shelly firmware. The card's visual editor needs a Home Assistant version with `getConfigForm` (tested on 2026.10.2); elsewhere the card works with YAML options.
 
-## Before making the repository public
+## Publishing
 
-The repository is private. Before making it public, check:
+The repository has been public since 23 Nov 2026, and GitHub Pages serves the demos from the `main` branch. When adding files:
 
-- Measurement data (Home Assistant history CSVs) is not under version control (`.gitignore`). Keep it out.
-- `ha-card/preview.html` contains an example cycle computed from the plant's own measurements.
+- Measurement data (Home Assistant history CSVs) is not under version control (`.gitignore`). Keep it out: the entity names in a history export contain the device's MAC address.
+- `demo/data.js` and `ha-card/preview.html` contain recorded data of the own plant (October 2026), only the numbers.
 - `docs/img/` contains screenshots of the own Shelly and Home Assistant. The device MAC address has been removed from the images, the files and the whole history (19 Nov 2026). Screenshots must not show the bottom bar of the Shelly web UI, which shows the MAC address.
 - The control unit firmware in pseudocode (`docs/firmware/`) has been removed from the repository and its whole history (23 Nov 2026) and is not published; `.gitignore` keeps it out. The card guide refers to the Uponor manual.
-- Choose a license (e.g. MIT).
+- No licence has been chosen for the repository as a whole. The card (`ha-card/`) is under the MIT licence.

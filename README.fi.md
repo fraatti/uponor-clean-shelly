@@ -66,12 +66,12 @@ Skripti ja kortti on rakennettu ja testattu yhdellä laitteistolla. Muita versio
 
 Vanhemmilla Shellyn firmwareilla skriptiä ei ole kokeiltu. Kortin visuaalinen editori vaatii Home Assistantin, jossa on `getConfigForm` (testattu 2026.10.2). Muissa versioissa kortti toimii YAML-asetuksilla.
 
-## Huomio ennen julkistamista
+## Julkaisu
 
-Repo on yksityinen. Ennen julkiseksi muuttamista tarkista:
+Repo on ollut julkinen 23.11.2026 alkaen, ja GitHub Pages jakaa demot `main`-haarasta. Tiedostoja lisättäessä:
 
-- Mittausdataa (Home Assistantin historia-CSV:t) ei ole versionhallinnassa (`.gitignore`). Pidä se poissa jatkossakin.
-- `ha-card/preview.html` sisältää oman laitteen mittausdatasta lasketun esimerkkijakson.
+- Mittausdataa (Home Assistantin historia-CSV:t) ei ole versionhallinnassa (`.gitignore`). Pidä se poissa jatkossakin: historiavedoksen entiteettien nimissä on laitteen MAC-osoite.
+- `demo/data.js` ja `ha-card/preview.html` sisältävät oman puhdistamon tallennettua dataa (lokakuu 2026), pelkkiä lukuja.
 - `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. Laitteen MAC-osoite on poistettu kuvista, tiedostoista ja koko historiasta (19.11.2026). Kuvakaappauksissa ei saa näkyä Shellyn käyttöliittymän alapalkkia, jossa MAC-osoite on.
 - Ohjauskeskuksen firmware pseudokoodina (`docs/firmware/`) on poistettu reposta ja koko historiasta (23.11.2026), eikä sitä julkaista; `.gitignore` pitää sen poissa. `docs/kortti.md` viittaa Uponorin käsikirjaan.
-- Valitse lisenssi (esim. MIT).
+- Koko repolle ei ole valittu lisenssiä. Kortti (`ha-card/`) on MIT-lisenssillä.
