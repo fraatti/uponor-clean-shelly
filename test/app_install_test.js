@@ -4,7 +4,8 @@
 // 1. open app/uponor-clean-app.html as a file, connect to the mock, press Install
 // 2. open the address the Shelly now serves: the app loads from the Shelly and connects
 // 3. the served app sees the same version; installing in three parts and back in one works
-// 4. the Python tool removes extra parts; a full file system and three running scripts give errors
+// 4. the Python tool removes extra parts; a full file system and three running scripts give errors;
+//    an update fits where only the space of the deleted old app makes room; the Remove button
 //    (the mock: detection script 1, at most 3 scripts running, --fs-free sets the free space)
 'use strict';
 const { spawn, execFileSync } = require('child_process');
@@ -92,7 +93,29 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
     check(String(await listScripts(small)) === 'uponor-clean-v3*', 'nothing written: ' + (await listScripts(small)));
     mock.kill();
 
-    // 4c. three scripts already running
+    // 4c. an update deletes the old app first, so it fits where old + new would not
+    mock = await startMock(8094, ['--fs-free', '160000']);
+    const tight = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8094&lang=fi');
+    const t1 = await pressInstall(tight);
+    const t2 = await tight.evaluate(async () => { try { return 'ok ' + (await window.__ucApp.installApp()).free; } catch (e) { return 'error ' + e.message; } });
+    check(/^Valmis/.test(t1.after) && /^ok /.test(t2), 'update with tight space: ' + t2);
+    const ids1 = await listScripts(tight);
+    check(String(ids1) === 'uponor-clean-v3*,uponor-clean-app*,uponor-clean-app-data', 'after the update: ' + ids1);
+    const servedT = await openApp(browser, t1.url);
+    check(await servedT.evaluate(() => !!window.__ucApp.selfLength), 'same address after the update: ' + t1.url);
+
+    // 4d. Remove from the Shelly (two presses); the settings are still open after the install
+    if (!(await tight.evaluate(() => document.getElementById('dlg').open))) await tight.click('#setb');
+    await tight.waitForFunction(() => !document.getElementById('d-inst-x').hidden && !document.getElementById('d-inst-x').disabled, null, { timeout: 30000 });
+    await tight.click('#d-inst-x');
+    const armed = await tight.textContent('#d-inst-x');
+    await tight.click('#d-inst-x');
+    await tight.waitForFunction(() => /poistettiin|removed/.test(document.getElementById('d-inst-s').textContent), null, { timeout: 30000 });
+    check(armed === 'Vahvista poisto', 'first press arms the removal: ' + armed);
+    check(String(await listScripts(tight)) === 'uponor-clean-v3*', 'removed: ' + (await tight.textContent('#d-inst-s')));
+    mock.kill();
+
+    // 4e. three scripts already running
     mock = await startMock(8093);
     const busy = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8093&lang=fi');
     await busy.evaluate(async () => {

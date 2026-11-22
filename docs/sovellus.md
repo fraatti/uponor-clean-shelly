@@ -39,9 +39,9 @@ Helpointa on antaa sovelluksen tehdä skriptit itse. Ne voi tehdä myös Shellyn
 2. Anna Shellyn osoite ja yhdistä.
 3. Avaa asetukset (rataskuvake) ja paina **Asenna Shellyyn**.
 
-Sovellus tallentaa itsensä Shellyyn, käynnistää latainsivun ja näyttää sovelluksen osoitteen. Ennen kirjoittamista se tarkistaa, että Shellyyn jää vähintään 64 kt vapaata tilaa, ja lopuksi se lukee kirjoittamansa skriptit takaisin ja vertaa ne. Asetuksissa näkyy myös, mikä versio Shellyssä on.
+Sovellus tallentaa itsensä Shellyyn, käynnistää latainsivun ja näyttää sovelluksen osoitteen. Ennen kirjoittamista se tarkistaa, että Shellyyn jää vähintään 100 kt vapaata tilaa (ks. [Tila ja Shellyn firmware-päivitykset](#tila-ja-shellyn-firmware-päivitykset)), ja lopuksi se lukee kirjoittamansa skriptit takaisin ja vertaa ne. Asetuksissa näkyy myös, mikä versio Shellyssä on.
 
-Päivitys tehdään samoin: avaa uusi versio koneella ja paina **Päivitä Shellyyn**. Asennus onnistuu myös Home Assistantin kautta avatusta sovelluksesta.
+Uusi versio asennetaan samoin: avaa se koneella ja paina **Päivitä Shellyyn**. Asennus onnistuu myös Home Assistantin kautta avatusta sovelluksesta.
 
 #### Web-käyttöliittymästä
 
@@ -51,7 +51,7 @@ Päivitys tehdään samoin: avaa uusi versio koneella ja paina **Päivitä Shell
 4. Liitä editoriin tiedoston `app/uponor_clean_app_loader.js` sisältö samalla tavalla, tallenna ja käynnistä (**Start**). Konsoliin tulee rivi `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Palaa **Scripts**-sivulle ja ota `uponor-clean-app`-skriptille käyttöön **Run on startup**.
 
-Kun sovellus päivittyy, avaa `uponor-clean-app-data`, korvaa editorin sisältö uudella `uponor-clean-app-data.txt`:llä ja tallenna. Latainsivua ei yleensä tarvitse päivittää.
+Kun sovellus päivittyy, poista vanha `uponor-clean-app-data` (ja mahdolliset `-data2`, `-data3`) ja tee uusi kohtien 1–2 mukaan. Latainsivua ei yleensä tarvitse päivittää.
 
 #### Python-työkalulla
 
@@ -59,11 +59,25 @@ Kun sovellus päivittyy, avaa `uponor-clean-app-data`, korvaa editorin sisältö
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # salasanan kanssa: --salasana SALASANA
 ```
 
-Työkalu tekee skriptit tai päivittää ne, vertaa ne laitteelta luettuun, poistaa ylimääräiset osat ja käynnistää latainsivun. Kuten sovellus, se jättää Shellyyn vähintään 64 kt vapaata tilaa. Kun sovellus päivittyy, aja työkalu uudelleen.
+Työkalu tekee skriptit, vertaa ne laitteelta luettuun ja käynnistää latainsivun. Kuten sovellus, se poistaa päivityksessä ensin vanhat data-skriptit ja jättää Shellyyn vähintään 100 kt vapaata tilaa. Kun sovellus päivittyy, aja työkalu uudelleen. `--poista` poistaa sovelluksen skriptit.
 
 #### Sovelluksen osoite
 
 Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. `<id>` on `uponor-clean-app`-skriptin numero (Scripts-listan oikeassa reunassa, esim. `script:3`), ja koko osoite näkyy sovelluksen asetuksissa, skriptin konsolissa ja työkalun tulosteessa. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
+
+#### Päivitys ja poisto
+
+Sovellusta päivitettäessä vanha poistetaan ja uusi tehdään tilalle. **Päivitä Shellyyn** poistaa ensin vanhat `uponor-clean-app-data`-skriptit ja kirjoittaa sitten uudet, joten Shellyssä ei ole kahta versiota yhtä aikaa. Latainsivu `uponor-clean-app` jää paikalleen ja pitää numeronsa, joten sovelluksen osoite ja puhelimen kirjanmerkki eivät muutu.
+
+**Poista Shellystä** asetuksissa (painetaan kahdesti) tai `sovellus_shellyyn.py <ip> --poista` poistaa sovelluksen skriptit. Tunnistusskripti jää paikalleen.
+
+#### Tila ja Shellyn firmware-päivitykset
+
+Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen kanssa vapaata on noin 175 kt.
+
+Shelly ei kerro, paljonko vapaata tilaa firmware-päivitys tarvitsee. Shellyn ESP32-laitteiden firmware perustuu Mongoose OS:ään (siksi esim. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) toimii sen päivitysmekanismilla); Gen4:n osalta tätä ei ole varmistettu. Mongoose OS:n [ohjeen](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md) mukaan päivitys kirjoittaa uuden firmwaren ja sen tiedostojärjestelmän erilliseen osioon ja siirtää sinne käyttäjän tiedostot, kuten skriptit. Jos jokin vaihe epäonnistuu, päivitys keskeytyy ja vanha firmware jää käyttöön. Käyttäjän tiedostojen pitää siis mahtua uuden firmwaren tiedostojärjestelmään.
+
+Siksi sovellus ja työkalu jättävät aina vähintään 100 kt vapaaksi. Raja on varmuusvara, ei Shellyn ilmoittama luku. Jos firmware-päivitys silti epäonnistuu, poista sovellus Shellystä, päivitä firmware ja asenna sovellus uudelleen.
 
 ### Muut tavat
 

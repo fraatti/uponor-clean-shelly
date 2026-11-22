@@ -39,9 +39,9 @@ The easiest way is to let the app make the scripts itself. They can also be made
 2. Enter the Shelly address and connect.
 3. Open the settings (gear icon) and press **Install on the Shelly**.
 
-The app stores itself on the Shelly, starts the loader and shows the app address. Before writing it checks that at least 64 kB stays free on the Shelly, and at the end it reads the scripts back and compares them. The settings also show which version the Shelly has.
+The app stores itself on the Shelly, starts the loader and shows the app address. Before writing it checks that at least 100 kB stays free on the Shelly (see [Space and Shelly firmware updates](#space-and-shelly-firmware-updates)), and at the end it reads the scripts back and compares them. The settings also show which version the Shelly has.
 
-Updating works the same way: open the new version on the computer and press **Update the Shelly**. The installation also works from the app opened through Home Assistant.
+A new version is installed the same way: open it on the computer and press **Update the Shelly**. The installation also works from the app opened through Home Assistant.
 
 #### In the web UI
 
@@ -51,7 +51,7 @@ Updating works the same way: open the new version on the computer and press **Up
 4. Paste the content of `app/uponor_clean_app_loader.js` into the editor the same way, save and start (**Start**). The console shows the line `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Go back to **Scripts** and turn on **Run on startup** for `uponor-clean-app`.
 
-When the app is updated, open `uponor-clean-app-data`, replace the editor content with the new `uponor-clean-app-data.txt` and save. The loader usually needs no update.
+When the app is updated, delete the old `uponor-clean-app-data` (and any `-data2`, `-data3`) and make a new one as in steps 1–2. The loader usually needs no update.
 
 #### With the Python tool
 
@@ -59,11 +59,25 @@ When the app is updated, open `uponor-clean-app-data`, replace the editor conten
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # with a password: --salasana PASSWORD
 ```
 
-The tool creates or updates the scripts, compares them with what it reads back from the device, removes extra parts and starts the loader. Like the app, it leaves at least 64 kB free on the Shelly. When the app is updated, run the tool again.
+The tool creates the scripts, compares them with what it reads back from the device and starts the loader. Like the app, in an update it first deletes the old data scripts, and it leaves at least 100 kB free on the Shelly. When the app is updated, run the tool again. `--poista` removes the app scripts.
 
 #### The app address
 
 After that the app opens on any device in the home network, a phone too, at `http://<shelly-ip>/script/<id>/app`, e.g. `http://192.168.0.102/script/3/app`. `<id>` is the number of the `uponor-clean-app` script (at the right edge of the Scripts list, e.g. `script:3`), and the full address shows in the app settings, the script console and the tool output. Type `http://` at the start. The app does not ask for the Shelly address, because the page comes from the Shelly. Home Assistant, another server or an internet connection is not needed. On a phone the page can be added to the home screen.
+
+#### Update and removal
+
+An update deletes the old app and puts the new one in its place. **Update the Shelly** first deletes the old `uponor-clean-app-data` scripts and then writes the new ones, so the Shelly never holds two versions at once. The loader `uponor-clean-app` stays and keeps its number, so the app address and the bookmark on the phone do not change.
+
+**Remove from the Shelly** in the settings (press twice) or `sovellus_shellyyn.py <ip> --poista` removes the app scripts. The detection script stays.
+
+#### Space and Shelly firmware updates
+
+The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app about 175 kB is free.
+
+Shelly does not say how much free space a firmware update needs. The firmware of the ESP32-based Shellys is based on Mongoose OS (which is why e.g. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) works through its update mechanism); for Gen4 this has not been confirmed. According to the Mongoose OS [guide](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md), an update writes the new firmware and its file system to a separate partition and moves the user's files, such as scripts, there. If a step fails, the update is aborted and the old firmware stays in use. So the user's files must fit in the new firmware's file system.
+
+That is why the app and the tool always leave at least 100 kB free. The limit is a safety margin, not a figure from Shelly. If a firmware update still fails, remove the app from the Shelly, update the firmware and install the app again.
 
 ### Other ways
 
