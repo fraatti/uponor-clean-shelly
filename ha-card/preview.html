@@ -55,10 +55,10 @@ customElements.define('ha-card', class extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }).innerHTML = '<style>:host{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid var(--divider-color)}</style><slot></slot>'; }
 });
 </script>
-<script>/*! uponor-clean-card v1.7.4 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+<script>/*! uponor-clean-card v1.8.2 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.7.4';
+const UC_VERSION = '1.8.2';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -393,8 +393,11 @@ class UcModel {
         if (prev && prev.p === 'dosing') { g.dp = 'mixing'; g.ctx = 'batch'; inBatch = true; }
         else if (prev && prev.p === 'filling') { g.ctx = 'batch'; inBatch = true; }
         else if (dur > 2100e3 && (!prev || ['settling', 'offline', 'unknown'].includes(prev.p))) {
-          // firmware: an aeration longer than the wait-cycle 30 min that starts from rest only follows a power-up
-          g.ctx = 'batch'; inBatch = true; g.restart = true;
+          // firmware: an aeration longer than the wait-cycle 30 min that starts from rest only follows a
+          // power-up. With no history before it, or after a rest longer than any firmware wait (2 h:
+          // a gap the browser app has not filled from the power history yet), it is only a batch.
+          g.ctx = 'batch'; inBatch = true;
+          g.restart = !!prev && !(prev.p === 'settling' && prev.t1 - prev.t0 > 7200e3);
         } else g.ctx = inBatch ? 'batch' : 'wait';
       } else if (g.p === 'dosing') { inBatch = true; g.ctx = 'batch'; }
       else if (g.p === 'settling') {
@@ -1669,7 +1672,12 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 .uc.dark { --uc-wall:#56606b; --uc-boxf:#2b2f34; }
 .lay { display:grid; gap:10px 18px; grid-template-columns:minmax(0,1fr); grid-template-areas:"status" "schem" "tl" "log"; }
 .status { grid-area:status; min-width:0; } .schem { grid-area:schem; } .log { grid-area:log; min-width:0; } .tl { grid-area:tl; }
-.uc.wide .lay { grid-template-columns:auto minmax(300px,1fr); grid-template-rows:auto minmax(0,1fr) auto; grid-template-areas:"schem status" "schem log" "tl tl"; }
+.colL, .colR { display:contents; }
+/* wide: the drawing with the timeline under it on the left, the status and the logbook on the right */
+.uc.wide .lay { grid-template-columns:minmax(0,3fr) minmax(320px,2fr); grid-template-areas:"l r"; }
+.uc.wide .colL, .uc.wide .colR { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.uc.wide .colL { grid-area:l; } .uc.wide .colR { grid-area:r; }
+.uc.wide .colR .log { flex:1; }
 .st-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .st-top .title { font-size:15px; font-weight:500; margin-right:auto; }
 .st-top .mode { margin-left:auto; }
@@ -2027,6 +2035,7 @@ class UponorCleanCard extends HTMLElement {
     root.innerHTML = `<style>${UC_CSS}</style>
       <${tag} class="card"><div class="uc">
         <div class="lay">
+          <div class="colR">
           <div class="status" id="status">
             <div class="st-top">${cfg.name ? `<span class="title">${cfg.name}</span>` : ''}<span class="mode live" id="mode"></span>
               <div class="seg" id="views"><button data-v="side">${T.side}</button><button data-v="top">${T.top}</button></div></div>
@@ -2037,9 +2046,11 @@ class UponorCleanCard extends HTMLElement {
             <dl class="kv" id="kv"></dl>
             <div class="chemed" id="chemed"></div>
           </div>
-          <div class="schem" id="schem">${ucSideMarkup(T)}${ucTopMarkup(T)}</div>
           <div class="log"><div class="sub">${T.logbook}<span id="logn"></span></div>
             <div class="logbox"><div class="entries" id="entries"></div><button class="btn more" id="more"></button></div></div>
+          </div>
+          <div class="colL">
+          <div class="schem" id="schem">${ucSideMarkup(T)}${ucTopMarkup(T)}</div>
           <div class="tl">
             <div class="ctrl">
               <div class="seg" id="ranges"><button data-h="2">2 h</button><button data-h="6">6 h</button><button data-h="48">48 h</button></div>
@@ -2050,6 +2061,7 @@ class UponorCleanCard extends HTMLElement {
             <div class="chartwrap" id="cw"><svg id="chart"></svg><div class="tip" id="tip"></div></div>
             <input type="range" class="scrub" id="scrub" min="0" max="1000" value="1000" step="1">
             <div class="leg leg2" id="leg2"></div>
+          </div>
           </div>
         </div>
       </div></${tag}>`;
@@ -2117,10 +2129,16 @@ class UponorCleanCard extends HTMLElement {
     uc.classList.toggle('wide', wide);
     const svgs = this.shadowRoot.querySelectorAll('.schem svg');
     if (wide) {
-      // drawing takes the width its height allows; the side column gets the rest (at least 300 px)
-      const avail = cw - 32 - 18 - 300; const hMax = Math.max(300, window.innerHeight - 390);
-      const w = Math.round(Math.max(420, Math.min(avail, hMax / 0.62)));
-      svgs.forEach((e) => { e.style.width = w + 'px'; e.style.height = Math.round(w * 0.62) + 'px'; e.style.maxHeight = 'none'; });
+      // The drawing and the timeline under it fit the window height: the drawing gets the height
+      // left over (at least 220 px) and at most the width of its column. A page can reserve room
+      // under the card with the CSS variable --uc-fit-bottom (default 14 px).
+      const colL = this.shadowRoot.querySelector('.colL'), tl = this.shadowRoot.querySelector('.tl');
+      const lw = (colL && colL.clientWidth) || Math.round((cw - 50) * 0.6);
+      const top = this.getBoundingClientRect().top + window.scrollY;
+      const below = parseFloat(getComputedStyle(this).getPropertyValue('--uc-fit-bottom')) || 14;
+      const hAvail = window.innerHeight - top - (tl ? tl.offsetHeight : 270) - 12 - 10 - 10 - below;
+      const h = Math.round(Math.max(220, Math.min(lw * 0.62, hAvail)));
+      svgs.forEach((e) => { e.style.width = Math.round(h / 0.62) + 'px'; e.style.height = h + 'px'; e.style.maxHeight = 'none'; });
     } else svgs.forEach((e) => { e.style.width = ''; e.style.height = ''; e.style.maxHeight = ''; });
     const narrow = cw > 0 && cw < 680;
     if (narrow !== uc.classList.contains('narrow')) {

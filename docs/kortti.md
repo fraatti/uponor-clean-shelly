@@ -2,7 +2,7 @@
 
 [English](../ha-card/README.md) | **Suomi**
 
-Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa: leikkauskuvan ja prosessisäiliön nousuputken ylhäältä, animoituna sen mukaan, mitä ohjauskeskus tekee. Alla on aikajana, jota voi selata ja toistaa, ja oikealla lukemat ja lokikirja. Tiedot tulevat Shelly-skriptin v3 entiteeteistä ([`home-assistant.md`](home-assistant.md)). Kortti toimii myös v2.3- ja v2.4-skriptin entiteeteillä.
+Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa: leikkauskuvan ja prosessisäiliön nousuputken ylhäältä, animoituna sen mukaan, mitä ohjauskeskus tekee. Piirroksen alla on aikajana, jota voi selata ja toistaa, ja oikealla lukemat ja lokikirja. Leveä kortti (vähintään 980 px) mahtuu selainikkunan korkeuteen ilman vierittämistä: piirroksen koko seuraa ikkunan korkeutta (kokeiltu 1024 × 700 – 2400 × 1140). Tiedot tulevat Shelly-skriptin v3 entiteeteistä ([`home-assistant.md`](home-assistant.md)). Kortti toimii myös v2.3- ja v2.4-skriptin entiteeteillä.
 
 ![Kortti puhdistusjakson ilmastuksessa](img/kortti_ilmastus.jpg)
 
@@ -47,7 +47,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
 
 1. Kopioi `ha-card/uponor-clean-card.js` Home Assistantin kansioon `/config/www/` (esim. File editor -lisäosalla tai Samballa).
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.4`
+   - URL: `/local/uponor-clean-card.js?v=1.8.2`
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.

@@ -35,13 +35,13 @@ Phase durations come from the control unit's firmware (board A settings, label V
 - **Sludge counter** (script v3): click the sludge reminder after the sedimentation tank was emptied and save 0. The date of emptying comes from the counter reset in the history, or from `sludge_emptied`; when that date no longer fits the counter, the card estimates it from the counter and the batch rate (shown with ≈).
 - **Visual editor**: name, language, view, timeline, sludge date, entity pickers and plant settings. A card added from the card picker finds the v3 entities by itself.
 - English and Finnish, chosen from the Home Assistant profile language or set per card (`language`). Follows the light or dark theme.
-- Fits on one screen: on wide cards the drawing sits beside a side column (chips and logbook) and the timeline runs underneath. The drawing's height follows the browser window, so the whole card stays visible without scrolling on a typical laptop or desktop screen.
+- Fits on one screen: on wide cards (980 px and wider) the drawing is on the left with the timeline under it, and the status, chips and logbook are on the right. The drawing's height follows the browser window, so the whole card stays visible without scrolling on a laptop or desktop screen (tested from 1024 × 700 to 2400 × 1140). A page can reserve room under the card with the CSS variable `--uc-fit-bottom` (default 14 px).
 
 ## Installation
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.7.4`
+   - URL: `/local/uponor-clean-card.js?v=1.8.2`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.
