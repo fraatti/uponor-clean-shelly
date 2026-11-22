@@ -1,4 +1,4 @@
-/*! uponor-clean-card v1.8.3 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+/*! uponor-clean-card v1.8.3 – animated Uponor Clean I card for Home Assistant. PolyForm Noncommercial 1.0.0, github.com/fraatti/uponor-clean-shelly */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
 const UC_VERSION = '1.8.3';

@@ -74,4 +74,10 @@ The repository has been public since 23 Nov 2026, and GitHub Pages serves the de
 - `demo/data.js` and `ha-card/preview.html` contain recorded data of the own plant (October 2026), only the numbers.
 - `docs/img/` contains screenshots of the own Shelly and Home Assistant. The device MAC address has been removed from the images, the files and the whole history (19 Nov 2026). Screenshots must not show the bottom bar of the Shelly web UI, which shows the MAC address.
 - The control unit firmware in pseudocode (`docs/firmware/`) has been removed from the repository and its whole history (23 Nov 2026) and is not published; `.gitignore` keeps it out. The card guide refers to the Uponor manual.
-- No licence has been chosen for the repository as a whole. The card (`ha-card/`) is under the MIT licence.
+- The licence is [PolyForm Noncommercial 1.0.0](LICENSE.md) (23 Nov 2026; before that the card file said MIT).
+
+## Licence
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md): the script, the app, the card and the guides may be used, changed and shared for personal and other noncommercial purposes (also by charities, schools, public bodies and other noncommercial organisations). Commercial use needs permission: ask by opening an issue in this repository.
+
+Required Notice: Copyright fraatti (https://github.com/fraatti/uponor-clean-shelly)

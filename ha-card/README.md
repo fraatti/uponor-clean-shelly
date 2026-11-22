@@ -187,4 +187,4 @@ The card on the real installation:
 
 ## Licence
 
-MIT
+[PolyForm Noncommercial 1.0.0](../LICENSE.md), like the whole repository: free for personal and other noncommercial use. Commercial use needs permission: ask by opening an issue in this repository.

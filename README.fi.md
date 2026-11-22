@@ -74,4 +74,10 @@ Repo on ollut julkinen 23.11.2026 alkaen, ja GitHub Pages jakaa demot `main`-haa
 - `demo/data.js` ja `ha-card/preview.html` sisältävät oman puhdistamon tallennettua dataa (lokakuu 2026), pelkkiä lukuja.
 - `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. Laitteen MAC-osoite on poistettu kuvista, tiedostoista ja koko historiasta (19.11.2026). Kuvakaappauksissa ei saa näkyä Shellyn käyttöliittymän alapalkkia, jossa MAC-osoite on.
 - Ohjauskeskuksen firmware pseudokoodina (`docs/firmware/`) on poistettu reposta ja koko historiasta (23.11.2026), eikä sitä julkaista; `.gitignore` pitää sen poissa. `docs/kortti.md` viittaa Uponorin käsikirjaan.
-- Koko repolle ei ole valittu lisenssiä. Kortti (`ha-card/`) on MIT-lisenssillä.
+- Lisenssi on [PolyForm Noncommercial 1.0.0](LICENSE.md) (23.11.2026; sitä ennen kortin tiedostossa luki MIT).
+
+## Lisenssi
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md): skriptiä, sovellusta, korttia ja ohjeita saa käyttää, muuttaa ja jakaa henkilökohtaisiin ja muihin ei-kaupallisiin tarkoituksiin (myös hyväntekeväisyysjärjestöt, oppilaitokset, julkiset toimijat ja muut ei-kaupalliset organisaatiot). Kaupalliseen käyttöön tarvitaan lupa: kysy avaamalla issue tähän repoon. Lisenssin virallinen teksti on englanniksi.
+
+Required Notice: Copyright fraatti (https://github.com/fraatti/uponor-clean-shelly)
