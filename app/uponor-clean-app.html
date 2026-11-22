@@ -160,7 +160,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
       <div class="chart-head">
         <h2 id="c-title"></h2><span class="lbl" id="c-note"></span>
         <div class="seg" id="ranges" role="group">
-          <button type="button" data-h="6">6 h</button><button type="button" data-h="24">24 h</button><button type="button" data-h="168" id="r7"></button>
+          <button type="button" data-h="6">6 h</button><button type="button" data-h="24">24 h</button><button type="button" data-h="72" id="r3"></button>
         </div>
       </div>
       <div class="chart-sum" id="csum"></div>
@@ -204,7 +204,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.4.1';
 // this page as it was loaded, captured before the script changes anything: the Install button
 // stores it on the Shelly, which then serves it at http://<shelly>/script/<id>/app
 const SELF_HTML = '<!doctype html>\n' + document.documentElement.outerHTML;
@@ -225,7 +225,7 @@ const TX = {
       compressor_idle: 'Kompressori ei käy', outlet_blocked: 'Lähtö tukossa? Pinta ei laskenut ulospumppauksessa', high_water: 'Korkea vesi – ilmastus ohitettiin tai katkesi',
       paused: 'Prosessi pysähtynyt? (esim. radiopaneelista)', chemical_low: 'Kemikaali vähissä – täytä ja syötä määrä', sludge_due: 'Lietteen tyhjennys ajankohtainen',
       sludge_emptied: 'Liete tyhjennetty? Nollaa lietelaskuri' },
-    chart: 'Tehonkulutus', note: 'normalisoitu 230 V:iin kuten skriptissä', d7: '7 vrk', tip: '{t} · {w} W · mitattu {r} W, {u} V', sum: 'Keskiteho {w} W · energia {e} kWh{d}', per_day: ' · {e} kWh/vrk',
+    chart: 'Tehonkulutus', note: 'normalisoitu 230 V:iin kuten skriptissä', d3: '3 vrk', tip: '{t} · {w} W · mitattu {r} W, {u} V', sum: 'Keskiteho {w} W · energia {e} kWh{d}', per_day: ' · {e} kWh/vrk',
     no_hist: 'Tehohistoriaa ei ole vielä luettu', loading: 'Luetaan tehohistoriaa…',
     log: 'Tapahtumat', log_empty: 'Tapahtumat näkyvät tässä, kun sovellus on auki.',
     ev_phase: '{p} · {c}', ev_batch: 'Panos {n} valmis', ev_batch_user: 'Panoslaskuri asetettu: {n}', ev_warn_on: 'Varoitus: {w}', ev_warn_off: 'Varoitus poistui: {w}',
@@ -263,7 +263,7 @@ const TX = {
       compressor_idle: 'Compressor not running', outlet_blocked: 'Outlet blocked? The level did not drop at pump-out', high_water: 'High water – aeration skipped or cut short',
       paused: 'Process paused? (e.g. stopped from the radio panel)', chemical_low: 'Chemical low – refill and enter the amount', sludge_due: 'Sludge emptying due',
       sludge_emptied: 'Sludge emptied? Reset the sludge counter' },
-    chart: 'Power consumption', note: 'normalised to 230 V as in the script', d7: '7 d', tip: '{t} · {w} W · measured {r} W, {u} V', sum: 'Average {w} W · energy {e} kWh{d}', per_day: ' · {e} kWh/day',
+    chart: 'Power consumption', note: 'normalised to 230 V as in the script', d3: '3 d', tip: '{t} · {w} W · measured {r} W, {u} V', sum: 'Average {w} W · energy {e} kWh{d}', per_day: ' · {e} kWh/day',
     no_hist: 'No power history read yet', loading: 'Reading the power history…',
     log: 'Events', log_empty: 'Events show here while the app is open.',
     ev_phase: '{p} · {c}', ev_batch: 'Batch {n} completed', ev_batch_user: 'Batch counter set: {n}', ev_warn_on: 'Warning: {w}', ev_warn_off: 'Warning cleared: {w}',
@@ -429,7 +429,7 @@ const rpc = {
 // ------------------------------------------------------------------ app state
 const S = {
   host: null, connected: false, scriptId: null, state: null, stateAt: 0, info: null, power: null, voltage: null, powerAt: 0,
-  hours: Number(store.get('hours')) || 24, recs: new Map(), lastTs: null, histErr: null, histBusy: false, log: [], err: null,
+  hours: [6, 24, 72].includes(Number(store.get('hours'))) ? Number(store.get('hours')) : 24, recs: new Map(), lastTs: null, histErr: null, histBusy: false, log: [], err: null,
   etotal: null, vc: null,
 };
 const urlHost = (qs.get('host') || '').trim();
@@ -444,7 +444,7 @@ function setTexts() {
   $('setb').setAttribute('aria-label', T.settings); $('setb').title = T.settings;
   $('l-now').textContent = T.now;
   $('tl-power').textContent = T.power; $('tl-batch').textContent = T.batches; $('tl-chem').textContent = T.chemical; $('tl-sludge').textContent = T.sludge;
-  $('c-title').textContent = T.chart; $('c-note').textContent = T.note; $('r7').textContent = T.d7; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
+  $('c-title').textContent = T.chart; $('c-note').textContent = T.note; $('r3').textContent = T.d3; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
   $('d-title').textContent = T.d_title; $('d-hint').textContent = T.d_hint; $('d-host-l').textContent = T.d_host; $('d-pw-l').textContent = T.d_pw;
   $('d-rem-l').textContent = T.d_rem; $('d-lang-l').textContent = T.d_lang; $('d-lang').options[0].textContent = T.d_auto; $('d-cancel').textContent = T.d_cancel; $('d-ok').textContent = T.d_ok;
   $('d-inst-t').textContent = T.inst_t; $('d-inst-h').textContent = T.inst_hint;
@@ -595,10 +595,12 @@ async function loadHistory(full) {
     const first = S.lastTs === null;
     if (full || S.lastTs === null) {
       S.recs.clear(); S.lastTs = null; renderChart();
-      const split = now - Math.min(S.hours, 24) * 3600;
+      // the range on screen first; the rest of the 7 days for the picture view's timeline
+      const split = now - S.hours * 3600;
       await fetchRange(split, now, renderChart);
       renderChart();
-      await fetchRange(now - 7 * 86400, split - 1, S.hours > 24 ? renderChart : null);
+      if (first) reloadCard();
+      await fetchRange(now - 7 * 86400, split - 1, null);
     } else await fetchRange(S.lastTs + 60, now);
     const cut = now - 7 * 86400 - 3600;
     for (const ts of S.recs.keys()) if (ts < cut) S.recs.delete(ts);
@@ -623,8 +625,8 @@ function renderChart() {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const now = Date.now() / 1000, span = S.hours * 3600, t0 = now - span;
   const padL = 34, padR = 10, padT = 18, padB = 24, pw = W - padL - padR, ph = H - padT - padB;
-  // one point a minute, or a 15-minute average over 7 days
-  const bs = S.hours > 24 ? 900 : 60;
+  // one point a minute, or a 5-minute average over 3 days
+  const bs = S.hours > 24 ? 300 : 60;
   const map = new Map(); let eSum = 0, sSum = 0;
   for (const [ts, r] of S.recs) {
     if (ts + r.p <= t0 || ts > now) continue;
@@ -646,10 +648,11 @@ function renderChart() {
   }
   o += `<text x="${padL - 6}" y="${padT - 8}" text-anchor="end">W</text>`;
   // time ticks
-  const tick = S.hours <= 6 ? 3600 : S.hours <= 24 ? 4 * 3600 : 86400;
+  const tick = S.hours <= 6 ? 3600 : S.hours <= 24 ? 4 * 3600 : 6 * 3600;
   const tz = new Date().getTimezoneOffset() * 60;
   for (let t = Math.ceil((t0 - tz) / tick) * tick + tz; t <= now; t += tick) {
-    const lab = tick >= 86400 ? new Date(t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) : hm(t);
+    // over 3 days: the date at midnight, the time at the other ticks
+    const lab = S.hours > 24 && new Date(t * 1000).getHours() === 0 ? new Date(t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) : hm(t);
     o += `<line class="grid-l" x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${padT}" y2="${padT + ph}" stroke-opacity=".5"/>`;
     o += `<text x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${lab}</text>`;
   }

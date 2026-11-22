@@ -29,7 +29,7 @@ Teho ja energia tulevat Shellyn tallentamasta minuuttihistoriasta (noin 7 vuorok
 - **Seuraava ulospumppaus** kellonaikana ja aikana siihen. Odotusjaksossa sovellus näyttää, milloin loma-automatiikka alkaa, jos aloitustasoa ei saavuteta. Lisäksi näkyy viimeisin ulospumppaus.
 - **Teho** normalisoituna 230 V:iin (alla mitattu teho ja jännite) noin 3 sekunnin välein, **panokset**, **kemikaali** ja sen riittävyys sekä **lietelaskuri**.
 - **Varoitukset** palkkina sivun yläosassa.
-- **Tehonkulutus** käyränä 6 tunnin, 24 tunnin tai 7 vuorokauden ajalta. Käyrä on normalisoitu 230 V:n jännitteelle samalla kaavalla kuin skriptissä, joten jännitteen vaihtelu ei heiluta tasoja (ilmastus noin 57 W, sisäänpumppaus noin 43 W). 6 ja 24 tunnin näkymässä käyrällä on piste minuutin välein, 7 vuorokauden näkymässä 15 minuutin keskiarvo. Käyrän yläpuolella on valitun jakson keskiteho ja energia mitattuina. Osoittimen kohdalla näkyy normalisoitu teho sekä mitattu teho ja jännite.
+- **Tehonkulutus** käyränä 6 tunnin, 24 tunnin tai 3 vuorokauden ajalta. Käyrä on normalisoitu 230 V:n jännitteelle samalla kaavalla kuin skriptissä, joten jännitteen vaihtelu ei heiluta tasoja (ilmastus noin 57 W, sisäänpumppaus noin 43 W). 6 ja 24 tunnin näkymässä käyrällä on piste minuutin välein, 3 vuorokauden näkymässä 5 minuutin keskiarvo. Käyrän yläpuolella on valitun jakson keskiteho ja energia mitattuina. Osoittimen kohdalla näkyy normalisoitu teho sekä mitattu teho ja jännite.
 - **Tapahtumat** sinä aikana, kun sovellus on auki: vaihemuutokset, valmiit panokset, varoitukset, kemikaalin ja laskurien syötöt sekä skriptin käynnistykset.
 - **Laite**: skriptin ja Shellyn versio, käyntiaika ja kellon tila.
 

@@ -29,7 +29,7 @@ Power and energy come from the minute history the Shelly stores (about 7 days). 
 - **Next pump-out** as a clock time and the time until it. In the waiting cycle the app shows when the holiday programme starts if the start level is not reached. The last pump-out is shown too.
 - **Power** normalised to 230 V (below it the measured power and voltage) about every 3 seconds, **batches**, **chemical** and how long it lasts, and the **sludge counter**.
 - **Warnings** as a bar at the top of the page.
-- **Power consumption** as a chart over 6 hours, 24 hours or 7 days. The chart is normalised to a voltage of 230 V with the same formula as in the script, so the voltage does not move the levels (aeration about 57 W, pump-in about 43 W). In the 6 and 24 hour views the chart has a point a minute, in the 7 day view a 15-minute average. Above the chart are the measured average power and energy of the range. The pointer shows the normalised power and the measured power and voltage.
+- **Power consumption** as a chart over 6 hours, 24 hours or 3 days. The chart is normalised to a voltage of 230 V with the same formula as in the script, so the voltage does not move the levels (aeration about 57 W, pump-in about 43 W). In the 6 and 24 hour views the chart has a point a minute, in the 3 day view a 5-minute average. Above the chart are the measured average power and energy of the range. The pointer shows the normalised power and the measured power and voltage.
 - **Events** while the app is open: phase changes, completed batches, warnings, chemical and counter entries, and script starts.
 - **Device**: script and Shelly versions, uptime and clock state.
 
