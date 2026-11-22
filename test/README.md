@@ -69,6 +69,16 @@ node test/shelly_http_mock.js --port 8099 --password salainen --outage 12-20 &
 pwsh -File shelly/tools/nauhuri.ps1 -Ip 127.0.0.1:8099 -Password salainen -Hours 0.01 -OutDir /tmp/rec -NoWait
 ```
 
+## Sovellus
+
+`shelly_ws_mock.js` on selainsovelluksen (`app/uponor-clean-app.html`) testiä varten tehty Shellyn WebSocket-rajapinnan jäljitelmä. Se ajaa oikeaa v3-skriptiä Shelly-jäljitelmässä firmwaresimulaation päällä, ensin annetut vuorokaudet nopeasti ja sitten reaaliajassa, ja vastaa kutsuihin `Script.List`, `Script.Eval`, `EM1.GetStatus` ja `EM1Data.GetData`. Se lähettää skriptin tapahtumat (`NotifyEvent`) ja tehon muutokset (`NotifyStatus`). Kuten oikea Shelly, se hylkää HTTP-kyselyt, joissa on `Origin`-otsake. Valinnainen digest-tunnistus (SHA-256) WebSocketin kautta.
+
+```
+node test/shelly_ws_mock.js --port 8098 --days 3
+# avaa app/uponor-clean-app.html?host=127.0.0.1:8098
+node test/shelly_ws_mock.js --port 8097 --days 1 --password salainen
+```
+
 ## Kortti
 
 `card_v3_test.js` ajaa simuloidun v3-ajon, syöttää sen kortille Home Assistantin historiana jsdomissa ja tarkistaa vaiheet, ulospumppauksen ajan, kemikaalin, lietelaskurin, editorit ja kortinvalitsimen entiteettihaun. Tarvitsee jsdomin (`npm install jsdom`).

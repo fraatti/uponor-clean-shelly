@@ -66,7 +66,8 @@ The warnings show in the Warning component (most important first) and in the sta
 
 - The Shelly web UI and the Shelly app: 8 components in the group Uponor Clean, and the batch counter chart in the app.
 - Home Assistant: the components as entities, the events as an event entity, and the Lovelace card ([`ha-card/README.md`](../ha-card/README.md)).
-- The state endpoint `http://<shelly-ip>/script/<number>/state` as JSON.
+- The browser app in the home network: live data and the power history stored on the Shelly ([`app.md`](app.md)).
+- The state endpoint `http://<shelly-ip>/script/<number>/state` as JSON (e.g. `curl`; a browser reads the same state over WebSocket).
 
 ## What the script does not do
 

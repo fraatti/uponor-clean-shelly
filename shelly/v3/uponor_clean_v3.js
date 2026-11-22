@@ -1084,6 +1084,9 @@ function onFieldChange(role) {
 }
 
 // ------------------------------------------------------------------ state endpoint
+// The browser app (app/uponor-clean-app.html) reads this over WebSocket with Script.Eval
+// "JSON.stringify(stateObject())", because the firmware answers cross-origin HTTP requests
+// with 503. Keep the function name.
 function stateObject() {
     let w = [];
     let ks = warnKeys();

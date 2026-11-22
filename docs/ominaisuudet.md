@@ -66,7 +66,8 @@ Varoitukset näkyvät Warning-komponentissa (tärkein ensin) ja tilatekstissä, 
 
 - Shellyn selainkäyttöliittymä ja Shelly-sovellus: 8 komponenttia ryhmässä Uponor Clean, ja panoslaskurin graafi sovelluksessa.
 - Home Assistant: komponentit entiteetteinä, tapahtumat tapahtumaentiteettinä ja Lovelace-kortti ([`kortti.md`](kortti.md)).
-- Tilakysely `http://<shellyn-ip>/script/<numero>/state` JSON-muodossa.
+- Selainsovellus kotiverkossa: livetiedot ja Shellyn tallentama tehohistoria ([`sovellus.md`](sovellus.md)).
+- Tilakysely `http://<shellyn-ip>/script/<numero>/state` JSON-muodossa (esim. `curl`; selaimesta sama tila luetaan WebSocketin kautta).
 
 ## Mitä skripti ei osaa
 

@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uponor Clean</title>
+<meta name="description" content="Uponor Clean I -puhdistamon livetiedot ja tehohistoria suoraan Shellystä">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='9' width='26' height='18' rx='6' fill='%232D8CE0'/%3E%3Crect x='3' y='9' width='26' height='7' rx='3' fill='%23d7e8f8'/%3E%3C/svg%3E">
+<!-- Uponor Clean I browser app (github.com/fraatti/uponor-clean-shelly). Reads the Shelly script v3
+     over the Shelly WebSocket RPC in the home network: the state with Script.Eval, the live power,
+     the script's "uponor" events and the power history stored on the Shelly (EM1Data). -->
+<style>
+:root {
+  --bg: #f2f3f5; --card: #ffffff; --fg: #1d2127; --muted: #69707a; --line: #e3e5e9; --soft: #f6f7f9;
+  --accent: #2D8CE0; --power: #d64541; --band: rgba(214, 69, 65, .16); --ok: #2e9b55; --warn: #d9822b; --bad: #d64541;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --card: #1b1e24; --fg: #e7e9ec; --muted: #9aa1ab; --line: #2c3038; --soft: #22262d;
+    --accent: #4aa3ee; --power: #f0625d; --band: rgba(240, 98, 93, .2); --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --card: #1b1e24; --fg: #e7e9ec; --muted: #9aa1ab; --line: #2c3038; --soft: #22262d;
+  --accent: #4aa3ee; --power: #f0625d; --band: rgba(240, 98, 93, .2); --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-text-size-adjust: 100%; }
+button, input, select { font: inherit; color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+header h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+@media (max-width: 520px) { header h1 { font-size: 18px; white-space: nowrap; } .conn .host { display: none; } }
+.conn { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; min-width: 0; }
+.conn span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.ok { background: var(--ok); } .dot.wait { background: var(--warn); animation: pulse 1s infinite alternate; } .dot.bad { background: var(--bad); }
+@keyframes pulse { to { opacity: .35; } }
+.icon-btn { border: 1px solid var(--line); background: var(--card); border-radius: 10px; width: 38px; height: 38px; display: grid; place-items: center; cursor: pointer; flex: none; }
+.icon-btn:hover { background: var(--soft); }
+.grid { display: grid; gap: 12px; grid-template-columns: repeat(12, 1fr); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
+.lbl { color: var(--muted); font-size: 13px; }
+.hero { grid-column: span 7; display: flex; flex-direction: column; gap: 10px; }
+.next { grid-column: span 5; display: flex; flex-direction: column; gap: 6px; }
+.tile { grid-column: span 3; }
+.chart { grid-column: span 12; }
+.log { grid-column: span 7; }
+.info { grid-column: span 5; }
+@media (max-width: 860px) { .hero, .next, .log, .info { grid-column: span 12; } .tile { grid-column: span 6; } }
+.phase-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.phase-dot { width: 16px; height: 16px; border-radius: 50%; background: #c9c9c9; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.phase { font-size: 32px; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
+.cycle { color: var(--muted); font-size: 17px; }
+.chip { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .6s; }
+.sub { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.big { font-size: 30px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.val { font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.val small { font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.tile .sub { margin-top: 2px; }
+.warn-tile .val { color: var(--warn); }
+.banner { grid-column: span 12; border-radius: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line)); display: none; }
+.banner.show { display: block; }
+.banner b { display: block; margin-bottom: 2px; }
+.banner ul { margin: 0; padding-left: 18px; }
+.chart-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.chart-head h2, .log h2, .info h2 { font-size: 16px; margin: 0; font-weight: 650; }
+.seg { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; color: var(--muted); }
+.seg button.on { background: var(--soft); color: var(--fg); font-weight: 600; }
+.chart-sum { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; min-height: 19px; }
+#plot { width: 100%; height: 260px; display: block; touch-action: pan-y; }
+#plot text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+#plot .grid-l { stroke: var(--line); stroke-width: 1; }
+#plot .band { fill: var(--band); }
+#plot .avg { fill: none; stroke: var(--power); stroke-width: 1.6; stroke-linejoin: round; }
+#plot .now { fill: var(--power); }
+#plot .cross { stroke: var(--muted); stroke-dasharray: 3 3; }
+.tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-size: 12px; box-shadow: var(--shadow); white-space: nowrap; display: none; font-variant-numeric: tabular-nums; }
+.plot-wrap { position: relative; }
+.empty { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; }
+.log ol { list-style: none; margin: 8px 0 0; padding: 0; max-height: 320px; overflow: auto; }
+.log li { display: flex; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.log li:first-child { border-top: 0; }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; min-width: 74px; }
+.log .k { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: none; }
+.info dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 8px 0 0; font-size: 14px; }
+.info dt { color: var(--muted); }
+.info dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+dialog { border: 1px solid var(--line); border-radius: 16px; padding: 0; background: var(--card); color: var(--fg); width: min(440px, calc(100vw - 32px)); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog form { padding: 18px; display: grid; gap: 12px; }
+dialog h2 { margin: 0; font-size: 18px; }
+dialog label { display: grid; gap: 4px; font-size: 14px; }
+dialog input, dialog select { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 9px 10px; width: 100%; }
+dialog .hint { color: var(--muted); font-size: 13px; margin: 0; }
+dialog .err { color: var(--bad); font-size: 13px; margin: 0; min-height: 0; }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
+.btn { border: 1px solid var(--line); background: var(--soft); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.check { display: flex !important; grid-template-columns: none; align-items: center; gap: 8px !important; }
+.check input { width: auto; }
+.stale { opacity: .55; transition: opacity .3s; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px 0 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">Uponor Clean I</h1>
+    <div class="conn" id="conn"><span class="dot" id="cdot"></span><span id="ctext"></span></div>
+    <button class="icon-btn" id="setb" type="button" aria-label="Asetukset">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="grid" id="main">
+    <div class="banner" id="banner"><b id="banner-t"></b><ul id="banner-l"></ul></div>
+
+    <section class="card hero" id="hero">
+      <div class="lbl" id="l-now"></div>
+      <div class="phase-row"><span class="phase-dot" id="pdot"></span><span class="phase" id="phase">–</span><span class="cycle" id="cycle"></span><span class="chip" id="code" hidden></span></div>
+      <div class="bar" id="pbar-w"><div id="pbar"></div></div>
+      <div class="sub" id="psub">&nbsp;</div>
+    </section>
+
+    <section class="card next" id="next">
+      <div class="lbl" id="n-lbl"></div>
+      <div class="big" id="n-big">–</div>
+      <div class="sub" id="n-sub">&nbsp;</div>
+      <div class="sub" id="n-last"></div>
+    </section>
+
+    <section class="card tile" id="t-power"><div class="lbl" id="tl-power"></div><div class="val" id="tv-power">–</div><div class="sub" id="ts-power">&nbsp;</div></section>
+    <section class="card tile" id="t-batch"><div class="lbl" id="tl-batch"></div><div class="val" id="tv-batch">–</div><div class="sub" id="ts-batch">&nbsp;</div></section>
+    <section class="card tile" id="t-chem"><div class="lbl" id="tl-chem"></div><div class="val" id="tv-chem">–</div><div class="sub" id="ts-chem">&nbsp;</div></section>
+    <section class="card tile" id="t-sludge"><div class="lbl" id="tl-sludge"></div><div class="val" id="tv-sludge">–</div><div class="sub" id="ts-sludge">&nbsp;</div></section>
+
+    <section class="card chart">
+      <div class="chart-head">
+        <h2 id="c-title"></h2>
+        <div class="seg" id="ranges" role="group">
+          <button type="button" data-h="6">6 h</button><button type="button" data-h="24">24 h</button><button type="button" data-h="168" id="r7"></button>
+        </div>
+      </div>
+      <div class="chart-sum" id="csum"></div>
+      <div class="plot-wrap"><svg id="plot" role="img"></svg><div class="tip" id="tip"></div></div>
+    </section>
+
+    <section class="card log">
+      <h2 id="g-title"></h2>
+      <ol id="glist"></ol>
+      <div class="empty" id="gempty"></div>
+    </section>
+
+    <section class="card info">
+      <h2 id="i-title"></h2>
+      <dl id="idl"></dl>
+    </section>
+  </main>
+  <footer id="foot"></footer>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="dform">
+    <h2 id="d-title"></h2>
+    <p class="hint" id="d-hint"></p>
+    <label><span id="d-host-l"></span><input id="d-host" inputmode="url" autocomplete="off" spellcheck="false" placeholder="192.168.0.102"></label>
+    <label id="d-pw-w"><span id="d-pw-l"></span><input id="d-pw" type="password" autocomplete="current-password"></label>
+    <label class="check" id="d-rem-w"><input type="checkbox" id="d-rem"><span id="d-rem-l"></span></label>
+    <label><span id="d-lang-l"></span><select id="d-lang"><option value="auto"></option><option value="fi">Suomi</option><option value="en">English</option></select></label>
+    <p class="err" id="d-err"></p>
+    <div class="row"><button class="btn" type="button" id="d-cancel"></button><button class="btn primary" type="submit" id="d-ok"></button></div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+(() => {
+const APP_VERSION = '1.0.0';
+
+// ------------------------------------------------------------------ texts
+const TX = {
+  fi: {
+    now: 'Nyt', conn_ok: 'Yhdistetty', conn_wait: 'Yhdistetään…', conn_bad: 'Ei yhteyttä', conn_none: 'Shellyn osoite puuttuu', conn_auth: 'Salasana tarvitaan', conn_noscript: 'Skriptiä ei löydy',
+    settings: 'Asetukset', phase: { unknown: 'Tuntematon', pre_aeration: 'Esi-ilmastus', aeration: 'Ilmastus', chem_filling: 'Kemikaalin täyttö', dosing: 'Annostelu', mixing: 'Sekoitus',
+      sedimentation_1: 'Laskeutus I', sludge_removal: 'Lietteen palautus', sedimentation_2: 'Laskeutus II', pump_out: 'Ulospumppaus', pump_in: 'Sisäänpumppaus', waiting: 'Odotus', off: 'Ei sähköä' },
+    cycle: { unknown: 'jakso tuntematon', cleaning: 'puhdistusjakso', waiting: 'odotusjakso', holiday: 'loma-automatiikka', test: 'testijakso' },
+    started: 'Alkoi {t}', of: '{a} / {b}', max: 'enintään {b}',
+    next_out: 'Seuraava ulospumppaus', in: '{d} päästä', waiting_t: 'Odotetaan jätevettä', holiday_at: 'Loma-automatiikka alkaa {t}, jos aloitustasoa ei saavuteta',
+    holiday_t: 'Loma-automatiikka', holiday_since: 'Käynnissä {t} alkaen', last_out: 'Viimeisin ulospumppaus {t} ({d} sitten)', no_eta: 'Ulospumppauksen aika näkyy, kun panos alkaa',
+    power: 'Teho', voltage: '{u} V', batches: 'Panokset', last_batch: 'viimeisin {t}', chemical: 'Kemikaali', lasts: 'riittää noin {d} vrk', chem_unset: 'syötä määrä Shellyssä',
+    sludge: 'Liete', sludge_sub: 'panosta tyhjennyksestä', sludge_reset: 'nollattu {t}', of_limit: '/ {n}',
+    warn_t: 'Varoitukset', warn: { no_power: 'Ei sähköä – tarkista puhdistamon syöttö', air_leak: 'Suuri teho – tarkista ilmaletkut ja kompressori', no_signal: 'Tehomittaus puuttuu',
+      compressor_idle: 'Kompressori ei käy', outlet_blocked: 'Lähtö tukossa? Pinta ei laskenut ulospumppauksessa', high_water: 'Korkea vesi – ilmastus ohitettiin tai katkesi',
+      paused: 'Prosessi pysähtynyt? (esim. radiopaneelista)', chemical_low: 'Kemikaali vähissä – täytä ja syötä määrä', sludge_due: 'Lietteen tyhjennys ajankohtainen',
+      sludge_emptied: 'Liete tyhjennetty? Nollaa lietelaskuri' },
+    chart: 'Tehonkulutus', d7: '7 vrk', avg: 'keskim. {w} W', range: '{a}–{b} W', sum: 'Keskiteho {w} W · energia {e} kWh{d}', per_day: ' · {e} kWh/vrk',
+    no_hist: 'Tehohistoriaa ei ole vielä luettu', loading: 'Luetaan tehohistoriaa…',
+    log: 'Tapahtumat', log_empty: 'Tapahtumat näkyvät tässä, kun sovellus on auki.',
+    ev_phase: '{p} · {c}', ev_batch: 'Panos {n} valmis', ev_batch_user: 'Panoslaskuri asetettu: {n}', ev_warn_on: 'Varoitus: {w}', ev_warn_off: 'Varoitus poistui: {w}',
+    ev_chem_user: 'Kemikaali asetettu: {l} l', ev_sludge_user: 'Lietelaskuri asetettu: {n}', ev_start_power_cut: 'Käynnistys sähkökatkon jälkeen', ev_start_restart: 'Skripti käynnistyi uudelleen',
+    ev_conn: 'Yhteys Shellyyn', ev_lost: 'Yhteys katkesi',
+    info: 'Laite', i_script: 'Skripti', i_fw: 'Shelly', i_up: 'Shelly käynnissä', i_clock: 'Kello', i_synced: 'synkronoitu', i_unsynced: 'ei synkronoitu', i_upd: 'Päivitetty', i_host: 'Osoite',
+    d_title: 'Asetukset', d_hint: 'Avaa tämä tiedosto kotiverkossa olevalla laitteella. Sovellus ottaa yhteyden Shellyyn suoraan (WebSocket). https-osoitteesta avattuna selain estää yhteyden.',
+    d_host: 'Shellyn osoite', d_pw: 'Salasana (vain jos Shellyssä on salasana)', d_rem: 'Muista salasana tällä laitteella', d_lang: 'Kieli', d_auto: 'Selaimen kieli', d_cancel: 'Peruuta', d_ok: 'Yhdistä',
+    e_https: 'Sivu on avattu https-osoitteesta, joten selain estää yhteyden Shellyyn. Avaa tiedosto koneelta tai http-osoitteesta.',
+    e_auth: 'Shelly pyytää salasanaa.', e_badpw: 'Salasana ei kelpaa.', e_noscript: 'Shellystä ei löydy käynnissä olevaa Uponor Clean -skriptiä.', e_eval: 'Skriptin tilaa ei saatu: {m}',
+    ago_s: 'juuri nyt', foot: 'Uponor Clean -sovellus {v} · tiedot suoraan Shellystä, vaiheet päätellään sähkönkulutuksesta',
+    min: 'min', h: 'h', d: 'vrk',
+  },
+  en: {
+    now: 'Now', conn_ok: 'Connected', conn_wait: 'Connecting…', conn_bad: 'No connection', conn_none: 'Shelly address missing', conn_auth: 'Password needed', conn_noscript: 'Script not found',
+    settings: 'Settings', phase: { unknown: 'Unknown', pre_aeration: 'Pre-aeration', aeration: 'Aeration', chem_filling: 'Chemical filling', dosing: 'Dosing', mixing: 'Mixing',
+      sedimentation_1: 'Sedimentation I', sludge_removal: 'Sludge removal', sedimentation_2: 'Sedimentation II', pump_out: 'Pump-out', pump_in: 'Pump-in', waiting: 'Waiting', off: 'No power' },
+    cycle: { unknown: 'cycle unknown', cleaning: 'cleaning cycle', waiting: 'wait cycle', holiday: 'holiday programme', test: 'test cycle' },
+    started: 'Started {t}', of: '{a} / {b}', max: 'at most {b}',
+    next_out: 'Next pump-out', in: 'in {d}', waiting_t: 'Waiting for wastewater', holiday_at: 'Holiday programme starts {t} if the start level is not reached',
+    holiday_t: 'Holiday programme', holiday_since: 'Running since {t}', last_out: 'Last pump-out {t} ({d} ago)', no_eta: 'The pump-out time shows once a batch starts',
+    power: 'Power', voltage: '{u} V', batches: 'Batches', last_batch: 'last {t}', chemical: 'Chemical', lasts: 'lasts about {d} days', chem_unset: 'enter the amount in the Shelly',
+    sludge: 'Sludge', sludge_sub: 'batches since emptying', sludge_reset: 'reset {t}', of_limit: '/ {n}',
+    warn_t: 'Warnings', warn: { no_power: 'No power – check the plant supply', air_leak: 'High power – check the air hoses and the compressor', no_signal: 'Power reading missing',
+      compressor_idle: 'Compressor not running', outlet_blocked: 'Outlet blocked? The level did not drop at pump-out', high_water: 'High water – aeration skipped or cut short',
+      paused: 'Process paused? (e.g. stopped from the radio panel)', chemical_low: 'Chemical low – refill and enter the amount', sludge_due: 'Sludge emptying due',
+      sludge_emptied: 'Sludge emptied? Reset the sludge counter' },
+    chart: 'Power consumption', d7: '7 d', avg: 'avg {w} W', range: '{a}–{b} W', sum: 'Average {w} W · energy {e} kWh{d}', per_day: ' · {e} kWh/day',
+    no_hist: 'No power history read yet', loading: 'Reading the power history…',
+    log: 'Events', log_empty: 'Events show here while the app is open.',
+    ev_phase: '{p} · {c}', ev_batch: 'Batch {n} completed', ev_batch_user: 'Batch counter set: {n}', ev_warn_on: 'Warning: {w}', ev_warn_off: 'Warning cleared: {w}',
+    ev_chem_user: 'Chemical set: {l} l', ev_sludge_user: 'Sludge counter set: {n}', ev_start_power_cut: 'Started after a power cut', ev_start_restart: 'Script restarted',
+    ev_conn: 'Connected to the Shelly', ev_lost: 'Connection lost',
+    info: 'Device', i_script: 'Script', i_fw: 'Shelly', i_up: 'Shelly up', i_clock: 'Clock', i_synced: 'synchronised', i_unsynced: 'not synchronised', i_upd: 'Updated', i_host: 'Address',
+    d_title: 'Settings', d_hint: 'Open this file on a device in the home network. The app connects to the Shelly directly (WebSocket). Opened from an https address, the browser blocks the connection.',
+    d_host: 'Shelly address', d_pw: 'Password (only if the Shelly has one)', d_rem: 'Remember the password on this device', d_lang: 'Language', d_auto: 'Browser language', d_cancel: 'Cancel', d_ok: 'Connect',
+    e_https: 'The page was opened from an https address, so the browser blocks the connection to the Shelly. Open the file from the computer or from an http address.',
+    e_auth: 'The Shelly asks for a password.', e_badpw: 'The password is not accepted.', e_noscript: 'No running Uponor Clean script on the Shelly.', e_eval: 'Could not read the script state: {m}',
+    ago_s: 'just now', foot: 'Uponor Clean app {v} · data straight from the Shelly; the phases are inferred from the power consumption',
+    min: 'min', h: 'h', d: 'd',
+  },
+};
+
+// phase colours (as on the Home Assistant card)
+const PCOL = { pre_aeration: '#7E8894', aeration: '#7E8894', chem_filling: '#E8B21C', dosing: '#E8B21C', mixing: '#A9B0BA', sedimentation_1: '#CDBE94',
+  sludge_removal: '#8B5A2B', sedimentation_2: '#CDBE94', pump_out: '#E04A3F', pump_in: '#2D8CE0', waiting: '#E2DCCD', off: '#9E9E9E', unknown: '#C9C9C9' };
+// phase durations of the control unit firmware (s), board A
+const DUR = {
+  cleaning: { pre_aeration: 600, aeration: 5400, chem_filling: 90, dosing: 10, mixing: 120, sedimentation_1: 2700, sludge_removal: 120, sedimentation_2: 900, pump_out: 780, pump_in: -1020 },
+  waiting: { waiting: 1080, sludge_removal: 60, aeration: 1800, pump_in: -600 },
+  holiday: { aeration: 600, pump_in: -600, sludge_removal: 60 },
+};
+
+// ------------------------------------------------------------------ storage (per viewer conveniences only)
+const store = {
+  get(k) { try { return localStorage.getItem('uc_app_' + k); } catch (e) { return null; } },
+  set(k, v) { try { if (v === null) localStorage.removeItem('uc_app_' + k); else localStorage.setItem('uc_app_' + k, v); } catch (e) { /* private window */ } },
+};
+const qs = new URLSearchParams(location.search);
+let lang = qs.get('lang') || store.get('lang') || 'auto';
+const L = () => (lang === 'fi' || lang === 'en' ? lang : ((navigator.language || 'fi').toLowerCase().startsWith('fi') ? 'fi' : 'en'));
+let T = TX[L()];
+const loc = () => (L() === 'fi' ? 'fi-FI' : 'en-GB');
+const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (m, k) => (o[k] === undefined ? m : o[k]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = (id) => document.getElementById(id);
+const num = (x, d = 0) => (x === null || x === undefined || isNaN(x) ? '–' : Number(x).toLocaleString(loc(), { minimumFractionDigits: d, maximumFractionDigits: d }));
+const hm = (unix) => new Date(unix * 1000).toLocaleTimeString(loc(), { hour: '2-digit', minute: '2-digit' });
+const dayhm = (unix) => {
+  const d = new Date(unix * 1000), n = new Date();
+  const same = d.toDateString() === n.toDateString();
+  const tom = new Date(n.getTime() + 86400e3).toDateString() === d.toDateString();
+  const day = same ? '' : tom ? (L() === 'fi' ? 'huomenna ' : 'tomorrow ') : d.toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) + ' ';
+  return day + hm(unix);
+};
+const date = (unix) => new Date(unix * 1000).toLocaleDateString(loc(), { day: 'numeric', month: 'numeric', year: 'numeric' });
+function dur(s) {
+  s = Math.max(0, Math.round(s));
+  if (s < 60) return s + ' s';
+  const m = Math.round(s / 60);
+  if (m < 60) return m + ' ' + T.min;
+  const h = Math.floor(m / 60), mm = m % 60;
+  if (h < 48) return h + ' ' + T.h + (mm ? ' ' + mm + ' ' + T.min : '');
+  return Math.round(h / 24) + ' ' + T.d;
+}
+
+// ------------------------------------------------------------------ SHA-256 (the page may not be a secure context, so no crypto.subtle)
+const sha256 = (() => {
+  const K = [], H = []; let n = 2, c = 0;
+  const frac = (x) => ((x - Math.floor(x)) * 4294967296) | 0;
+  while (c < 64) {
+    let prime = true; for (let d = 2; d * d <= n; d++) if (n % d === 0) { prime = false; break; }
+    if (prime) { if (c < 8) H[c] = frac(Math.sqrt(n)); K[c] = frac(Math.cbrt(n)); c++; }
+    n++;
+  }
+  const rotr = (x, k) => (x >>> k) | (x << (32 - k));
+  return (str) => {
+    const b = new TextEncoder().encode(str), l = b.length;
+    const words = new Uint32Array(Math.ceil((l + 9) / 64) * 16);
+    for (let i = 0; i < l; i++) words[i >> 2] |= b[i] << (24 - (i & 3) * 8);
+    words[l >> 2] |= 0x80 << (24 - (l & 3) * 8);
+    words[words.length - 1] = (l * 8) >>> 0; words[words.length - 2] = Math.floor(l / 0x20000000);
+    const h = H.slice(), w = new Int32Array(64);
+    for (let j = 0; j < words.length; j += 16) {
+      for (let i = 0; i < 64; i++) {
+        if (i < 16) w[i] = words[j + i];
+        else {
+          const a = w[i - 15], d = w[i - 2];
+          w[i] = (w[i - 16] + (rotr(a, 7) ^ rotr(a, 18) ^ (a >>> 3)) + w[i - 7] + (rotr(d, 17) ^ rotr(d, 19) ^ (d >>> 10))) | 0;
+        }
+      }
+      let [A, B, C, D, E, F, G, X] = h;
+      for (let i = 0; i < 64; i++) {
+        const t1 = (X + (rotr(E, 6) ^ rotr(E, 11) ^ rotr(E, 25)) + ((E & F) ^ (~E & G)) + K[i] + w[i]) | 0;
+        const t2 = ((rotr(A, 2) ^ rotr(A, 13) ^ rotr(A, 22)) + ((A & B) ^ (A & C) ^ (B & C))) | 0;
+        X = G; G = F; F = E; E = (D + t1) | 0; D = C; C = B; B = A; A = (t1 + t2) | 0;
+      }
+      h[0] = (h[0] + A) | 0; h[1] = (h[1] + B) | 0; h[2] = (h[2] + C) | 0; h[3] = (h[3] + D) | 0;
+      h[4] = (h[4] + E) | 0; h[5] = (h[5] + F) | 0; h[6] = (h[6] + G) | 0; h[7] = (h[7] + X) | 0;
+    }
+    return h.map((x) => (x >>> 0).toString(16).padStart(8, '0')).join('');
+  };
+})();
+
+// ------------------------------------------------------------------ Shelly RPC over WebSocket (digest auth when the Shelly has a password)
+const SRC = 'uc-app-' + Math.random().toString(36).slice(2, 8);
+const rpc = {
+  ws: null, id: 0, pend: new Map(), host: null, auth: null, nc: 0, password: null, ha1: null, onNotify: null, onClose: null,
+  open(host) {
+    return new Promise((ok, fail) => {
+      this.host = host; this.auth = null;
+      let ws; try { ws = new WebSocket('ws://' + host + '/rpc'); } catch (e) { fail(e); return; }
+      this.ws = ws;
+      const t = setTimeout(() => { try { ws.close(); } catch (e) { /* closed */ } fail(new Error('timeout')); }, 8000);
+      ws.onopen = () => { clearTimeout(t); ok(); };
+      ws.onerror = () => { clearTimeout(t); fail(new Error('ws error')); };
+      ws.onclose = () => { clearTimeout(t); for (const p of this.pend.values()) p.fail(new Error('closed')); this.pend.clear(); if (this.ws === ws && this.onClose) this.onClose(); };
+      ws.onmessage = (ev) => {
+        let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        if (m.id !== undefined && this.pend.has(m.id)) { const p = this.pend.get(m.id); this.pend.delete(m.id); p.done(m); }
+        else if (m.method && this.onNotify) this.onNotify(m);
+      };
+    });
+  },
+  close() { const ws = this.ws; this.ws = null; if (ws) try { ws.close(); } catch (e) { /* closed */ } },
+  authObj() {
+    if (!this.auth || !this.ha1) return undefined;
+    this.nc++;
+    const nc = this.nc.toString(16).padStart(8, '0'), cnonce = Math.floor(Math.random() * 1e9);
+    const ha2 = sha256('dummy_method:dummy_uri');
+    return { realm: this.auth.realm, username: 'admin', nonce: this.auth.nonce, cnonce, nc, algorithm: 'SHA-256',
+      response: sha256(this.ha1 + ':' + this.auth.nonce + ':' + nc + ':' + cnonce + ':auth:' + ha2) };
+  },
+  send(method, params) {
+    return new Promise((done, fail) => {
+      if (!this.ws || this.ws.readyState !== 1) { fail(new Error('not connected')); return; }
+      const id = ++this.id; const msg = { jsonrpc: '2.0', id, src: SRC, method };
+      if (params) msg.params = params;
+      const a = this.authObj(); if (a) msg.auth = a;
+      const t = setTimeout(() => { if (this.pend.has(id)) { this.pend.delete(id); fail(new Error('timeout ' + method)); } }, 10000);
+      this.pend.set(id, { done: (m) => { clearTimeout(t); done(m); }, fail: (e) => { clearTimeout(t); fail(e); } });
+      this.ws.send(JSON.stringify(msg));
+    });
+  },
+  async call(method, params, retried) {
+    const m = await this.send(method, params);
+    if (!m.error) return m.result;
+    if (m.error.code === 401 && !retried) {
+      let ch = {}; try { ch = JSON.parse(m.error.message); } catch (e) { /* not a challenge */ }
+      const stale = !!(this.auth && ch.stale);
+      this.auth = { realm: ch.realm, nonce: ch.nonce }; this.nc = 0;
+      if (!this.ha1 && this.password) this.ha1 = sha256('admin:' + ch.realm + ':' + this.password);
+      if (!this.ha1) { const e = new Error('auth'); e.code = 401; throw e; }
+      if (stale) this.nc = 0;
+      return this.call(method, params, true);
+    }
+    const e = new Error(m.error.message || 'rpc error'); e.code = m.error.code; throw e;
+  },
+};
+
+// ------------------------------------------------------------------ app state
+const S = {
+  host: null, connected: false, scriptId: null, state: null, stateAt: 0, info: null, power: null, voltage: null, powerAt: 0,
+  hours: Number(store.get('hours')) || 24, recs: new Map(), lastTs: null, histErr: null, histBusy: false, log: [], err: null,
+};
+const urlHost = (qs.get('host') || '').trim();
+S.host = urlHost || store.get('host') || '';
+
+// ------------------------------------------------------------------ rendering
+function setTexts() {
+  T = TX[L()];
+  document.documentElement.lang = L();
+  $('setb').setAttribute('aria-label', T.settings); $('setb').title = T.settings;
+  $('l-now').textContent = T.now;
+  $('tl-power').textContent = T.power; $('tl-batch').textContent = T.batches; $('tl-chem').textContent = T.chemical; $('tl-sludge').textContent = T.sludge;
+  $('c-title').textContent = T.chart; $('r7').textContent = T.d7; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
+  $('d-title').textContent = T.d_title; $('d-hint').textContent = T.d_hint; $('d-host-l').textContent = T.d_host; $('d-pw-l').textContent = T.d_pw;
+  $('d-rem-l').textContent = T.d_rem; $('d-lang-l').textContent = T.d_lang; $('d-lang').options[0].textContent = T.d_auto; $('d-cancel').textContent = T.d_cancel; $('d-ok').textContent = T.d_ok;
+  $('foot').textContent = fmt(T.foot, { v: APP_VERSION });
+  $('plot').setAttribute('aria-label', T.chart);
+}
+
+function setConn(kind, text) {
+  $('cdot').className = 'dot ' + kind;
+  $('ctext').innerHTML = esc(text) + (S.host && kind !== '' ? '<span class="host"> · ' + esc(S.host) + '</span>' : '');
+}
+
+function render() {
+  const st = S.state, now = Date.now() / 1000;
+  document.getElementById('main').classList.toggle('stale', !S.connected && !!st);
+  if (!st) return;
+  // phase
+  const ph = st.phase || 'unknown', cy = st.cycle || 'unknown';
+  $('phase').textContent = T.phase[ph] || ph;
+  $('cycle').textContent = T.cycle[cy] || cy;
+  $('pdot').style.background = PCOL[ph] || PCOL.unknown;
+  const code = $('code'); code.hidden = !st.code; code.textContent = st.code || '';
+  const since = st.since, el = since ? now - since : null;
+  const d = (DUR[cy] || {})[ph];
+  let sub = since ? fmt(T.started, { t: hm(since) }) : '';
+  let frac = 0;
+  if (el !== null && d) {
+    const full = Math.abs(d);
+    frac = Math.min(1, el / full);
+    sub += (sub ? ' · ' : '') + (d > 0 ? fmt(T.of, { a: dur(el), b: dur(full) }) : dur(el) + ' (' + fmt(T.max, { b: dur(full) }) + ')');
+  } else if (el !== null) sub += ' · ' + dur(el);
+  $('pbar').style.width = (frac * 100).toFixed(1) + '%';
+  $('pbar').style.background = PCOL[ph] && ph !== 'waiting' ? PCOL[ph] : 'var(--accent)';
+  $('pbar-w').style.visibility = d ? 'visible' : 'hidden';
+  $('psub').textContent = sub || ' ';
+  // next
+  if (cy === 'cleaning' && st.eta) {
+    $('n-lbl').textContent = T.next_out; $('n-big').textContent = dayhm(st.eta);
+    $('n-sub').textContent = st.eta > now ? fmt(T.in, { d: dur(st.eta - now) }) : ' ';
+  } else if (cy === 'holiday') {
+    $('n-lbl').textContent = T.holiday_t; $('n-big').textContent = T.cycle.holiday.charAt(0).toUpperCase() + T.cycle.holiday.slice(1);
+    $('n-sub').textContent = st.holiday_since ? fmt(T.holiday_since, { t: dayhm(st.holiday_since) }) : ' ';
+  } else if (cy === 'waiting') {
+    $('n-lbl').textContent = T.next_out; $('n-big').textContent = T.waiting_t;
+    $('n-sub').textContent = st.holiday_at ? fmt(T.holiday_at, { t: dayhm(st.holiday_at) }) : T.no_eta;
+  } else { $('n-lbl').textContent = T.next_out; $('n-big').textContent = '–'; $('n-sub').textContent = T.no_eta; }
+  $('n-big').style.fontSize = $('n-big').textContent.length > 12 ? '22px' : '';
+  $('n-last').textContent = st.last_pumpout ? fmt(T.last_out, { t: dayhm(st.last_pumpout), d: dur(now - st.last_pumpout) }) : '';
+  // tiles
+  const pw = S.power !== null && now - S.powerAt < 30 ? S.power : st.power;
+  $('tv-power').innerHTML = num(pw, 1) + '<small>W</small>';
+  $('ts-power').textContent = S.voltage ? fmt(T.voltage, { u: num(S.voltage, 0) }) : ' ';
+  $('tv-batch').textContent = num(st.batches);
+  $('ts-batch').textContent = st.last_pumpout ? fmt(T.last_batch, { t: dayhm(st.last_pumpout) }) : ' ';
+  const ch = st.chemical || {};
+  $('tv-chem').innerHTML = ch.l !== null && ch.l !== undefined ? num(ch.l, 1) + '<small>l</small>' : '–';
+  $('ts-chem').textContent = ch.days !== null && ch.days !== undefined ? fmt(T.lasts, { d: num(Math.floor(ch.days)) }) : (ch.l ? ' ' : T.chem_unset);
+  $('t-chem').classList.toggle('warn-tile', (st.warnings || []).includes('chemical_low'));
+  const sl = st.sludge || {};
+  $('tv-sludge').innerHTML = num(sl.n) + '<small>' + fmt(T.of_limit, { n: num(800) }) + '</small>';
+  $('ts-sludge').textContent = sl.reset ? fmt(T.sludge_reset, { t: date(sl.reset) }) : T.sludge_sub;
+  $('t-sludge').classList.toggle('warn-tile', (st.warnings || []).some((w) => w === 'sludge_due' || w === 'sludge_emptied'));
+  // warnings
+  const ws = st.warnings || [];
+  $('banner').classList.toggle('show', ws.length > 0);
+  $('banner-t').textContent = T.warn_t;
+  $('banner-l').innerHTML = ''; for (const w of ws) { const li = document.createElement('li'); li.textContent = T.warn[w] || w; $('banner-l').appendChild(li); }
+  renderInfo();
+}
+
+function renderInfo() {
+  const st = S.state || {}, info = S.info || {};
+  const rows = [[T.i_host, S.host || '–'], [T.i_script, st.version ? 'v' + st.version + (S.scriptId !== null ? ' (id ' + S.scriptId + ')' : '') : '–'],
+    [T.i_fw, info.ver ? info.ver + (info.app ? ' · ' + info.app : '') : '–'], [T.i_up, st.uptime ? dur(st.uptime) : '–'],
+    [T.i_clock, st.time_synced === undefined ? '–' : st.time_synced ? T.i_synced : T.i_unsynced],
+    [T.i_upd, S.stateAt ? new Date(S.stateAt).toLocaleTimeString(loc()) : '–']];
+  const dl = $('idl'); dl.innerHTML = '';
+  for (const [k, v] of rows) { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); }
+}
+
+// ------------------------------------------------------------------ event log
+function logText(e) {
+  switch (e.type) {
+    case 'phase': return fmt(T.ev_phase, { p: T.phase[e.phase] || e.phase, c: T.cycle[e.cycle] || e.cycle });
+    case 'batch': return fmt(e.user ? T.ev_batch_user : T.ev_batch, { n: num(e.n) });
+    case 'warning': return fmt(e.on ? T.ev_warn_on : T.ev_warn_off, { w: T.warn[e.key] || e.key });
+    case 'chemical': return e.user ? fmt(T.ev_chem_user, { l: num(e.l, 1) }) : null;
+    case 'sludge': return e.user ? fmt(T.ev_sludge_user, { n: num(e.n) }) : null;
+    case 'start': return e.reason === 'power_cut' ? T.ev_start_power_cut : T.ev_start_restart;
+    case '_conn': return T.ev_conn;
+    case '_lost': return T.ev_lost;
+    default: return null;
+  }
+}
+function logColor(e) {
+  if (e.type === 'phase') return PCOL[e.phase] || PCOL.unknown;
+  if (e.type === 'warning') return e.on ? 'var(--warn)' : 'var(--ok)';
+  if (e.type === 'batch') return PCOL.pump_out;
+  if (e.type === '_lost') return 'var(--bad)';
+  return 'var(--muted)';
+}
+function addLog(e) {
+  if (!logText(e)) return;
+  S.log.unshift(e); S.log.sort((x, y) => y.ts - x.ts); if (S.log.length > 200) S.log.length = 200;
+  renderLog();
+}
+function renderLog() {
+  const ol = $('glist'); ol.innerHTML = '';
+  for (const e of S.log.slice(0, 100)) {
+    const li = document.createElement('li');
+    const k = document.createElement('span'); k.className = 'k'; k.style.background = logColor(e);
+    const tm = document.createElement('time'); tm.textContent = dayhm(e.ts);
+    const tx = document.createElement('span'); tx.textContent = logText(e);
+    li.append(tm, k, tx); ol.appendChild(li);
+  }
+  $('gempty').style.display = S.log.length ? 'none' : '';
+}
+
+// ------------------------------------------------------------------ power history (EM1Data: one record a minute)
+const KI = {};   // key indexes of the EM1Data values
+// reads the records from..to (s) page by page
+async function fetchRange(from, to, onPage) {
+  for (let guard = 0; guard < 400 && from <= to; guard++) {
+    const r = await rpc.call('EM1Data.GetData', { id: 0, ts: from, end_ts: to });
+    (r.keys || []).forEach((k, i) => { KI[k] = i; });
+    for (const blk of r.data || []) {
+      blk.values.forEach((v, i) => {
+        const ts = blk.ts + i * blk.period;
+        S.recs.set(ts, { e: v[KI.total_act_energy], mx: v[KI.max_act_power], mn: v[KI.min_act_power], p: blk.period });
+        if (S.lastTs === null || ts > S.lastTs) S.lastTs = ts;
+      });
+    }
+    if (!r.next_record_ts || r.next_record_ts <= from) break;
+    from = r.next_record_ts;
+    if (onPage) onPage();
+  }
+}
+// first the range on screen, then the rest of the 7 days; later only the new minutes
+async function loadHistory(full) {
+  if (!S.connected || S.histBusy) return;
+  S.histBusy = true;
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    if (full || S.lastTs === null) {
+      S.recs.clear(); S.lastTs = null; renderChart();
+      const split = now - Math.min(S.hours, 24) * 3600;
+      await fetchRange(split, now, renderChart);
+      renderChart();
+      await fetchRange(now - 7 * 86400, split - 1, S.hours > 24 ? renderChart : null);
+    } else await fetchRange(S.lastTs + 60, now);
+    const cut = now - 7 * 86400 - 3600;
+    for (const ts of S.recs.keys()) if (ts < cut) S.recs.delete(ts);
+    S.histErr = null;
+  } catch (e) { S.histErr = String(e.message || e); }
+  S.histBusy = false;
+  renderChart();
+}
+
+let chartPts = null;
+function renderChart() {
+  const svg = $('plot'), W = svg.clientWidth || 800, H = svg.clientHeight || 260;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const now = Date.now() / 1000, span = S.hours * 3600, t0 = now - span;
+  const padL = 34, padR = 10, padT = 18, padB = 24, pw = W - padL - padR, ph = H - padT - padB;
+  // buckets: about one per 2 px
+  const nb = Math.max(30, Math.min(S.hours * 60, Math.floor(pw / 2)));
+  const bs = span / nb;
+  const B = [];
+  for (const [ts, r] of S.recs) {
+    if (ts + r.p <= t0 || ts > now) continue;
+    const i = Math.min(nb - 1, Math.max(0, Math.floor((ts - t0) / bs)));
+    const b = B[i] || (B[i] = { e: 0, s: 0, mn: Infinity, mx: -Infinity, t: t0 + (i + 0.5) * bs });
+    b.e += r.e; b.s += r.p; b.mn = Math.min(b.mn, r.mn); b.mx = Math.max(b.mx, r.mx);
+  }
+  let ymax = 70; let eSum = 0, sSum = 0;
+  for (const b of B) if (b) { b.avg = b.e * 3600 / b.s; ymax = Math.max(ymax, b.mx); eSum += b.e; sSum += b.s; }
+  ymax = Math.ceil(ymax / 10) * 10;
+  const x = (t) => padL + (t - t0) / span * pw, y = (w) => padT + ph - w / ymax * ph;
+  let o = '';
+  const step = ymax > 100 ? 25 : 10, lstep = ymax > 100 ? 50 : 20;
+  for (let w = 0; w <= ymax; w += step) {
+    o += `<line class="grid-l" x1="${padL}" x2="${W - padR}" y1="${y(w).toFixed(1)}" y2="${y(w).toFixed(1)}"${w % lstep ? ' stroke-opacity=".45"' : ''}/>`;
+    if (w % lstep === 0) o += `<text x="${padL - 6}" y="${(y(w) + 4).toFixed(1)}" text-anchor="end">${w}</text>`;
+  }
+  o += `<text x="${padL - 6}" y="${padT - 8}" text-anchor="end">W</text>`;
+  // time ticks
+  const tick = S.hours <= 6 ? 3600 : S.hours <= 24 ? 4 * 3600 : 86400;
+  const tz = new Date().getTimezoneOffset() * 60;
+  for (let t = Math.ceil((t0 - tz) / tick) * tick + tz; t <= now; t += tick) {
+    const lab = tick >= 86400 ? new Date(t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) : hm(t);
+    o += `<line class="grid-l" x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${padT}" y2="${padT + ph}" stroke-opacity=".5"/>`;
+    o += `<text x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${lab}</text>`;
+  }
+  // band (min-max) and average line, broken at gaps
+  const segs = []; let cur = [];
+  for (let i = 0; i < nb; i++) { if (B[i]) cur.push(B[i]); else if (cur.length) { segs.push(cur); cur = []; } }
+  if (cur.length) segs.push(cur);
+  for (const s of segs) {
+    const up = s.map((b) => `${x(b.t).toFixed(1)},${y(b.mx).toFixed(1)}`), dn = s.slice().reverse().map((b) => `${x(b.t).toFixed(1)},${y(b.mn).toFixed(1)}`);
+    if (s.length === 1) { const b = s[0]; o += `<rect class="band" x="${(x(b.t) - 1).toFixed(1)}" y="${y(b.mx).toFixed(1)}" width="2" height="${Math.max(1, y(b.mn) - y(b.mx)).toFixed(1)}"/>`; continue; }
+    o += `<polygon class="band" points="${up.join(' ')} ${dn.join(' ')}"/>`;
+    o += `<polyline class="avg" points="${s.map((b) => `${x(b.t).toFixed(1)},${y(b.avg).toFixed(1)}`).join(' ')}"/>`;
+  }
+  // live power at the right edge
+  if (S.connected && S.power !== null && now - S.powerAt < 30) o += `<circle class="now" cx="${x(now).toFixed(1)}" cy="${y(Math.min(S.power, ymax)).toFixed(1)}" r="3.5"/>`;
+  o += `<line class="cross" id="cross" x1="0" x2="0" y1="${padT}" y2="${padT + ph}" visibility="hidden"/>`;
+  if (!B.some(Boolean)) o += `<text x="${(padL + pw / 2).toFixed(0)}" y="${(padT + ph / 2).toFixed(0)}" text-anchor="middle" style="font-size:13px">${esc(S.connected && (S.histBusy || S.lastTs === null) ? T.loading : S.histErr ? S.histErr : T.no_hist)}</text>`;
+  svg.innerHTML = o;
+  chartPts = { B, x, t0, bs, nb, padL, pw, W };
+  $('csum').textContent = sSum > 0 ? fmt(T.sum, { w: num(eSum * 3600 / sSum, 1), e: num(eSum / 1000, 2), d: S.hours > 24 ? fmt(T.per_day, { e: num(eSum / 1000 / (sSum / 86400), 2) }) : '' }) : ' ';
+  for (const b of $('ranges').children) b.classList.toggle('on', Number(b.dataset.h) === S.hours);
+}
+
+function hover(ev) {
+  const P = chartPts, tip = $('tip'), cross = document.getElementById('cross');
+  if (!P || !cross) return;
+  const r = $('plot').getBoundingClientRect();
+  const px = (ev.clientX - r.left) * (P.W / r.width);
+  const i = Math.floor((px - P.padL) / P.pw * P.nb);
+  let b = null; for (let k = 0; k < 4 && !b; k++) b = P.B[i - k] || P.B[i + k];
+  if (!b || px < P.padL) { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); return; }
+  cross.setAttribute('x1', P.x(b.t)); cross.setAttribute('x2', P.x(b.t)); cross.setAttribute('visibility', 'visible');
+  const t = b.t, lab = S.hours > 24 ? new Date(t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) + ' ' + hm(t) : hm(t);
+  tip.textContent = lab + ' · ' + fmt(T.avg, { w: num(b.avg, 1) }) + ' · ' + fmt(T.range, { a: num(b.mn, 0), b: num(b.mx, 0) });
+  tip.style.display = 'block';
+  const wx = (P.x(b.t) / P.W) * r.width;
+  tip.style.left = Math.min(Math.max(0, wx - tip.offsetWidth / 2), r.width - tip.offsetWidth) + 'px';
+  tip.style.top = '4px';
+}
+
+// ------------------------------------------------------------------ connection
+let retry = 0, retryT = null, pollT = null, histT = null, gen = 0;
+async function connect() {
+  clearTimeout(retryT); clearInterval(pollT); clearInterval(histT);
+  rpc.close(); S.connected = false; S.err = null;
+  const my = ++gen;
+  if (!S.host) { setConn('', T.conn_none); openSettings(); return; }
+  if (location.protocol === 'https:') { setConn('bad', T.conn_bad); S.err = T.e_https; openSettings(); return; }
+  setConn('wait', T.conn_wait);
+  rpc.password = sessionPassword; rpc.ha1 = rpc.ha1 || store.get('ha1:' + S.host) || null;
+  try {
+    await rpc.open(S.host);
+    if (my !== gen) return;
+    S.info = await rpc.call('Shelly.GetDeviceInfo');
+    if (S.info && S.info.id && rpc.ha1 === null && sessionPassword) rpc.ha1 = sha256('admin:' + S.info.id + ':' + sessionPassword);
+    const list = await rpc.call('Script.List');
+    const sc = (list.scripts || []).filter((s) => /^uponor[-_ ]?clean/i.test(s.name || '')).sort((a, b) => b.running - a.running)[0];
+    if (!sc || !sc.running) { S.scriptId = sc ? sc.id : null; setConn('bad', T.conn_noscript); S.err = T.e_noscript; renderInfo(); return; }
+    S.scriptId = sc.id;
+    if (rpc.ha1 && document.getElementById('d-rem').checked) store.set('ha1:' + S.host, rpc.ha1);
+    S.connected = true; retry = 0;
+    setConn('ok', T.conn_ok);
+    addLog({ type: '_conn', ts: Date.now() / 1000 });
+    await poll();
+    pollT = setInterval(poll, 3000);
+    loadHistory(true);
+    histT = setInterval(() => loadHistory(false), 60000);
+  } catch (e) {
+    if (my !== gen) return;
+    rpc.close();
+    if (e.code === 401) {
+      setConn('bad', T.conn_auth); S.err = rpc.ha1 ? T.e_badpw : T.e_auth;
+      rpc.ha1 = null; store.set('ha1:' + S.host, null); openSettings(true); return;
+    }
+    setConn('bad', T.conn_bad);
+    scheduleRetry();
+  }
+}
+function scheduleRetry() {
+  clearTimeout(retryT);
+  retry = Math.min(retry + 1, 6);
+  retryT = setTimeout(connect, [0, 2, 4, 8, 15, 30, 30][retry] * 1000);
+}
+rpc.onClose = () => {
+  if (!S.connected) return;
+  S.connected = false; clearInterval(pollT); clearInterval(histT);
+  addLog({ type: '_lost', ts: Date.now() / 1000 });
+  setConn('bad', T.conn_bad); render(); renderChart();
+  scheduleRetry();
+};
+rpc.onNotify = (m) => {
+  if (m.method === 'NotifyEvent') {
+    for (const e of (m.params && m.params.events) || []) {
+      if (e.event !== 'uponor' || !e.data) continue;
+      const d = Object.assign({}, e.data); d.ts = d.ts || e.ts || m.params.ts || Date.now() / 1000;
+      addLog(d);
+      stateDue = true; clearTimeout(rpc.evT); rpc.evT = setTimeout(poll, 300);
+    }
+  } else if (m.method === 'NotifyStatus' && m.params && m.params['em1:0'] && typeof m.params['em1:0'].act_power === 'number') {
+    S.power = m.params['em1:0'].act_power; S.powerAt = Date.now() / 1000;
+    if (typeof m.params['em1:0'].voltage === 'number') S.voltage = m.params['em1:0'].voltage;
+    render();
+  }
+};
+
+// every 3 s: the power (unless the Shelly sent it), every 6 s or after an event: the script state
+let pollBusy = false, pollN = 0, stateDue = true, pollFails = 0;
+async function poll() {
+  if (!S.connected || pollBusy) return;
+  pollBusy = true;
+  try {
+    if (stateDue || pollN % 2 === 0) {
+      stateDue = false;
+      const r = await rpc.call('Script.Eval', { id: S.scriptId, code: 'JSON.stringify(stateObject())' });
+      const s = typeof r.result === 'string' ? JSON.parse(r.result) : r.result;
+      if (s && typeof s === 'object') { S.state = s; S.stateAt = Date.now(); S.err = null; pollFails = 0; }
+    }
+    pollN++;
+    if (Date.now() / 1000 - S.powerAt > 2.5) {
+      const em = await rpc.call('EM1.GetStatus', { id: 0 });
+      if (em && typeof em.act_power === 'number') { S.power = em.act_power; S.voltage = em.voltage; S.powerAt = Date.now() / 1000; }
+    }
+  } catch (e) {
+    if (S.connected) {
+      S.err = fmt(T.e_eval, { m: e.message || e });
+      // a connection that died without closing (e.g. a phone asleep): connect again
+      if (++pollFails >= 3) {
+        pollFails = 0; S.connected = false; clearInterval(pollT); clearInterval(histT); rpc.close();
+        addLog({ type: '_lost', ts: Date.now() / 1000 }); setConn('bad', T.conn_bad); scheduleRetry();
+      }
+    }
+  }
+  pollBusy = false;
+  render();
+  if (pollN % 5 === 0) renderChart();
+}
+
+// ------------------------------------------------------------------ settings dialog
+let sessionPassword = null;
+function openSettings(focusPw) {
+  const d = $('dlg');
+  $('d-host').value = S.host || '';
+  $('d-pw').value = '';
+  $('d-lang').value = lang;
+  $('d-err').textContent = S.err || '';
+  $('d-rem').checked = !!store.get('ha1:' + S.host) || $('d-rem').checked;
+  if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute('open', ''); } }
+  (focusPw ? $('d-pw') : $('d-host')).focus();
+}
+$('setb').addEventListener('click', () => openSettings(false));
+$('d-cancel').addEventListener('click', () => $('dlg').close());
+$('dform').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const h = $('d-host').value.trim().replace(/^(https?|wss?):\/\//, '').replace(/\/.*$/, '');
+  const changed = h !== S.host;
+  S.host = h; store.set('host', h || null);
+  if ($('d-pw').value) { sessionPassword = $('d-pw').value; rpc.ha1 = null; }
+  if (!$('d-rem').checked) store.set('ha1:' + h, null);
+  lang = $('d-lang').value; store.set('lang', lang === 'auto' ? null : lang);
+  setTexts(); renderLog(); render(); renderChart();
+  $('dlg').close();
+  if (changed) { S.state = null; S.recs.clear(); S.lastTs = null; S.log = []; renderLog(); }
+  connect();
+});
+
+// ------------------------------------------------------------------ start
+$('ranges').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; S.hours = Number(b.dataset.h); store.set('hours', String(S.hours)); renderChart(); });
+$('plot').addEventListener('pointermove', hover);
+$('plot').addEventListener('pointerleave', () => { $('tip').style.display = 'none'; const c = document.getElementById('cross'); if (c) c.setAttribute('visibility', 'hidden'); });
+let rzT = null; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(renderChart, 150); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !S.connected && S.host) { retry = 0; connect(); } });
+setInterval(() => { if (S.state) render(); }, 15000);
+setTexts(); renderLog(); renderInfo(); renderChart();
+if (urlHost) store.set('host', urlHost);
+connect();
+window.__ucApp = { S, sha256, rpc };   // for tests
+})();
+</script>
+</body>
+</html>
