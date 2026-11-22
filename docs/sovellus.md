@@ -86,6 +86,8 @@ Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelim
 
 Sovellusta päivitettäessä vanha poistetaan ja uusi tehdään tilalle. **Päivitä Shellyyn** poistaa ensin vanhat `uponor-clean-app-data`-skriptit ja kirjoittaa sitten uudet, joten Shellyssä ei ole kahta versiota yhtä aikaa. Latainsivu `uponor-clean-app` jää paikalleen ja pitää numeronsa, joten sovelluksen osoite ja puhelimen kirjanmerkki eivät muutu.
 
+Jos asennus keskeytyy esimerkiksi yhteyskatkon takia, Shellyyn voi jäädä keskeneräinen sovellus, eikä sen osoite silloin aukea. Paina painiketta uudelleen, niin asennus tehdään alusta. Shellyn tiedostojärjestelmä voi vastata hitaasti heti ison skriptin poiston jälkeen, joten asennus odottaa vastauksia 30 sekuntia.
+
 **Poista Shellystä** asetuksissa (painetaan kahdesti) tai `sovellus_shellyyn.py <ip> --poista` poistaa sovelluksen skriptit. Tunnistusskripti jää paikalleen.
 
 #### Tila ja Shellyn firmware-päivitykset

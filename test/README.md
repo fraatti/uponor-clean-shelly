@@ -93,7 +93,7 @@ node test/app_data_test.js
 node test/app_picture_test.js
 ```
 
-`app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus neljään osaan ja takaisin yhteen, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
+`app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus neljään osaan ja takaisin yhteen, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`), hitaasti vastaava `Script.Create` (`--slow-create`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
 
 ```
 node test/app_install_test.js

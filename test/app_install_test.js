@@ -5,7 +5,8 @@
 // 2. open the address the Shelly now serves: the app loads from the Shelly and connects
 // 3. the served app sees the same version; installing in more parts and back to the usual split works
 // 4. the Python tool removes extra parts; a full file system and three running scripts give errors;
-//    an update fits where only the space of the deleted old app makes room; the Remove button
+//    an update fits where only the space of the deleted old app makes room; the Remove button;
+//    a slow Script.Create (busy file system)
 //    (the mock: detection script 1, at most 3 scripts running, --fs-free sets the free space)
 'use strict';
 const { spawn, execFileSync } = require('child_process');
@@ -118,7 +119,19 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
     check(String(await listScripts(tight)) === 'uponor-clean-v3*', 'removed: ' + (await tight.textContent('#d-inst-s')));
     mock.kill();
 
-    // 4e. three scripts already running
+    // 4e. a slow Script.Create (busy file system): the answer comes after the app's wait, but the
+    //     app finds the new script by its name; with the normal 30 s wait the answer is in time
+    mock = await startMock(8095, ['--fs-free', '300000', '--slow-create', '5000']);
+    const slowp = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8095&lang=fi');
+    const s1 = await slowp.evaluate(async () => { try { const r = await window.__ucApp.installApp({ timeout: 3000 }); return 'ok ' + r.parts; } catch (e) { return 'error ' + e.message; } });
+    check(/^ok /.test(s1), 'Script.Create answers too late, the app finds the script: ' + s1);
+    const s2 = await slowp.evaluate(async () => { try { const r = await window.__ucApp.installApp(); return 'ok ' + r.parts; } catch (e) { return 'error ' + e.message; } });
+    check(/^ok /.test(s2), 'Script.Create answers in 5 s, within the 30 s wait: ' + s2);
+    const slowServed = await openApp(browser, 'http://127.0.0.1:8095/script/' + (await slowp.evaluate(async () => (await window.__ucApp.rpc.call('Script.List')).scripts.find((x) => x.name === 'uponor-clean-app').id)) + '/app');
+    check(await slowServed.evaluate(() => !!window.__ucApp.selfLength), 'the app installed with slow answers loads');
+    mock.kill();
+
+    // 4f. three scripts already running
     mock = await startMock(8093, ['--fs-free', '300000']);
     const busy = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8093&lang=fi');
     await busy.evaluate(async () => {

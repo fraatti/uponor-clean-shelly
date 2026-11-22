@@ -204,7 +204,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.4.1';
+const APP_VERSION = '1.4.2';
 // this page as it was loaded, captured before the script changes anything: the Install button
 // stores it on the Shelly, which then serves it at http://<shelly>/script/<id>/app
 const SELF_HTML = '<!doctype html>\n' + document.documentElement.outerHTML;
@@ -244,7 +244,7 @@ const TX = {
     inst_space: 'Shellyssä ei ole tarpeeksi tilaa: vapaana on {f} kt (vanha sovellus mukaan lukien), sovellus vie {n} kt, ja vähintään {k} kt jätetään vapaaksi Shellyn firmware-päivityksiä varten.',
     inst_start: 'latainsivu ei käynnistynyt ({m}). Shellyssä voi olla käynnissä enintään kolme skriptiä.', inst_verify: 'Shellyltä luettu skripti {n} ei vastaa kirjoitettua',
     inst_rm: 'Poista Shellystä', inst_rm_ok: 'Vahvista poisto', inst_rm_done: 'Sovellus poistettiin Shellystä. Vapaata tilaa on nyt {f} kt.', inst_rm_err: 'Poisto ei onnistunut: {m}',
-    inst_err: 'Asennus ei onnistunut: {m}', inst_nocs: 'Tämä selain ei osaa pakata sovellusta. Käytä Chromea, Edgeä, Firefoxia tai Safaria.',
+    inst_err: 'Asennus ei onnistunut: {m}.', inst_retry: ' Paina painiketta uudelleen.', inst_nocs: 'Tämä selain ei osaa pakata sovellusta. Käytä Chromea, Edgeä, Firefoxia tai Safaria.',
     e_auth: 'Shelly pyytää salasanaa.', e_badpw: 'Salasana ei kelpaa.', e_noscript: 'Shellystä ei löydy käynnissä olevaa Uponor Clean -skriptiä.', e_eval: 'Skriptin tilaa ei saatu: {m}',
     ago_s: 'juuri nyt', foot: 'Uponor Clean -sovellus {v} · tiedot suoraan Shellystä, vaiheet päätellään sähkönkulutuksesta',
     min: 'min', h: 'h', d: 'vrk',
@@ -282,7 +282,7 @@ const TX = {
     inst_space: 'Not enough space on the Shelly: {f} kB is free (counting the old app), the app takes {n} kB, and at least {k} kB is kept free for Shelly firmware updates.',
     inst_start: 'the loader did not start ({m}). At most three scripts can run on the Shelly.', inst_verify: 'script {n} read back from the Shelly differs from what was written',
     inst_rm: 'Remove from the Shelly', inst_rm_ok: 'Confirm removal', inst_rm_done: 'The app was removed from the Shelly. {f} kB is free now.', inst_rm_err: 'Removal failed: {m}',
-    inst_err: 'Installation failed: {m}', inst_nocs: 'This browser cannot pack the app. Use Chrome, Edge, Firefox or Safari.',
+    inst_err: 'Installation failed: {m}.', inst_retry: ' Press the button again.', inst_nocs: 'This browser cannot pack the app. Use Chrome, Edge, Firefox or Safari.',
     e_auth: 'The Shelly asks for a password.', e_badpw: 'The password is not accepted.', e_noscript: 'No running Uponor Clean script on the Shelly.', e_eval: 'Could not read the script state: {m}',
     ago_s: 'just now', foot: 'Uponor Clean app {v} · data straight from the Shelly; the phases are inferred from the power consumption',
     min: 'min', h: 'h', d: 'd',
@@ -399,19 +399,19 @@ const rpc = {
     return { realm: this.auth.realm, username: 'admin', nonce: this.auth.nonce, cnonce, nc, algorithm: 'SHA-256',
       response: sha256(this.ha1 + ':' + this.auth.nonce + ':' + nc + ':' + cnonce + ':auth:' + ha2) };
   },
-  send(method, params) {
+  send(method, params, tmo) {
     return new Promise((done, fail) => {
       if (!this.ws || this.ws.readyState !== 1) { fail(new Error('not connected')); return; }
       const id = ++this.id; const msg = { jsonrpc: '2.0', id, src: SRC, method };
       if (params) msg.params = params;
       const a = this.authObj(); if (a) msg.auth = a;
-      const t = setTimeout(() => { if (this.pend.has(id)) { this.pend.delete(id); fail(new Error('timeout ' + method)); } }, 10000);
+      const t = setTimeout(() => { if (this.pend.has(id)) { this.pend.delete(id); fail(new Error('timeout ' + method)); } }, tmo || 10000);
       this.pend.set(id, { done: (m) => { clearTimeout(t); done(m); }, fail: (e) => { clearTimeout(t); fail(e); } });
       this.ws.send(JSON.stringify(msg));
     });
   },
-  async call(method, params, retried) {
-    const m = await this.send(method, params);
+  async call(method, params, retried, tmo) {
+    const m = await this.send(method, params, tmo);
     if (!m.error) return m.result;
     if (m.error.code === 401 && !retried) {
       let ch = {}; try { ch = JSON.parse(m.error.message); } catch (e) { /* not a challenge */ }
@@ -420,7 +420,7 @@ const rpc = {
       if (!this.ha1 && this.password) this.ha1 = sha256('admin:' + ch.realm + ':' + this.password);
       if (!this.ha1) { const e = new Error('auth'); e.code = 401; throw e; }
       if (stale) this.nc = 0;
-      return this.call(method, params, true);
+      return this.call(method, params, true, tmo);
     }
     const e = new Error(m.error.message || 'rpc error'); e.code = m.error.code; throw e;
   },
@@ -600,7 +600,7 @@ async function loadHistory(full) {
       await fetchRange(split, now, renderChart);
       renderChart();
       if (first) reloadCard();
-      await fetchRange(now - 7 * 86400, split - 1, null);
+      await fetchRange(now - 7 * 86400, split - 1, () => { if (S.hours * 3600 > now - split) renderChart(); });
     } else await fetchRange(S.lastTs + 60, now);
     const cut = now - 7 * 86400 - 3600;
     for (const ts of S.recs.keys()) if (ts < cut) S.recs.delete(ts);
@@ -991,26 +991,39 @@ async function unpackApp(text) {
   const b = Uint8Array.from(atob(text.replace(/\s+/g, '')), (c) => c.charCodeAt(0));
   return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
 }
+// Script management can take a while when the Shelly's file system is busy (e.g. right after
+// deleting a large script), so these calls wait 30 s instead of the usual 10 s.
+let SLOW = 30000;
+const slow = (method, params) => rpc.call(method, params, false, SLOW);
+// a slow answer can come too late although the script was made: look for it by name
+async function createScript(name) {
+  try { return (await slow('Script.Create', { name })).id; }
+  catch (e) {
+    const s = ((await slow('Script.List')).scripts || []).find((x) => x.name === name);
+    if (s) return s.id;
+    throw e;
+  }
+}
 async function readCode(id) {
   let d = '', o = 0;
   for (let g = 0; g < 400; g++) {
-    const r = await rpc.call('Script.GetCode', { id, offset: o, len: 2048 });
+    const r = await slow('Script.GetCode', { id, offset: o, len: 2048 });
     const s = r.data || ''; d += s; o += new TextEncoder().encode(s).length;
     if (!r.left || !s) break;
   }
   return d;
 }
 async function codeSize(id) {
-  const r = await rpc.call('Script.GetCode', { id, offset: 0, len: 1 });
+  const r = await slow('Script.GetCode', { id, offset: 0, len: 1 });
   return new TextEncoder().encode(r.data || '').length + (r.left || 0);
 }
 async function putCode(id, code, tick) {
   const n = Math.max(1, Math.ceil(code.length / 1024));
-  for (let i = 0; i < n; i++) { await rpc.call('Script.PutCode', { id, code: code.slice(i * 1024, (i + 1) * 1024), append: i > 0 }); tick(); }
+  for (let i = 0; i < n; i++) { await slow('Script.PutCode', { id, code: code.slice(i * 1024, (i + 1) * 1024), append: i > 0 }); tick(); }
   if ((await readCode(id)) !== code) throw new Error(fmt(T.inst_verify, { n: id }));
 }
 async function shellyApp() {
-  const list = (await rpc.call('Script.List')).scripts || [];
+  const list = (await slow('Script.List')).scripts || [];
   const parts = list.filter((s) => /^uponor-clean-app-data\d*$/.test(s.name || '')).sort((a, b) => partNo(a.name) - partNo(b.name));
   return { list, parts, loader: list.find((s) => s.name === NAME_LOADER) };
 }
@@ -1020,6 +1033,7 @@ async function shellyApp() {
 // script number, so the app address stays the same.
 async function installApp(opts) {
   opts = opts || {};
+  SLOW = opts.timeout || 30000;   // opts.timeout only for tests
   const say = opts.progress || (() => {});
   const parts = await packApp(SELF_HTML, opts.partMax || PART_MAX);
   const total = parts.reduce((a, p) => a + p.length, 0) + LOADER_JS.length;
@@ -1027,30 +1041,30 @@ async function installApp(opts) {
   let oldBytes = 0;
   for (const s of old) oldBytes += await codeSize(s.id);
   if (loader) oldBytes += await codeSize(loader.id);
-  const sys = await rpc.call('Sys.GetStatus');
+  const sys = await slow('Sys.GetStatus');
   if (typeof sys.fs_free === 'number' && sys.fs_free + oldBytes - total < FS_KEEP) {
-    throw new Error(fmt(T.inst_space, { f: kb(sys.fs_free + oldBytes), n: kb(total), k: kb(FS_KEEP) }));
+    throw Object.assign(new Error(fmt(T.inst_space, { f: kb(sys.fs_free + oldBytes), n: kb(total), k: kb(FS_KEEP) })), { noRetry: true });
   }
   const steps = parts.reduce((a, p) => a + Math.ceil(p.length / 1024), 0) + Math.ceil(LOADER_JS.length / 1024);
   let done = 0; const tick = () => say(Math.min(99, Math.round(++done / steps * 100)));
   for (const s of old) {
-    if (s.running) await rpc.call('Script.Stop', { id: s.id });
-    await rpc.call('Script.Delete', { id: s.id });
+    if (s.running) await slow('Script.Stop', { id: s.id });
+    await slow('Script.Delete', { id: s.id });
   }
   for (let i = 0; i < parts.length; i++) {
-    const { id } = await rpc.call('Script.Create', { name: partName(i) });
-    await rpc.call('Script.SetConfig', { id, config: { enable: false } });
+    const id = await createScript(partName(i));
+    await slow('Script.SetConfig', { id, config: { enable: false } });
     await putCode(id, parts[i], tick);
   }
-  const lid = loader ? loader.id : (await rpc.call('Script.Create', { name: NAME_LOADER })).id;
+  const lid = loader ? loader.id : await createScript(NAME_LOADER);
   if (!(loader && loader.running && (await readCode(lid)) === LOADER_JS)) {
-    if (loader && loader.running) await rpc.call('Script.Stop', { id: lid });
+    if (loader && loader.running) await slow('Script.Stop', { id: lid });
     await putCode(lid, LOADER_JS, tick);
-    await rpc.call('Script.SetConfig', { id: lid, config: { enable: true } });
-    try { await rpc.call('Script.Start', { id: lid }); } catch (e) { throw new Error(fmt(T.inst_start, { m: e.message || e })); }
-  } else await rpc.call('Script.SetConfig', { id: lid, config: { enable: true } });
+    await slow('Script.SetConfig', { id: lid, config: { enable: true } });
+    try { await slow('Script.Start', { id: lid }); } catch (e) { throw Object.assign(new Error(fmt(T.inst_start, { m: e.message || e })), { noRetry: true }); }
+  } else await slow('Script.SetConfig', { id: lid, config: { enable: true } });
   say(100);
-  const after = await rpc.call('Sys.GetStatus');
+  const after = await slow('Sys.GetStatus');
   return { url: 'http://' + S.host + '/script/' + lid + '/app', size: total, free: after.fs_free, parts: parts.length };
 }
 
@@ -1058,10 +1072,10 @@ async function installApp(opts) {
 async function removeApp() {
   const { parts, loader } = await shellyApp();
   for (const s of loader ? parts.concat([loader]) : parts) {
-    if (s.running) await rpc.call('Script.Stop', { id: s.id });
-    await rpc.call('Script.Delete', { id: s.id });
+    if (s.running) await slow('Script.Stop', { id: s.id });
+    await slow('Script.Delete', { id: s.id });
   }
-  return (await rpc.call('Sys.GetStatus')).fs_free;
+  return (await slow('Sys.GetStatus')).fs_free;
 }
 
 // shows in the settings what the Shelly has
@@ -1081,7 +1095,7 @@ async function checkInst() {
       st.innerHTML = fmt(v === APP_VERSION ? T.inst_same : T.inst_have, { v: esc(v), url: link(url) }) + (loader.running ? '' : ' ' + esc(T.inst_stopped));
       b.textContent = v === APP_VERSION && loader.running ? T.inst_again : fmt(T.inst_upd, { v: APP_VERSION });
     }
-  } catch (e) { st.textContent = fmt(T.inst_err, { m: e.message || e }); }
+  } catch (e) { st.textContent = fmt(T.inst_err, { m: String(e.message || e).replace(/\.$/, '') }); }
   b.disabled = false;
 }
 $('d-inst-b').addEventListener('click', async () => {
@@ -1093,7 +1107,7 @@ $('d-inst-b').addEventListener('click', async () => {
     const r = await installApp({ progress: (p) => { st.textContent = fmt(T.inst_busy, { p }); } });
     st.innerHTML = fmt(T.inst_done, { url: link(r.url), n: kb(r.size), f: kb(r.free) });
     b.textContent = T.inst_again; x.hidden = false;
-  } catch (e) { st.textContent = fmt(T.inst_err, { m: e.message || e }); }
+  } catch (e) { st.textContent = fmt(T.inst_err, { m: String(e.message || e).replace(/\.$/, '') }) + (e.noRetry ? '' : T.inst_retry); }
   b.disabled = false; x.disabled = false; $('d-ok').disabled = false; instBusy = false;
 });
 // removal needs a second press within 5 s (no browser dialogs)

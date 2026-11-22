@@ -72,11 +72,29 @@ def packed_parts():
     return parts, n_html
 
 
-def find_or_create(sh, name):
+def find_script(sh, name):
     for s in sh.call('Script.List', {}).get('scripts', []):
         if s.get('name') == name:
-            return s['id'], False
-    return sh.call('Script.Create', {'name': name})['id'], True
+            return s['id']
+    return None
+
+
+def create_script(sh, name):
+    """Script.Create; a slow answer can come too late although the script was made."""
+    try:
+        return sh.call('Script.Create', {'name': name})['id']
+    except (OSError, TimeoutError):
+        sid = find_script(sh, name)
+        if sid is None:
+            raise
+        return sid
+
+
+def find_or_create(sh, name):
+    sid = find_script(sh, name)
+    if sid is not None:
+        return sid, False
+    return create_script(sh, name), True
 
 
 def code_size(sh, sid):
@@ -136,6 +154,7 @@ def main():
     if not a.host:
         ap.error('anna Shellyn osoite tai --tiedosto')
     sh = Shelly(a.host, a.salasana)
+    sh.timeout = 40   # script changes can take a while when the file system is busy
     if a.poista:
         parts_old, loader_old = app_scripts(sh)
         for s in parts_old + ([loader_old] if loader_old else []):
@@ -156,7 +175,7 @@ def main():
     for s in parts_old:
         stop_delete(sh, s)
     for i, part in enumerate(parts):
-        sid = sh.call('Script.Create', {'name': part_name(i)})['id']
+        sid = create_script(sh, part_name(i))
         print('%s: skripti %d, %d merkkia' % (part_name(i), sid, len(part)))
         sh.call('Script.SetConfig', {'id': sid, 'config': {'enable': False}})
         put_code(sh, sid, part)

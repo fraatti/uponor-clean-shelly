@@ -3,7 +3,7 @@
 // full speed, then in real time. Answers the RPC calls the app makes over ws://host:port/rpc and
 // sends the script's "uponor" events as NotifyEvent. No dependencies.
 //
-// Usage: node shelly_ws_mock.js [--port 8098] [--days 7] [--seed 3] [--password secret] [--fs-free 190000]
+// Usage: node shelly_ws_mock.js [--port 8098] [--days 7] [--seed 3] [--password secret] [--fs-free 190000] [--slow-create ms]
 //        then open app/uponor-clean-app.html?host=127.0.0.1:8098
 //        (the mock also serves the app at http://127.0.0.1:8098/app)
 'use strict';
@@ -19,7 +19,8 @@ const PORT = Number(arg('port', 8098));
 const DAYS = Number(arg('days', 7));
 const SEED = Number(arg('seed', 3));
 const PASSWORD = arg('password', null);
-const FS_FREE0 = Number(arg('fs-free', 190000));   // free file system space before the extra scripts (bytes)
+const FS_FREE0 = Number(arg('fs-free', 190000));
+const SLOW_CREATE = Number(arg('slow-create', 0));   // ms: Script.Create answers this late (a busy file system)   // free file system space before the extra scripts (bytes)
 const REALM = 'shellyemminig4-mock';
 const APP = path.join(__dirname, '..', 'app', 'uponor-clean-app.html');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -159,7 +160,9 @@ function onFrame(c, text) {
   const reply = (o) => wsSend(c.sock, Object.assign({ id: m.id, src: REALM, dst: m.src }, o));
   if (m.method !== 'Shelly.GetDeviceInfo' && !authOk(m.auth)) { c.authed = false; return reply({ error: challenge() }); }
   c.authed = true;
-  try { reply({ result: call(m.method, m.params) }); } catch (e) { reply({ error: e && e.code ? e : { code: -1, message: String(e) } }); }
+  let out;
+  try { out = { result: call(m.method, m.params) }; } catch (e) { out = { error: e && e.code ? e : { code: -1, message: String(e) } }; }
+  if (m.method === 'Script.Create' && SLOW_CREATE > 0) setTimeout(() => reply(out), SLOW_CREATE); else reply(out);
 }
 function attach(sock) {
   const c = { sock, buf: Buffer.alloc(0), src: null, authed: !PASSWORD };

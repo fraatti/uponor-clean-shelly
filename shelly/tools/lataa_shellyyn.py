@@ -30,6 +30,7 @@ class Shelly:
         self.challenge = None
         self.nc = 0
         self.req_id = 0
+        self.timeout = 15   # s; a busy file system can answer slowly
 
     def _auth_header(self):
         c = self.challenge
@@ -52,7 +53,7 @@ class Shelly:
             if self.challenge and self.password:
                 req.add_header('Authorization', self._auth_header())
             try:
-                with urllib.request.urlopen(req, timeout=15) as r:
+                with urllib.request.urlopen(req, timeout=self.timeout) as r:
                     data = json.loads(r.read().decode())
             except urllib.error.HTTPError as e:
                 if e.code == 401:

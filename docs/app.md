@@ -86,6 +86,8 @@ After that the app opens on any device in the home network, a phone too, at `htt
 
 An update deletes the old app and puts the new one in its place. **Update the Shelly** first deletes the old `uponor-clean-app-data` scripts and then writes the new ones, so the Shelly never holds two versions at once. The loader `uponor-clean-app` stays and keeps its number, so the app address and the bookmark on the phone do not change.
 
+If the installation stops, for example because the connection breaks, the Shelly can be left with an unfinished app whose address does not open. Press the button again and the installation starts over. The Shelly's file system can answer slowly right after a large script is deleted, so the installation waits 30 seconds for the answers.
+
 **Remove from the Shelly** in the settings (press twice) or `sovellus_shellyyn.py <ip> --poista` removes the app scripts. The detection script stays.
 
 #### Space and Shelly firmware updates
