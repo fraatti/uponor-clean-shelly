@@ -87,16 +87,22 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 node test/app_data_test.js
 ```
 
-`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
+`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, minuuttitehoista päätellyt vaiheet ja panokset (uudessa selaimessa aikajana kattaa koko tehohistorian, ja panoksia on yhtä monta kuin skripti laski), selaimen yhteysaikojen etusija päätellyn edellä, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
 
 ```
 node test/app_picture_test.js
 ```
 
-`app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus neljään osaan ja takaisin yhteen, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`), hitaasti vastaava `Script.Create` (`--slow-create`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
+`app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus useaan osaan ja takaisin tavalliseen jakoon, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`), hitaasti vastaava `Script.Create` (`--slow-create`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
 
 ```
 node test/app_install_test.js
+```
+
+`history_from_power_test.js` vertaa sovelluksen vaiheiden päättelyä (`app/history_from_power.js`) simulaattorin oikeisiin vaiheisiin neljässä tilanteessa: tavallinen käyttö, vilkas käyttö, loma-ohjelma sekä sähkökatko ja tukkeutunut poistoputki. Minuuttitiedot tehdään kuten Shellyn EM1Data (`em1_minutes.js`: pienin ja suurin teho, energia 0,2072 Wh:n askelin, 237 V). Vaatimus: vaihe ja jakso oikein vähintään 95 % ajasta ja ulospumppauksia yhtä monta. Tulos nyt: vaihe 99,2–99,5 %, jakso 99,8–100 %.
+
+```
+node test/history_from_power_test.js --verbose
 ```
 
 ## Kortti

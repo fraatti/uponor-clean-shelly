@@ -52,6 +52,32 @@ const cardInfo = (page) => page.evaluate(() => {
     check(i.power > 2000, 'power history from EM1Data: ' + i.power + ' points');
     check(/kWh\/vrk/.test(i.kv), 'energy per day from the energy meter: ' + (i.kv.match(/[\d,]+ kWh\/vrk/) || [''])[0]);
 
+    // a new browser: the past phases come from the minute power, the batches from their pump-outs
+    await page.waitForFunction(() => { const m = document.querySelector('uponor-clean-card')._model; return m.status.length > 50 && m.stats && m.stats.count7 > 0; }, null, { timeout: 30000 }).catch(() => {});
+    const past = await page.evaluate(() => {
+      const m = document.querySelector('uponor-clean-card')._model, now = Date.now();
+      const kinds = new Set(m.status.map((e) => e.v));
+      return { n: m.status.length, hours: (now - m.status[0].t) / 3600e3, kinds: [...kinds].sort().join(','), count7: m.stats.count7, perDay: m.stats.perDay,
+        counted: window.__ucApp.S.state.batches - 240, seen: JSON.parse(localStorage.getItem('uc_app_hist:127.0.0.1:8089') || '{}').seen };
+    });
+    check(past.n > 50 && past.hours > 40, 'timeline from the minute power: ' + past.n + ' phases over ' + past.hours.toFixed(0) + ' h');
+    check(['aeration', 'pump_in', 'pump_out', 'sedimentation_1', 'waiting'].every((k) => past.kinds.split(',').includes(k)), 'phases read: ' + past.kinds);
+    check(past.count7 > 0 && Math.abs(past.count7 - past.counted) <= 1, 'batches in 7 days ' + past.count7 + ' (the script counted ' + past.counted + ' since its start), ' + (past.perDay || 0).toFixed(1) + '/day');
+    // what this browser saw while connected goes before the minute power; outside, the power is used
+    const mg = await page.evaluate(() => {
+      const { H } = window.__ucApp.hist(), now = Date.now(), at = (a, t) => { let r = null; for (const e of a) if (e[0] <= t) r = e[1]; return r; };
+      const s0 = H.seen.slice(), p0 = H.s.phase.slice();
+      H.seen.unshift([now - 30 * 3600e3, now - 29 * 3600e3]);
+      H.s.phase.unshift([now - 30.2 * 3600e3, 'mixing']);
+      const v = window.__ucApp.hist().view;
+      const r = { inSpan: at(v.phase, now - 29.5 * 3600e3), before: at(v.phase, now - 30.5 * 3600e3), nowPh: at(v.phase, now), state: window.__ucApp.S.state.phase,
+        lastBatch: v.batch_counter[v.batch_counter.length - 1][1], batches: String(window.__ucApp.S.state.batches) };
+      H.seen.splice(0, H.seen.length, ...s0); H.s.phase.splice(0, H.s.phase.length, ...p0);
+      return r;
+    });
+    check(mg.inSpan === 'mixing' && mg.before !== 'mixing', 'seen span wins over the power reading: ' + mg.before + ' -> ' + mg.inSpan);
+    check(mg.nowPh === mg.state && mg.lastBatch === mg.batches, 'now: phase ' + mg.nowPh + ', batch counter ' + mg.lastBatch + ' = script');
+
     // observed phases are kept in the browser
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('uc_app_hist:127.0.0.1:8089') || '{}'));
     await page.waitForTimeout(3500);

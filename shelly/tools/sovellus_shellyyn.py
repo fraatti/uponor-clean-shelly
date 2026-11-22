@@ -10,7 +10,7 @@ Kaytto:
 Asentaa skriptit (luo ne, jos niita ei ole, muuten paivittaa):
   uponor-clean-app       pieni latainsivu (app/uponor_clean_app_loader.js), kaynnistyy aina kun Shelly kaynnistyy
   uponor-clean-app-data  sovellus (app/uponor-clean-app.html) gzip-pakattuna ja base64-koodattuna;
-                         tama on pelkka varasto eika sita koskaan kaynnisteta. Yli 45 000 merkin
+                         tama on pelkka varasto eika sita koskaan kaynnisteta. Yli 48 000 merkin
                          sovellus jatkuu skripteissa uponor-clean-app-data2, -data3 jne.
 
 Paivityksessa vanhat data-skriptit poistetaan ensin ja uudet tehdaan tilalle. Latainsivu pitaa
@@ -38,7 +38,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 APP = os.path.join(ROOT, 'app', 'uponor-clean-app.html')
 LOADER = os.path.join(ROOT, 'app', 'uponor_clean_app_loader.js')
 EDITOR_MAX = 50000  # Shellyn web-kayttoliittyman editori katkaisee pidemman liitoksen
-PART_MAX = 45000    # merkkia yhteen varastoskriptiin (sama kuin sovelluksessa)
+PART_MAX = 48000    # merkkia yhteen varastoskriptiin (sama kuin sovelluksessa)
 FS_KEEP = 102400    # tavua Shellyn tiedostojarjestelmasta jatetaan vapaaksi firmware-paivityksia varten
 NAME_LOADER = 'uponor-clean-app'
 NAME_DATA = 'uponor-clean-app-data'

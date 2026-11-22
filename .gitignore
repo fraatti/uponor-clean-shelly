@@ -26,3 +26,5 @@ test/*.js
 !test/app_data_test.js
 !test/app_install_test.js
 !test/app_picture_test.js
+!test/history_from_power_test.js
+!test/em1_minutes.js

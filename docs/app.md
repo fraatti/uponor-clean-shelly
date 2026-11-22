@@ -19,7 +19,13 @@ The Picture view is the same drawing as on the Home Assistant card ([card guide]
 
 The chemical amount and the sludge counter can be entered from the pencil icon. The app writes them straight to the Shelly script.
 
-Power and energy come from the minute history the Shelly stores (about 7 days). The Shelly does not store the phases, batches or warnings. So the phases on the timeline, the logbook and the batches per day build up from when the app has been open. The browser remembers them for 8 days, but only in the same browser. When the app is opened for the first time, the timeline shows only the current phase.
+Power and energy come from the minute history the Shelly stores (about 7 days). The Shelly does not store the phases or the batches, so the app works out the past phases from the minute power (see [Past phases](#past-phases)). The timeline, the batches per day and the level estimate show the past week at once, on any device. While the app is open, it uses the script's own phase, and the browser remembers it for 8 days. Warnings and the logbook build up only while the app is open.
+
+### Past phases
+
+The plant's control unit runs its phases always in the same order and with the same durations, and each phase has its own power level (aeration about 57 W, the compressor about 43 W, the chemical pump about 16 W, idle about 4 W). The app classifies the power level of each minute from the minute's minimum and maximum power and reads the sequence of levels as the control unit's phase order. The cleaning cycle is fitted backwards from the pump-out, because its durations are exact.
+
+Accuracy on the test device: against the script's phases recorded by Home Assistant over 84 hours, the phase was right 98.3 % of the time and the cycle (waiting, cleaning, holiday) 99.9 % of the time, and all 6 pump-outs were found. In the simulator the phase was right 99.2–99.5 % of the time. The short phases are the least exact: dosing (10 s) and sludge return (1–2 min) fit in one minute. The batches are counted from the pump-outs as in the script, and the counter ends at the script's current count.
 
 ## Details
 
@@ -46,7 +52,7 @@ The app connects to the Shelly in the home network. The easiest way is to let th
 Two scripts go on the Shelly:
 
 - `uponor-clean-app` is a small loader page. It starts with the Shelly and uses about 2 kB of memory (peak under 4 kB).
-- `uponor-clean-app-data` and `uponor-clean-app-data2` are the app itself, packed (about 86,000 characters in all, at most 45,000 per script). They are never started; they are only storage. If the app grows, it continues in the scripts `-data3` and so on.
+- `uponor-clean-app-data` and `uponor-clean-app-data2` are the app itself, packed (about 91,000 characters in all, at most 48,000 per script). They are never started; they are only storage. If the app grows, it continues in the scripts `-data3` and so on.
 
 The easiest way is to let the app make the scripts itself. They can also be made in the Shelly web UI or with the Python tool. No way touches the detection script. The names must be exactly these, because the loader finds the app by its name and the app tells the detection script apart by name.
 
@@ -63,7 +69,7 @@ A new version is installed the same way: open it on the computer and press **Upd
 #### In the web UI
 
 1. Open the Shelly web UI (`http://<shelly-ip>/`), open **Scripts** and choose **Create script**. Name it `uponor-clean-app-data`.
-2. On GitHub, open `app/uponor-clean-app-data.txt`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C), paste it into the editor and save (disk icon). The file is at most 45,000 characters, so it fits the editor (at most 50,000 characters). Make the script `uponor-clean-app-data2` the same way from `uponor-clean-app-data2.txt` (and `-data3` and so on, if there are any). **Do not start this script and do not turn on Run on startup for it**: it is packed data, not program code.
+2. On GitHub, open `app/uponor-clean-app-data.txt`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C), paste it into the editor and save (disk icon). The file is at most 48,000 characters, so it fits the editor (at most 50,000 characters). Make the script `uponor-clean-app-data2` the same way from `uponor-clean-app-data2.txt` (and `-data3` and so on, if there are any). **Do not start this script and do not turn on Run on startup for it**: it is packed data, not program code.
 3. Go back to **Scripts**, choose **Create script** and name it `uponor-clean-app`.
 4. Paste the content of `app/uponor_clean_app_loader.js` into the editor the same way, save and start (**Start**). The console shows the line `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Go back to **Scripts** and turn on **Run on startup** for `uponor-clean-app`.
@@ -138,9 +144,11 @@ When the Shelly serves the app, the loader page reads the packed app from the sa
 
 The Picture view is the Home Assistant card `ha-card/uponor-clean-card.js` as it is. `app/tools/build_app.js` puts it into the app (minified if terser is installed: `npm install --no-save terser@5.31.6`) and makes the packed files again. The app gives the card a small stand-in for Home Assistant: the script state as entities, their history from the browser's memory, the power history and the energy meter from the Shelly, and `number.set_value` as the Shelly `Number.Set` call on the script's components.
 
+The past phases are worked out by `app/history_from_power.js`, which `build_app.js` puts into the app in the same way. The browser remembers when it was connected to the Shelly: it shows those times as the script's phases and the other times as read from the minute power. The batch counter's history is counted from the pump-outs of the joined phase series (at least 700 s, the batch 780 s from the start of the pump-out).
+
 **Install on the Shelly** stores the page as the browser loaded it (`document.documentElement.outerHTML` before the script changes the page), packs it in the browser (gzip and base64, 76-character lines) and writes it over the WebSocket with `Script.PutCode` calls in 1,024-character pieces. The loader code is inside the app, the same as in `app/uponor_clean_app_loader.js`.
 
-The app does not show the phase history, because the Shelly does not store it. The event log starts when the app is opened.
+The event log starts when the app is opened: the Shelly does not store the script's events.
 
 ## Testing without the device
 
@@ -161,6 +169,8 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 # open http://127.0.0.1:8098/script/<id>/app
 ```
 
-`test/app_picture_test.js` tries the Picture view: the card, the phase, the power history, the energy, the history kept in the browser, entering the chemical and the sludge counter, and the language change.
+`test/app_picture_test.js` tries the Picture view: the card, the phase, the power history, the energy, the phases and batches worked out from the minute power, the history kept in the browser, entering the chemical and the sludge counter, and the language change.
+
+`test/history_from_power_test.js` compares the phases worked out from the minute power with the simulator's true phases in four situations (normal use, busy use, the holiday programme, a power cut and a blocked outlet). The minute records are made as in the Shelly (`test/em1_minutes.js`: minimum and maximum power, energy in steps of 0.2072 Wh, 237 V).
 
 `test/app_install_test.js` tries the Install on the Shelly button against the mock with Playwright: installing from a file, opening the app served by the Shelly, installing in several parts, the Python tool, too little space and three running scripts.
