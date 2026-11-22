@@ -73,7 +73,7 @@ An update deletes the old app and puts the new one in its place. **Update the Sh
 
 #### Space and Shelly firmware updates
 
-The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app about 175 kB is free.
+The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app (1.3.0) about 170 kB is free.
 
 Shelly does not say how much free space a firmware update needs. The firmware of the ESP32-based Shellys is based on Mongoose OS (which is why e.g. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) works through its update mechanism); for Gen4 this has not been confirmed. According to the Mongoose OS [guide](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md), an update writes the new firmware and its file system to a separate partition and moves the user's files, such as scripts, there. If a step fails, the update is aborted and the old firmware stays in use. So the user's files must fit in the new firmware's file system.
 

@@ -73,7 +73,7 @@ Sovellusta päivitettäessä vanha poistetaan ja uusi tehdään tilalle. **Päiv
 
 #### Tila ja Shellyn firmware-päivitykset
 
-Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen kanssa vapaata on noin 175 kt.
+Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen (1.3.0) kanssa vapaata on noin 170 kt.
 
 Shelly ei kerro, paljonko vapaata tilaa firmware-päivitys tarvitsee. Shellyn ESP32-laitteiden firmware perustuu Mongoose OS:ään (siksi esim. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) toimii sen päivitysmekanismilla); Gen4:n osalta tätä ei ole varmistettu. Mongoose OS:n [ohjeen](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md) mukaan päivitys kirjoittaa uuden firmwaren ja sen tiedostojärjestelmän erilliseen osioon ja siirtää sinne käyttäjän tiedostot, kuten skriptit. Jos jokin vaihe epäonnistuu, päivitys keskeytyy ja vanha firmware jää käyttöön. Käyttäjän tiedostojen pitää siis mahtua uuden firmwaren tiedostojärjestelmään.
 
