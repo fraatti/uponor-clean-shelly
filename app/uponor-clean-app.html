@@ -205,7 +205,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 // this page as it was loaded, captured before the script changes anything: the Install button
 // stores it on the Shelly, which then serves it at http://<shelly>/script/<id>/app
 const SELF_HTML = '<!doctype html>\n' + document.documentElement.outerHTML;
@@ -720,6 +720,9 @@ async function connect() {
     if (H.host !== S.host) histLoad();
     // the keys of the script's components (for entering the chemical and the sludge from the picture)
     try { S.vc = JSON.parse((await rpc.call('KVS.Get', { key: 'uc_vc' })).value); } catch (e) { S.vc = null; }
+    // the chemical per dose, if the script's settings change it (for the chemical history)
+    S.doseL = 0.04;
+    try { const c = JSON.parse((await rpc.call('KVS.Get', { key: 'uc_cfg' })).value); if (c && c.dose_l > 0) S.doseL = c.dose_l; } catch (e) { /* default */ }
     setConn('ok', T.conn_ok);
     addLog({ type: '_conn', ts: Date.now() / 1000 });
     await poll();
@@ -774,7 +777,7 @@ async function poll() {
       stateDue = false;
       const r = await rpc.call('Script.Eval', { id: S.scriptId, code: 'JSON.stringify(stateObject())' });
       const s = typeof r.result === 'string' ? JSON.parse(r.result) : r.result;
-      if (s && typeof s === 'object') { S.state = s; S.stateAt = Date.now(); S.err = null; pollFails = 0; histFromState(s); histSeen(); }
+      if (s && typeof s === 'object') { S.state = s; S.stateAt = Date.now(); S.err = null; pollFails = 0; histFromState(s); histSeen(s); }
     }
     pollN++;
     if (Date.now() / 1000 - S.powerAt > 2.5) {
@@ -824,11 +827,19 @@ function histSave() {
   histSaveT = setTimeout(() => { try { localStorage.setItem('uc_app_hist:' + H.host, JSON.stringify({ s: H.s, seen: H.seen })); } catch (e) { /* full or private */ } }, 3000);
 }
 // after each state read: the connected span goes on (a break of over 2 minutes starts a new one)
-function histSeen() {
+// [start, end, first read]: a new span starts where the script's current phase began (nothing has
+// changed since), but not before the previous span
+function histSeen(s) {
   const now = Date.now(), a = H.seen, l = a[a.length - 1];
-  if (l && now - l[1] < 120e3 && now >= l[1]) l[1] = now; else a.push([now, now]);
+  if (l && now - l[1] < 120e3 && now >= l[1]) l[1] = now;
+  else {
+    let st = s && s.since > 0 ? s.since * 1000 : now;
+    if (!(st <= now)) st = now;
+    if (l) st = Math.max(st, l[1]);
+    a.push([st, now, now]);
+  }
   while (a.length > 1 && a[0][1] < now - HKEEP) a.shift();
-  if (now - seenSaved > 60e3 || a[a.length - 1][0] === now) { seenSaved = now; histSave(); }
+  if (now - seenSaved > 60e3 || a[a.length - 1][2] === now) { seenSaved = now; histSave(); }
 }
 // adds a value with its time (ms) unless the series already has it
 function histPut(k, t, v) {
@@ -885,51 +896,82 @@ function entryAt(a, t) {
   while (lo <= hi) { const m = (lo + hi) >> 1; if (a[m][0] <= t) { r = m; lo = m + 1; } else hi = m - 1; }
   return r >= 0 ? a[r] : null;
 }
-// A series as observed while connected and read from the power for the rest of the time it covers.
-// A span starts when its first value began (the phase's own start), not later than the span itself.
-function mergeSeries(obs, rec, ra, rb) {
-  const parts = [];
-  const gap = (a, b) => {
-    const x = Math.max(a, ra), y = Math.min(b, rb);
-    if (x < y) { if (a < x) parts.push([a, x, obs]); parts.push([x, y, rec]); if (y < b) parts.push([y, b, obs]); } else parts.push([a, b, obs]);
-  };
-  let t = -Infinity;
-  for (const [sa, sb] of H.seen) {
-    if (sb <= t) continue;
-    const e = entryAt(obs, sa), ea = Math.max(t, Math.min(sa, e ? e[0] : sa));
-    if (ea > t) gap(t, ea);
-    parts.push([ea, sb, obs]); t = sb;
+// The time as parts: [from, to, first read] for the spans this browser saw, [from, to, null] between
+function seenParts() {
+  const parts = []; let t = -Infinity;
+  for (const sp of H.seen) {
+    const sa = Math.max(t, sp[0]), sb = sp[1], fp = Math.max(sa, sp[2] || sp[0]);
+    if (!(sb > sa)) continue;
+    if (sa > t) parts.push([t, sa, null]);
+    parts.push([sa, sb, fp]); t = sb;
   }
-  gap(t, Infinity);
+  parts.push([t, Infinity, null]);
+  return parts;
+}
+// joins [from, to, series, read at] parts into one series: each part starts with its series' value
+// at its read time and goes on with the series' own changes
+function joinParts(parts) {
   const out = [];
-  const put = (tt, v) => { const l = out[out.length - 1]; if (l && l[1] === v) return; if (l && l[0] >= tt) { l[1] = v; return; } out.push([tt, v]); };
-  for (const [a, b, src] of parts) {
+  const put = (tt, v) => { const l = out[out.length - 1]; if (l && l[1] === v) return; if (l && l[0] >= tt) { l[1] = v; if (out.length > 1 && out[out.length - 2][1] === v) out.pop(); return; } out.push([tt, v]); };
+  for (const [a, b, src, at] of parts) {
     if (!(b > a)) continue;
-    const e = entryAt(src, a);
+    const e = entryAt(src, at !== undefined ? at : a);
     if (e && a > -Infinity) put(a, e[1]);
     for (let i = e ? src.indexOf(e) + 1 : 0; i < src.length && src[i][0] < b; i++) if (src[i][0] > a) put(src[i][0], src[i][1]);
   }
   return out;
 }
+// A series as observed while connected and read from the power for the rest of the time it covers
+function mergeSeries(obs, rec, ra, rb) {
+  const parts = [];
+  for (const [a, b, fp] of seenParts()) {
+    if (fp !== null) { parts.push([a, b, obs, fp]); continue; }
+    const x = Math.max(a, ra), y = Math.min(b, rb);
+    if (x < y) { if (a < x) parts.push([a, x, obs]); parts.push([x, y, rec]); if (y < b) parts.push([y, b, obs]); } else parts.push([a, b, obs]);
+  }
+  return joinParts(parts);
+}
+// A counter (sludge, chemical) between the seen spans: back from its value where the gap ends, one
+// step for each event (a batch, a dose) in the gap. Refills and resets in a gap cannot be seen.
+function fillCounter(obs, events, step, fmt, from) {
+  const sp = seenParts(), parts = [];
+  for (let i = 0; i < sp.length; i++) {
+    const [a, b, fp] = sp[i];
+    if (fp !== null) { parts.push([a, b, obs, fp]); continue; }
+    const nx = sp[i + 1], v0 = nx ? entryAt(obs, nx[2]) : null, x = Math.max(a, from);
+    if (!v0 || !isFinite(parseFloat(v0[1])) || !(b > x)) { parts.push([a, b, obs]); continue; }
+    if (a < x) parts.push([a, x, obs]);
+    const ev = events.filter((t) => t > x && t < b);
+    let v = parseFloat(v0[1]) - step * ev.length;
+    const syn = [[x, fmt(v)]];
+    for (const t of ev) { v += step; syn.push([t, fmt(v)]); }
+    parts.push([x, b, syn]);
+  }
+  return joinParts(parts);
+}
 // the phase and cycle history, and the batch counter from its pump-outs (counted like the script:
 // at the end of a pump-out of at least 700 s), ending at the script's count now
 function histView() {
   const r = reconstructed();
-  if (!r.segs.length) return { phase: H.s.phase, cycle: H.s.cycle, batch_counter: H.s.batch_counter };
+  if (!r.segs.length) return { phase: H.s.phase, cycle: H.s.cycle, batch_counter: H.s.batch_counter, chemical: H.s.chemical, sludge: H.s.sludge };
   const phase = mergeSeries(H.s.phase, r.segs.map((x) => [x.t, x.ph]), r.a, r.b);
   const cycle = mergeSeries(H.s.cycle, r.segs.map((x) => [x.t, x.cyc]), r.a, r.b);
+  // the batches (at the end of a pump-out of at least 700 s, like the script counts them) and the
+  // doses (at the end of the chemical filling and dosing)
+  const now = Date.now(), from = phase.length ? phase[0][0] : now, ends = [], doses = [];
+  for (let i = 0; i < phase.length; i++) {
+    const p = phase[i][1], t0 = phase[i][0], t1 = i + 1 < phase.length ? phase[i + 1][0] : null;
+    if (p === 'pump_out' && (t1 !== null ? t1 - t0 >= 700e3 : now - t0 >= 780e3)) ends.push(Math.min(t0 + 780e3, t1 !== null ? t1 : Infinity));
+    if ((p === 'chem_filling' || p === 'dosing') && t1 !== null && phase[i + 1][1] !== 'chem_filling' && phase[i + 1][1] !== 'dosing') doses.push(t1);
+  }
+  // the batch counter ends at the script's count now; the sludge counter and the chemical go back
+  // from the values this browser saw, a batch raising the sludge and a dose taking S.doseL litres
   let batch_counter = H.s.batch_counter;
   const n = S.state && typeof S.state.batches === 'number' ? S.state.batches : null;
-  if (n !== null && phase.length) {
-    const now = Date.now(), ends = [];
-    for (let i = 0; i < phase.length; i++) {
-      if (phase[i][1] !== 'pump_out') continue;
-      const t0 = phase[i][0], t1 = i + 1 < phase.length ? phase[i + 1][0] : null;
-      if (t1 !== null ? t1 - t0 >= 700e3 : now - t0 >= 780e3) ends.push(Math.min(t0 + 780e3, t1 !== null ? t1 : Infinity));
-    }
-    batch_counter = [[phase[0][0], String(n - ends.length)]].concat(ends.map((t, j) => [t, String(n - ends.length + j + 1)]));
-  }
-  return { phase, cycle, batch_counter };
+  if (n !== null && phase.length) batch_counter = [[from, String(n - ends.length)]].concat(ends.map((t, j) => [t, String(n - ends.length + j + 1)]));
+  const sludge = fillCounter(H.s.sludge, ends, 1, (v) => String(Math.max(0, Math.round(v))), from);
+  const chemical = fillCounter(H.s.chemical, doses, -(S.doseL || 0.04), (v) => String(Math.max(0, Math.round(v * 100) / 100)), from);
+  return { phase, cycle, batch_counter, chemical, sludge };
 }
 // power a minute (normalised to 230 V) and the energy meter (kWh) every hour from the EM1Data records
 function powerSeries() {
@@ -962,7 +1004,7 @@ const hass = {
     let v = null;
     for (const id of msg.entity_ids) {
       const k = Object.keys(HE).find((x) => HE[x] === id); if (!k) continue;
-      if (!v && (k === 'phase' || k === 'cycle' || k === 'batch_counter')) v = histView();
+      if (!v && (k === 'phase' || k === 'cycle' || k === 'batch_counter' || k === 'chemical' || k === 'sludge')) v = histView();
       const a = k === 'power' ? powerSeries() : k === 'energy' ? energySeries() : v && v[k] ? v[k] : (H.s[k] || []);
       const out = []; let i = 0;
       while (i < a.length && a[i][0] <= s) i++;

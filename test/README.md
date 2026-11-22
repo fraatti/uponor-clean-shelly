@@ -87,7 +87,7 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 node test/app_data_test.js
 ```
 
-`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, minuuttitehoista päätellyt vaiheet ja panokset (uudessa selaimessa aikajana kattaa koko tehohistorian, ja panoksia on yhtä monta kuin skripti laski), selaimen yhteysaikojen etusija päätellyn edellä, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
+`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, minuuttitehoista päätellyt vaiheet ja panokset (uudessa selaimessa aikajana kattaa koko tehohistorian, ja panoksia on yhtä monta kuin skripti laski), selaimen yhteysaikojen etusija päätellyn edellä (myös kun vaihe on sama ennen katkoa ja sen jälkeen), kemikaali ja lietelaskuri taaksepäin annoksista ja panoksista, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
 
 ```
 node test/app_picture_test.js

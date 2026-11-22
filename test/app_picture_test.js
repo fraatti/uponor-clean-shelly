@@ -76,7 +76,35 @@ const cardInfo = (page) => page.evaluate(() => {
       return r;
     });
     check(mg.inSpan === 'mixing' && mg.before !== 'mixing', 'seen span wins over the power reading: ' + mg.before + ' -> ' + mg.inSpan);
+    // the same phase before and after a break: the browser stores it once, the break still comes from the power
+    const br = await page.evaluate(() => {
+      const { H } = window.__ucApp.hist(), now = Date.now(), cur = window.__ucApp.S.state.phase;
+      const s0 = H.seen.slice(), p0 = H.s.phase.slice();
+      H.seen.unshift([now - 12 * 3600e3, now - 10 * 3600e3, now - 12 * 3600e3]);
+      H.s.phase.splice(0, H.s.phase.length, [now - 12 * 3600e3, cur]);
+      const v = window.__ucApp.hist().view.phase, start = s0[0][0];
+      const r = { inGap: v.filter((e) => e[0] > now - 10 * 3600e3 && e[0] < start).length, first: v.find((e) => e[0] >= now - 12 * 3600e3 - 1)[1], cur };
+      H.seen.splice(0, H.seen.length, ...s0); H.s.phase.splice(0, H.s.phase.length, ...p0);
+      return r;
+    });
+    check(br.first === br.cur && br.inGap > 5, 'a break between two spans with the same phase: ' + br.inGap + ' phases from the power in the break');
     check(mg.nowPh === mg.state && mg.lastBatch === mg.batches, 'now: phase ' + mg.nowPh + ', batch counter ' + mg.lastBatch + ' = script');
+    // the chemical and the sludge counter back in time from the doses and batches (the mock set them
+    // to 12 l and 300 at its start), shown when the timeline is moved back
+    const cs = await page.evaluate(async () => {
+      const c = document.querySelector('uponor-clean-card'), m = c._model, now = Date.now(), s = window.__ucApp.S.state;
+      const at = (a, t) => { let r = null; for (const e of a) if (e.t <= t) r = e.v; return r; };
+      const r = { chem0: m.chem.length ? parseFloat(m.chem[0].v) : null, sludge0: m.sludge.length ? parseFloat(m.sludge[0].v) : null,
+        hours: m.chem.length ? (now - m.chem[0].t) / 3600e3 : 0, chemNow: parseFloat(at(m.chem, now)), chemState: s.chemical.l, sludgeNow: parseFloat(at(m.sludge, now)), sludgeState: s.sludge.n };
+      c._cursor = now - 3 * 3600e3; c._playing = false; c._lastChips = 0;
+      await new Promise((res) => setTimeout(res, 2500));
+      r.kv = c.shadowRoot.getElementById('kv').innerText.replace(/\n/g, ' ');
+      c._goLive();
+      return r;
+    });
+    check(Math.abs(cs.chem0 - 12) < 0.05 && cs.hours > 40 && cs.chemNow === cs.chemState, 'chemical back in time: ' + cs.chem0 + ' l ' + cs.hours.toFixed(0) + ' h ago, now ' + cs.chemNow + ' l = script');
+    check(Math.abs(cs.sludge0 - 300) <= 1 && cs.sludgeNow === cs.sludgeState, 'sludge counter back in time: ' + cs.sludge0 + ', now ' + cs.sludgeNow + ' = script');
+    check(/Kemikaali ≈ [\d,]+ l/.test(cs.kv) && /Lietemuistutus \d+/.test(cs.kv), 'history view shows the chemical and the sludge: ' + (cs.kv.match(/Kemikaali[^A-ZÄÖ]*/) || [''])[0].trim());
 
     // observed phases are kept in the browser
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('uc_app_hist:127.0.0.1:8089') || '{}'));
