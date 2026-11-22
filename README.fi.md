@@ -6,7 +6,7 @@
 
 Shelly EM Mini Gen4 mittaa puhdistamon sähkönkulutusta. Skripti päättelee siitä ohjauskeskuksen jaksot (puhdistus, odotus, loma, testi) ja vaiheet (ilmastus, kemikaalin täyttö ja annostelu, sekoitus, laskeutus, lietteen palautus, ulospumppaus, sisäänpumppaus, odotus), laskee panokset, kemikaalin ja lietteen, arvioi seuraavan ulospumppauksen ja varoittaa poikkeamista. Home Assistant -kortti näyttää prosessin animoituna.
 
-**[Kokeile korttia demossa](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut)**: se pyörii selaimessa tallennetulla puhdistamon datalla ilman Home Assistantia.
+**[Kokeile sovellusta demossa](https://fraatti.github.io/uponor-clean-shelly/demo/?lang=fi)**: Shellyn jakama selainsovellus oikean puhdistamon tallennetulla datalla reaaliajassa ilman Shellyä. **[Home Assistant -kortti](https://fraatti.github.io/uponor-clean-shelly/ha-card/preview.html)** pyörii myös tallennetulla datalla selaimessa ilman Home Assistantia.
 
 Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa käyttöliittymässä ja Shelly-sovelluksessa. Vaihe, jakso, tila, varoitus ja seuraava ulospumppaus päivittyvät reaaliajassa, ja panoslaskurin kasvu näkyy sovelluksen graafina päivittäin.
 
@@ -37,6 +37,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 | `shelly/v3/proto/` | v3-prototyypit laitetestiin ja komponenttien varmuuskopiotyökalu `uc_tools.js` (käytetty siirtymässä). Ohje: `docs/v3-prototyyppitesti.md`. |
 | `shelly/tools/` | `nauhuri.ps1` (Windows-nauhuri vianetsintään: teho sekunnin välein CSV:ksi), `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos), `sovellus_shellyyn.py` (selainsovelluksen asennus Shellyyn). |
 | `app/` | Selainsovellus `uponor-clean-app.html` 1.6.3 (yksi tiedosto, ohje `docs/sovellus.md`; asentaa itsensä Shellyyn asetuksistaan; Kuva-näkymä on kortti, jonka `tools/build_app.js` lisää yhdessä vaiheiden päättelyn `history_from_power.js` kanssa), latainsivu `uponor_clean_app_loader.js`, jolla Shelly jakaa sovelluksen itse, ja pakattu sovellus `uponor-clean-app-data.txt` asennukseen Shellyn web-käyttöliittymässä. |
+| `demo/` | Sovelluksen verkkodemo GitHub Pagesissa: `index.html` ja `data.js`, jotka `app/tools/build_demo.js` tekee sovelluksesta, demo-Shellystä `app/demo_shelly.js` ja Home Assistantin historiavedoksesta ([ohje](docs/sovellus.md#demo)). |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.8.3, ohje, esikatselusivu (`preview.html`) ja sen päivitystyökalu (`tools/build_preview.py`). |
 | `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla Shelly-jäljitelmässä, firmwaresimulaattori, skenaariot, kortin testi ja sovelluksen WebSocket-jäljitelmä. |
 | `docs/` | Ohjeet, kuvat (`img/`), firmwaren pseudokoodi, v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |

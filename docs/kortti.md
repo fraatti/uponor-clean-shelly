@@ -6,7 +6,7 @@ Kortti `ha-card/uponor-clean-card.js` näyttää puhdistamon Home Assistantissa:
 
 ![Kortti puhdistusjakson ilmastuksessa](img/kortti_ilmastus.jpg)
 
-[Kokeile korttia demossa](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut): se pyörii selaimessa tallennetulla datalla.
+[Kokeile korttia demossa](https://fraatti.github.io/uponor-clean-shelly/ha-card/preview.html): se pyörii selaimessa tallennetulla datalla.
 
 ## Mitä kortti näyttää
 

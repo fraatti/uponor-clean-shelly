@@ -6,7 +6,7 @@
 
 A Shelly EM Mini Gen4 measures the power consumption of an Uponor Clean I small wastewater treatment plant. From that alone, a Shelly script works out the control unit's cycles (cleaning, waiting, holiday, test) and phases (aeration, chemical filling and dosing, mixing, sedimentation, sludge removal, pump-out, pump-in, waiting), counts batches, chemical and sludge, estimates the next pump-out and warns about faults. A Home Assistant card shows the process animated.
 
-**[Try the card in the demo](https://claude.ai/artifact/PnR5ZpnUjHt1qFZEd3TTut)**: it runs on recorded plant data in the browser, no Home Assistant needed.
+**[Try the app in the demo](https://fraatti.github.io/uponor-clean-shelly/demo/?lang=en)**: the browser app that the Shelly serves, on recorded data of a real plant in real time, no Shelly needed. **[The Home Assistant card](https://fraatti.github.io/uponor-clean-shelly/ha-card/preview.html)** also runs on recorded data in the browser, no Home Assistant needed.
 
 Home Assistant is not required: the script's components also show in the Shelly web UI and the Shelly app. Phase, cycle, status, warning and next pump-out update in real time, and the app charts the batch counter day by day.
 
@@ -37,6 +37,7 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | `shelly/v3/proto/` | v3 prototypes for the device test and the component backup tool `uc_tools.js` (used in the migration). |
 | `shelly/tools/` | `nauhuri.ps1` (Windows recorder for troubleshooting: power once a second to CSV), `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4), `sovellus_shellyyn.py` (installs the browser app on the Shelly). |
 | `app/` | Browser app `uponor-clean-app.html` 1.6.3 (a single file, guide `docs/app.md`; installs itself on the Shelly from its settings; the Picture view is the card, put in by `tools/build_app.js` with the phase reconstruction `history_from_power.js`), the loader `uponor_clean_app_loader.js`, with which the Shelly serves the app itself, and the packed app `uponor-clean-app-data.txt` for installing it in the Shelly web UI. |
+| `demo/` | Online demo of the app, served by GitHub Pages: `index.html` and `data.js`, built by `app/tools/build_demo.js` from the app, the demo Shelly `app/demo_shelly.js` and a Home Assistant history export ([guide](docs/app.md#demo)). |
 | `ha-card/` | Lovelace card `uponor-clean-card.js` v1.8.3, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
 | `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios, the card test and the WebSocket mock for the app. |
 | `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Puts the Home Assistant card (ha-card/uponor-clean-card.js, draws the picture view) and the phase
 // reconstruction (app/history_from_power.js, the past days from the minute power) into the browser
-// app, and rebuilds the packed app for the Shelly web UI (app/uponor-clean-app-data*.txt).
+// app, rebuilds the packed app for the Shelly web UI (app/uponor-clean-app-data*.txt) and the online
+// demo page (demo/index.html, when demo/data.js is there).
 //
 //   node app/tools/build_app.js
 //
@@ -47,4 +48,9 @@ const CLOSE = '</script>';
   console.log('app: ' + page.length + ' chars');
   const py = spawnSync('python3', [path.join(root, 'shelly', 'tools', 'sovellus_shellyyn.py'), '--tiedosto'], { stdio: 'inherit' });
   if (py.error || py.status !== 0) console.log('note: run python3 shelly/tools/sovellus_shellyyn.py --tiedosto to rebuild the packed app');
+  // the online demo is the same app (demo/index.html, see app/tools/build_demo.js)
+  if (fs.existsSync(path.join(root, 'demo', 'data.js'))) {
+    const d = spawnSync(process.execPath, [path.join(__dirname, 'build_demo.js')], { stdio: 'inherit' });
+    if (d.error || d.status !== 0) console.log('note: run node app/tools/build_demo.js to rebuild the demo page');
+  }
 })().catch((e) => { console.error(e.message || e); process.exit(1); });

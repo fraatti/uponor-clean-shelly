@@ -105,6 +105,12 @@ node test/app_data_test.js
 node test/app_picture_test.js
 ```
 
+`demo_test.js` kokeilee verkkodemoa (`demo/index.html`, ks. [sovellus.md](../docs/sovellus.md#demo)) Playwrightilla: osoitteeseen tulee `host=demo`, skriptin tila on siirretty tähän päivään, viikon tehohistoria latautuu, Kuva-näkymän aikajana täyttyy minuuttitehoista, kemikaalin syöttö menee demo-Shellylle ja näkyy tapahtumissa, Tiedot-näkymä, englanninkielinen sivu puhelimen leveydellä ilman vaakavieritystä, demon skriptit poistettu sivulta ja Asenna Shellyyn -osio piilossa.
+
+```
+node test/demo_test.js
+```
+
 `app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus useaan osaan ja takaisin tavalliseen jakoon, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`), hitaasti vastaava `Script.Create` (`--slow-create`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
 
 ```

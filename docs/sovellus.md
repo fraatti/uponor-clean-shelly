@@ -4,6 +4,8 @@
 
 `app/uponor-clean-app.html` näyttää puhdistamon tilan ja sähkönkulutuksen suoraan Shellystä. Home Assistantia ei tarvita. Sovellus on yksi HTML-tiedosto, joka ei hae mitään internetistä. Shelly voi jakaa sen itse, jolloin se aukeaa kotiverkossa myös puhelimella.
 
+[Kokeile sovellusta demossa](https://fraatti.github.io/uponor-clean-shelly/demo/?lang=fi) ilman Shellyä (ks. [Demo](#demo)).
+
 Sovelluksessa on kaksi näkymää, joiden välillä vaihdetaan otsikon vieressä: **Kuva** ja **Tiedot**.
 
 ![Selainsovellus: Kuva](img/sovellus_kuva.jpg)
@@ -156,6 +158,19 @@ Menneet vaiheet päättelee `app/history_from_power.js`, jonka `build_app.js` li
 
 Tapahtumaloki alkaa, kun sovellus avataan: skriptin tapahtumia Shelly ei tallenna.
 
+## Demo
+
+[Verkkodemo](https://fraatti.github.io/uponor-clean-shelly/demo/) on sama sovellus ilman Shellyä. Sen tiedot ovat oikean puhdistamon tallennettua dataa lokakuulta 2026 (Home Assistantin historia, noin 10 vuorokautta): teho ja jännite sekä v3-skriptin tila ja tapahtumat, jotka saatiin ajamalla skripti Shelly-jäljitelmässä samalla teholla. Ajat on siirretty kokonaisin vuorokausin tähän päivään, joten kellonajat ovat tallennettuja ja tiedot etenevät reaaliajassa. Takana on viikon tehohistoria ja edessä vähintään vuorokausi. Kemikaalin ja lietelaskurin syöttö toimii vain sivulla, ja Asenna Shellyyn -osio on piilotettu.
+
+Demon tekee `app/tools/build_demo.js`. Sivu `demo/index.html` on sovellus, jonka eteen on lisätty `demo/data.js` ja demo-Shelly `app/demo_shelly.js`. Demo-Shelly vastaa sovelluksen WebSocket-kutsuihin osoitteessa `demo`. Sovellukseen tehdään yksi muutos: https-tarkistus päästää `demo`-osoitteen läpi, koska GitHub Pages on https. `tools/build_app.js` päivittää sivun aina, kun sovellus rakennetaan. Datan voi tehdä uudelleen Home Assistantin historiavedoksesta, jossa on Shellyn teho ja jännite (noin 2 min):
+
+```
+node app/tools/build_demo.js --data test/data/history__11_.csv
+node test/demo_test.js
+```
+
+Dataan tulevat vain luvut: ei entiteettien nimiä, laitetunnusta eikä osoitteita.
+
 ## Testaus ilman laitetta
 
 `test/shelly_ws_mock.js` ajaa oikeaa v3-skriptiä Shelly-jäljitelmässä simuloidun puhdistamon päällä ja vastaa samoihin WebSocket-kutsuihin kuin Shelly:
@@ -178,5 +193,7 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 `test/app_picture_test.js` kokeilee Kuva-näkymää: kortti, vaihe, tehohistoria, energia, minuuttitehoista päätellyt vaiheet ja panokset, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö sekä kielen vaihto.
 
 `test/history_from_power_test.js` vertaa minuuttitehoista päätellyjä vaiheita simulaattorin oikeisiin vaiheisiin neljässä tilanteessa (tavallinen käyttö, vilkas käyttö, loma-ohjelma, sähkökatko ja tukkeutunut poistoputki). Minuuttitiedot tehdään kuten Shellyssä (`test/em1_minutes.js`: pienin ja suurin teho, energia 0,2072 Wh:n askelin, 237 V).
+
+`test/demo_test.js` kokeilee demoa: yhteys demo-Shellyyn, skriptin tila tähän päivään siirrettynä, viikon tehohistoria, Kuva-näkymän aikajana, kemikaalin syöttö, Tiedot-näkymä ja englanninkielinen sivu puhelimen leveydellä.
 
 `test/app_install_test.js` kokeilee Asenna Shellyyn -painiketta jäljitelmää vastaan Playwrightilla: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen, monen osan asennus, Python-työkalu, liian vähäinen tila ja kolme käynnissä olevaa skriptiä.

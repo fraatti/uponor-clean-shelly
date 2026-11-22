@@ -4,6 +4,8 @@
 
 `app/uponor-clean-app.html` shows the state and power consumption of the plant straight from the Shelly. Home Assistant is not needed. The app is a single HTML file that loads nothing from the internet. The Shelly can serve it itself, and then it opens in the home network on a phone too.
 
+[Try the app in the demo](https://fraatti.github.io/uponor-clean-shelly/demo/?lang=en) without a Shelly (see [Demo](#demo)).
+
 The app has two views, switched next to the title: **Picture** and **Details**.
 
 ![Browser app: Picture](img/sovellus_kuva.jpg)
@@ -156,6 +158,19 @@ The past phases are worked out by `app/history_from_power.js`, which `build_app.
 
 The event log starts when the app is opened: the Shelly does not store the script's events.
 
+## Demo
+
+The [online demo](https://fraatti.github.io/uponor-clean-shelly/demo/) is the same app without a Shelly. Its data is recorded from a real plant in October 2026 (Home Assistant history, about 10 days): the power and voltage, and the v3 script's state and events from running the script in the Shelly mock on the same power. The times are moved by whole days to today, so the clock times are the recorded ones and the data runs in real time, with a week of power history behind and at least a day ahead. Entering the chemical and the sludge counter works in the page only, and the Install on the Shelly section is hidden.
+
+`app/tools/build_demo.js` builds the demo. The page `demo/index.html` is the app with `demo/data.js` and the demo Shelly `app/demo_shelly.js` before it. The demo Shelly answers the app's WebSocket calls for the host `demo`. The app gets one change: its https check lets the host `demo` through, as GitHub Pages is https. `tools/build_app.js` updates the page whenever it builds the app. The data can be made again from a Home Assistant history export with the Shelly's power and voltage (about 2 min):
+
+```
+node app/tools/build_demo.js --data test/data/history__11_.csv
+node test/demo_test.js
+```
+
+Only the numbers go into the data: no entity names, device id or addresses.
+
 ## Testing without the device
 
 `test/shelly_ws_mock.js` runs the real v3 script in the Shelly mock over a simulated plant and answers the same WebSocket calls as the Shelly:
@@ -178,5 +193,7 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 `test/app_picture_test.js` tries the Picture view: the card, the phase, the power history, the energy, the phases and batches worked out from the minute power, the history kept in the browser, entering the chemical and the sludge counter, and the language change.
 
 `test/history_from_power_test.js` compares the phases worked out from the minute power with the simulator's true phases in four situations (normal use, busy use, the holiday programme, a power cut and a blocked outlet). The minute records are made as in the Shelly (`test/em1_minutes.js`: minimum and maximum power, energy in steps of 0.2072 Wh, 237 V).
+
+`test/demo_test.js` tries the demo: the connection to the demo Shelly, the script state moved to today, the week of power history, the Picture timeline, entering the chemical, the Details view and the English page at phone width.
 
 `test/app_install_test.js` tries the Install on the Shelly button against the mock with Playwright: installing from a file, opening the app served by the Shelly, installing in several parts, the Python tool, too little space and three running scripts.

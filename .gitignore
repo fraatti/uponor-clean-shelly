@@ -34,4 +34,5 @@ test/*.js
 !test/v3_sweep.js
 !test/eqtest_v3.js
 !test/v3_depth_test.js
+!test/demo_test.js
 test/sweep_out/
