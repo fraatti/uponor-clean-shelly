@@ -12,19 +12,19 @@
 <style>
 :root {
   --bg: #f2f3f5; --card: #ffffff; --fg: #1d2127; --muted: #69707a; --line: #e3e5e9; --soft: #f6f7f9;
-  --accent: #2D8CE0; --power: #d64541; --band: rgba(214, 69, 65, .16); --ok: #2e9b55; --warn: #d9822b; --bad: #d64541;
+  --accent: #2D8CE0; --power: #d64541; --ok: #2e9b55; --warn: #d9822b; --bad: #d64541;
   --shadow: 0 1px 2px rgba(0,0,0,.05), 0 2px 8px rgba(0,0,0,.04);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #111317; --card: #1b1e24; --fg: #e7e9ec; --muted: #9aa1ab; --line: #2c3038; --soft: #22262d;
-    --accent: #4aa3ee; --power: #f0625d; --band: rgba(240, 98, 93, .2); --shadow: none; color-scheme: dark;
+    --accent: #4aa3ee; --power: #f0625d; --shadow: none; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #111317; --card: #1b1e24; --fg: #e7e9ec; --muted: #9aa1ab; --line: #2c3038; --soft: #22262d;
-  --accent: #4aa3ee; --power: #f0625d; --band: rgba(240, 98, 93, .2); --shadow: none; color-scheme: dark;
+  --accent: #4aa3ee; --power: #f0625d; --shadow: none; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -70,6 +70,7 @@ header h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em
 .banner ul { margin: 0; padding-left: 18px; }
 .chart-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .chart-head h2, .log h2, .info h2 { font-size: 16px; margin: 0; font-weight: 650; }
+.chart-head .lbl { font-size: 12px; }
 .seg { margin-left: auto; display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .seg button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; color: var(--muted); }
 .seg button.on { background: var(--soft); color: var(--fg); font-weight: 600; }
@@ -77,7 +78,6 @@ header h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em
 #plot { width: 100%; height: 260px; display: block; touch-action: pan-y; }
 #plot text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
 #plot .grid-l { stroke: var(--line); stroke-width: 1; }
-#plot .band { fill: var(--band); }
 #plot .avg { fill: none; stroke: var(--power); stroke-width: 1.6; stroke-linejoin: round; }
 #plot .now { fill: var(--power); }
 #plot .cross { stroke: var(--muted); stroke-dasharray: 3 3; }
@@ -143,7 +143,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 
     <section class="card chart">
       <div class="chart-head">
-        <h2 id="c-title"></h2>
+        <h2 id="c-title"></h2><span class="lbl" id="c-note"></span>
         <div class="seg" id="ranges" role="group">
           <button type="button" data-h="6">6 h</button><button type="button" data-h="24">24 h</button><button type="button" data-h="168" id="r7"></button>
         </div>
@@ -182,7 +182,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 
 // ------------------------------------------------------------------ texts
 const TX = {
@@ -194,13 +194,13 @@ const TX = {
     started: 'Alkoi {t}', of: '{a} / {b}', max: 'enintään {b}',
     next_out: 'Seuraava ulospumppaus', in: '{d} päästä', waiting_t: 'Odotetaan jätevettä', holiday_at: 'Loma-automatiikka alkaa {t}, jos aloitustasoa ei saavuteta',
     holiday_t: 'Loma-automatiikka', holiday_since: 'Käynnissä {t} alkaen', last_out: 'Viimeisin ulospumppaus {t} ({d} sitten)', no_eta: 'Ulospumppauksen aika näkyy, kun panos alkaa',
-    power: 'Teho', voltage: '{u} V', batches: 'Panokset', last_batch: 'viimeisin {t}', chemical: 'Kemikaali', lasts: 'riittää noin {d} vrk', chem_unset: 'syötä määrä Shellyssä',
+    power: 'Teho (230 V)', measured: 'mitattu {w} W · {u} V', batches: 'Panokset', last_batch: 'viimeisin {t}', chemical: 'Kemikaali', lasts: 'riittää noin {d} vrk', chem_unset: 'syötä määrä Shellyssä',
     sludge: 'Liete', sludge_sub: 'panosta tyhjennyksestä', sludge_reset: 'nollattu {t}', of_limit: '/ {n}',
     warn_t: 'Varoitukset', warn: { no_power: 'Ei sähköä – tarkista puhdistamon syöttö', air_leak: 'Suuri teho – tarkista ilmaletkut ja kompressori', no_signal: 'Tehomittaus puuttuu',
       compressor_idle: 'Kompressori ei käy', outlet_blocked: 'Lähtö tukossa? Pinta ei laskenut ulospumppauksessa', high_water: 'Korkea vesi – ilmastus ohitettiin tai katkesi',
       paused: 'Prosessi pysähtynyt? (esim. radiopaneelista)', chemical_low: 'Kemikaali vähissä – täytä ja syötä määrä', sludge_due: 'Lietteen tyhjennys ajankohtainen',
       sludge_emptied: 'Liete tyhjennetty? Nollaa lietelaskuri' },
-    chart: 'Tehonkulutus', d7: '7 vrk', avg: 'keskim. {w} W', range: '{a}–{b} W', sum: 'Keskiteho {w} W · energia {e} kWh{d}', per_day: ' · {e} kWh/vrk',
+    chart: 'Tehonkulutus', note: 'normalisoitu 230 V:iin kuten skriptissä', d7: '7 vrk', tip: '{t} · {w} W · mitattu {r} W, {u} V', sum: 'Keskiteho {w} W · energia {e} kWh{d}', per_day: ' · {e} kWh/vrk',
     no_hist: 'Tehohistoriaa ei ole vielä luettu', loading: 'Luetaan tehohistoriaa…',
     log: 'Tapahtumat', log_empty: 'Tapahtumat näkyvät tässä, kun sovellus on auki.',
     ev_phase: '{p} · {c}', ev_batch: 'Panos {n} valmis', ev_batch_user: 'Panoslaskuri asetettu: {n}', ev_warn_on: 'Varoitus: {w}', ev_warn_off: 'Varoitus poistui: {w}',
@@ -222,13 +222,13 @@ const TX = {
     started: 'Started {t}', of: '{a} / {b}', max: 'at most {b}',
     next_out: 'Next pump-out', in: 'in {d}', waiting_t: 'Waiting for wastewater', holiday_at: 'Holiday programme starts {t} if the start level is not reached',
     holiday_t: 'Holiday programme', holiday_since: 'Running since {t}', last_out: 'Last pump-out {t} ({d} ago)', no_eta: 'The pump-out time shows once a batch starts',
-    power: 'Power', voltage: '{u} V', batches: 'Batches', last_batch: 'last {t}', chemical: 'Chemical', lasts: 'lasts about {d} days', chem_unset: 'enter the amount in the Shelly',
+    power: 'Power (230 V)', measured: 'measured {w} W · {u} V', batches: 'Batches', last_batch: 'last {t}', chemical: 'Chemical', lasts: 'lasts about {d} days', chem_unset: 'enter the amount in the Shelly',
     sludge: 'Sludge', sludge_sub: 'batches since emptying', sludge_reset: 'reset {t}', of_limit: '/ {n}',
     warn_t: 'Warnings', warn: { no_power: 'No power – check the plant supply', air_leak: 'High power – check the air hoses and the compressor', no_signal: 'Power reading missing',
       compressor_idle: 'Compressor not running', outlet_blocked: 'Outlet blocked? The level did not drop at pump-out', high_water: 'High water – aeration skipped or cut short',
       paused: 'Process paused? (e.g. stopped from the radio panel)', chemical_low: 'Chemical low – refill and enter the amount', sludge_due: 'Sludge emptying due',
       sludge_emptied: 'Sludge emptied? Reset the sludge counter' },
-    chart: 'Power consumption', d7: '7 d', avg: 'avg {w} W', range: '{a}–{b} W', sum: 'Average {w} W · energy {e} kWh{d}', per_day: ' · {e} kWh/day',
+    chart: 'Power consumption', note: 'normalised to 230 V as in the script', d7: '7 d', tip: '{t} · {w} W · measured {r} W, {u} V', sum: 'Average {w} W · energy {e} kWh{d}', per_day: ' · {e} kWh/day',
     no_hist: 'No power history read yet', loading: 'Reading the power history…',
     log: 'Events', log_empty: 'Events show here while the app is open.',
     ev_phase: '{p} · {c}', ev_batch: 'Batch {n} completed', ev_batch_user: 'Batch counter set: {n}', ev_warn_on: 'Warning: {w}', ev_warn_off: 'Warning cleared: {w}',
@@ -396,7 +396,7 @@ function setTexts() {
   $('setb').setAttribute('aria-label', T.settings); $('setb').title = T.settings;
   $('l-now').textContent = T.now;
   $('tl-power').textContent = T.power; $('tl-batch').textContent = T.batches; $('tl-chem').textContent = T.chemical; $('tl-sludge').textContent = T.sludge;
-  $('c-title').textContent = T.chart; $('r7').textContent = T.d7; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
+  $('c-title').textContent = T.chart; $('c-note').textContent = T.note; $('r7').textContent = T.d7; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
   $('d-title').textContent = T.d_title; $('d-hint').textContent = T.d_hint; $('d-host-l').textContent = T.d_host; $('d-pw-l').textContent = T.d_pw;
   $('d-rem-l').textContent = T.d_rem; $('d-lang-l').textContent = T.d_lang; $('d-lang').options[0].textContent = T.d_auto; $('d-cancel').textContent = T.d_cancel; $('d-ok').textContent = T.d_ok;
   $('foot').textContent = fmt(T.foot, { v: APP_VERSION });
@@ -445,9 +445,10 @@ function render() {
   $('n-big').style.fontSize = $('n-big').textContent.length > 12 ? '22px' : '';
   $('n-last').textContent = st.last_pumpout ? fmt(T.last_out, { t: dayhm(st.last_pumpout), d: dur(now - st.last_pumpout) }) : '';
   // tiles
-  const pw = S.power !== null && now - S.powerAt < 30 ? S.power : st.power;
-  $('tv-power').innerHTML = num(pw, 1) + '<small>W</small>';
-  $('ts-power').textContent = S.voltage ? fmt(T.voltage, { u: num(S.voltage, 0) }) : ' ';
+  // normalised to 230 V like the chart and the script (the script's own value as a fallback)
+  const live = S.power !== null && now - S.powerAt < 30;
+  $('tv-power').innerHTML = num(live ? normW(S.power, S.voltage) : st.power, 1) + '<small>W</small>';
+  $('ts-power').textContent = live && S.voltage ? fmt(T.measured, { w: num(S.power, 1), u: num(S.voltage, 0) }) : '\u00a0';
   $('tv-batch').textContent = num(st.batches);
   $('ts-batch').textContent = st.last_pumpout ? fmt(T.last_batch, { t: dayhm(st.last_pumpout) }) : ' ';
   const ch = st.chemical || {};
@@ -524,7 +525,7 @@ async function fetchRange(from, to, onPage) {
     for (const blk of r.data || []) {
       blk.values.forEach((v, i) => {
         const ts = blk.ts + i * blk.period;
-        S.recs.set(ts, { e: v[KI.total_act_energy], mx: v[KI.max_act_power], mn: v[KI.min_act_power], p: blk.period });
+        S.recs.set(ts, { e: v[KI.total_act_energy], mx: v[KI.max_act_power], mn: v[KI.min_act_power], u: v[KI.avg_voltage], p: blk.period });
         if (S.lastTs === null || ts > S.lastTs) S.lastTs = ts;
       });
     }
@@ -554,26 +555,34 @@ async function loadHistory(full) {
   renderChart();
 }
 
+// The power of a minute: the middle of its minimum and maximum when they are close. The minute
+// energy of the Shelly comes in steps of about 0.207 Wh (12.4 W), so an average from it would jump.
+// When the power changed during the minute: the energy average, kept between the minimum and maximum.
+const minuteW = (r) => (r.mx - r.mn < 6 ? (r.mn + r.mx) / 2 : Math.min(r.mx, Math.max(r.mn, r.e * 3600 / r.p)));
+// normalised to 230 V like in the script, so that the voltage does not move the levels
+const normW = (p, u) => (p > 10 && u > 50 ? (p - 4) * (230 / u) * (230 / u) + 4 : p);
+
 let chartPts = null;
 function renderChart() {
   const svg = $('plot'), W = svg.clientWidth || 800, H = svg.clientHeight || 260;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const now = Date.now() / 1000, span = S.hours * 3600, t0 = now - span;
   const padL = 34, padR = 10, padT = 18, padB = 24, pw = W - padL - padR, ph = H - padT - padB;
-  // buckets: about one per 2 px
-  const nb = Math.max(30, Math.min(S.hours * 60, Math.floor(pw / 2)));
-  const bs = span / nb;
-  const B = [];
+  // one point a minute, or a 15-minute average over 7 days
+  const bs = S.hours > 24 ? 900 : 60;
+  const map = new Map(); let eSum = 0, sSum = 0;
   for (const [ts, r] of S.recs) {
     if (ts + r.p <= t0 || ts > now) continue;
-    const i = Math.min(nb - 1, Math.max(0, Math.floor((ts - t0) / bs)));
-    const b = B[i] || (B[i] = { e: 0, s: 0, mn: Infinity, mx: -Infinity, t: t0 + (i + 0.5) * bs });
-    b.e += r.e; b.s += r.p; b.mn = Math.min(b.mn, r.mn); b.mx = Math.max(b.mx, r.mx);
+    const k = Math.floor(ts / bs), w = minuteW(r), u = r.u || 230;
+    const b = map.get(k) || { k, n: 0, w: 0, pn: 0, u: 0, t: k * bs + bs / 2 };
+    b.n++; b.w += w; b.pn += normW(w, u); b.u += u; map.set(k, b);
+    eSum += r.e; sSum += r.p;
   }
-  let ymax = 70; let eSum = 0, sSum = 0;
-  for (const b of B) if (b) { b.avg = b.e * 3600 / b.s; ymax = Math.max(ymax, b.mx); eSum += b.e; sSum += b.s; }
+  const B = [...map.values()].sort((a, b) => a.k - b.k);
+  let ymax = 70;
+  for (const b of B) { b.w /= b.n; b.pn /= b.n; b.u /= b.n; ymax = Math.max(ymax, b.pn); }
   ymax = Math.ceil(ymax / 10) * 10;
-  const x = (t) => padL + (t - t0) / span * pw, y = (w) => padT + ph - w / ymax * ph;
+  const x = (t) => padL + (Math.min(now, Math.max(t0, t)) - t0) / span * pw, y = (w) => padT + ph - w / ymax * ph;
   let o = '';
   const step = ymax > 100 ? 25 : 10, lstep = ymax > 100 ? 50 : 20;
   for (let w = 0; w <= ymax; w += step) {
@@ -589,37 +598,39 @@ function renderChart() {
     o += `<line class="grid-l" x1="${x(t).toFixed(1)}" x2="${x(t).toFixed(1)}" y1="${padT}" y2="${padT + ph}" stroke-opacity=".5"/>`;
     o += `<text x="${x(t).toFixed(1)}" y="${H - 6}" text-anchor="middle">${lab}</text>`;
   }
-  // band (min-max) and average line, broken at gaps
-  const segs = []; let cur = [];
-  for (let i = 0; i < nb; i++) { if (B[i]) cur.push(B[i]); else if (cur.length) { segs.push(cur); cur = []; } }
-  if (cur.length) segs.push(cur);
-  for (const s of segs) {
-    const up = s.map((b) => `${x(b.t).toFixed(1)},${y(b.mx).toFixed(1)}`), dn = s.slice().reverse().map((b) => `${x(b.t).toFixed(1)},${y(b.mn).toFixed(1)}`);
-    if (s.length === 1) { const b = s[0]; o += `<rect class="band" x="${(x(b.t) - 1).toFixed(1)}" y="${y(b.mx).toFixed(1)}" width="2" height="${Math.max(1, y(b.mn) - y(b.mx)).toFixed(1)}"/>`; continue; }
-    o += `<polygon class="band" points="${up.join(' ')} ${dn.join(' ')}"/>`;
-    o += `<polyline class="avg" points="${s.map((b) => `${x(b.t).toFixed(1)},${y(b.avg).toFixed(1)}`).join(' ')}"/>`;
-  }
+  // the line, broken where minutes are missing
+  let seg = [];
+  const flush = () => {
+    if (seg.length === 1) o += `<circle class="now" cx="${x(seg[0].t).toFixed(1)}" cy="${y(seg[0].pn).toFixed(1)}" r="1.2"/>`;
+    else if (seg.length) o += `<polyline class="avg" points="${seg.map((b) => `${x(b.t).toFixed(1)},${y(b.pn).toFixed(1)}`).join(' ')}"/>`;
+    seg = [];
+  };
+  for (let i = 0; i < B.length; i++) { if (i && B[i].k - B[i - 1].k > 1) flush(); seg.push(B[i]); }
+  flush();
   // live power at the right edge
-  if (S.connected && S.power !== null && now - S.powerAt < 30) o += `<circle class="now" cx="${x(now).toFixed(1)}" cy="${y(Math.min(S.power, ymax)).toFixed(1)}" r="3.5"/>`;
+  if (S.connected && S.power !== null && now - S.powerAt < 30) o += `<circle class="now" cx="${x(now).toFixed(1)}" cy="${y(Math.min(normW(S.power, S.voltage), ymax)).toFixed(1)}" r="3.5"/>`;
   o += `<line class="cross" id="cross" x1="0" x2="0" y1="${padT}" y2="${padT + ph}" visibility="hidden"/>`;
-  if (!B.some(Boolean)) o += `<text x="${(padL + pw / 2).toFixed(0)}" y="${(padT + ph / 2).toFixed(0)}" text-anchor="middle" style="font-size:13px">${esc(S.connected && (S.histBusy || S.lastTs === null) ? T.loading : S.histErr ? S.histErr : T.no_hist)}</text>`;
+  if (!B.length) o += `<text x="${(padL + pw / 2).toFixed(0)}" y="${(padT + ph / 2).toFixed(0)}" text-anchor="middle" style="font-size:13px">${esc(S.connected && (S.histBusy || S.lastTs === null) ? T.loading : S.histErr ? S.histErr : T.no_hist)}</text>`;
   svg.innerHTML = o;
-  chartPts = { B, x, t0, bs, nb, padL, pw, W };
+  chartPts = { B, x, t0, span, padL, pw, W, bs };
   $('csum').textContent = sSum > 0 ? fmt(T.sum, { w: num(eSum * 3600 / sSum, 1), e: num(eSum / 1000, 2), d: S.hours > 24 ? fmt(T.per_day, { e: num(eSum / 1000 / (sSum / 86400), 2) }) : '' }) : ' ';
   for (const b of $('ranges').children) b.classList.toggle('on', Number(b.dataset.h) === S.hours);
 }
 
 function hover(ev) {
   const P = chartPts, tip = $('tip'), cross = document.getElementById('cross');
-  if (!P || !cross) return;
+  if (!P || !cross || !P.B.length) return;
   const r = $('plot').getBoundingClientRect();
   const px = (ev.clientX - r.left) * (P.W / r.width);
-  const i = Math.floor((px - P.padL) / P.pw * P.nb);
-  let b = null; for (let k = 0; k < 4 && !b; k++) b = P.B[i - k] || P.B[i + k];
-  if (!b || px < P.padL) { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); return; }
+  const t = P.t0 + (px - P.padL) / P.pw * P.span;
+  let lo = 0, hi = P.B.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (P.B[mid].t < t) lo = mid + 1; else hi = mid; }
+  if (lo > 0 && Math.abs(P.B[lo - 1].t - t) < Math.abs(P.B[lo].t - t)) lo--;
+  const b = P.B[lo];
+  if (px < P.padL || Math.abs(b.t - t) > P.bs * 3) { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); return; }
   cross.setAttribute('x1', P.x(b.t)); cross.setAttribute('x2', P.x(b.t)); cross.setAttribute('visibility', 'visible');
-  const t = b.t, lab = S.hours > 24 ? new Date(t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) + ' ' + hm(t) : hm(t);
-  tip.textContent = lab + ' · ' + fmt(T.avg, { w: num(b.avg, 1) }) + ' · ' + fmt(T.range, { a: num(b.mn, 0), b: num(b.mx, 0) });
+  const lab = S.hours > 24 ? new Date(b.t * 1000).toLocaleDateString(loc(), { weekday: 'short', day: 'numeric', month: 'numeric' }) + ' ' + hm(b.t) : hm(b.t);
+  tip.textContent = fmt(T.tip, { t: lab, w: num(b.pn, 1), r: num(b.w, 1), u: num(b.u, 0) });
   tip.style.display = 'block';
   const wx = (P.x(b.t) / P.W) * r.width;
   tip.style.left = Math.min(Math.max(0, wx - tip.offsetWidth / 2), r.width - tip.offsetWidth) + 'px';

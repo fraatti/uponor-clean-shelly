@@ -44,14 +44,19 @@ function powerAt(t) {
   while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (feed[mid].t <= t) lo = mid; else hi = mid - 1; }
   return feed[lo].p;
 }
+// cumulative energy (Wh) at each feed change, for the energy of any minute
+const cum = [0];
+for (let i = 1; i < feed.length; i++) cum.push(cum[i - 1] + feed[i - 1].p * (feed[i].t - feed[i - 1].t) / 3600e3);
+function idxAt(t) { let lo = 0, hi = feed.length - 1; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (feed[mid].t <= t) lo = mid; else hi = mid - 1; } return lo; }
+function energyAt(t) { if (!feed.length || t <= feed[0].t) return 0; const i = idxAt(t); return cum[i] + feed[i].p * (t - feed[i].t) / 3600e3; }
+// like the device: the minute energy comes in steps of 0.2072 Wh
+const EQ = 0.2072;
 // one EM1Data record (60 s from ts, seconds): energy Wh, min and max power
 function record(ts) {
   const a = ts * 1000, b = a + 60e3;
-  let lo = 0, hi = feed.length - 1;
-  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (feed[mid].t <= a) lo = mid; else hi = mid - 1; }
-  let t = a, p = feed[lo] && feed[lo].t <= a ? feed[lo].p : 0, wh = 0, mn = p, mx = p, i = lo + 1;
-  while (i < feed.length && feed[i].t < b) { wh += p * (feed[i].t - t) / 3600e3; t = feed[i].t; p = feed[i].p; mn = Math.min(mn, p); mx = Math.max(mx, p); i++; }
-  wh += p * (b - t) / 3600e3;
+  const wh = (Math.floor(energyAt(b) / EQ) - Math.floor(energyAt(a) / EQ)) * EQ;
+  let i = idxAt(a), p = feed[i] && feed[i].t <= a ? feed[i].p : 0, mn = p, mx = p; i++;
+  while (i < feed.length && feed[i].t < b) { p = feed[i].p; mn = Math.min(mn, p); mx = Math.max(mx, p); i++; }
   const u = 230, r4 = (x) => Math.round(x * 1e4) / 1e4, r1 = (x) => Math.round(x * 10) / 10;
   return [r4(wh), 0, 0, 0, r1(mx), r1(mn), r1(mx * 1.08), r1(mn * 1.08), u + 0.4, u - 0.3, u, r4(mx / u), r4(mn / u), r4(wh * 60 / u)];
 }

@@ -10,9 +10,9 @@
 
 - **Now**: phase, cycle and phase code (e.g. `S103`), when the phase started and its progress from the firmware phase times.
 - **Next pump-out** as a clock time and the time until it. In the waiting cycle the app shows when the holiday programme starts if the start level is not reached. The last pump-out is shown too.
-- **Power** and voltage about every 3 seconds, **batches**, **chemical** and how long it lasts, and the **sludge counter**.
+- **Power** normalised to 230 V (below it the measured power and voltage) about every 3 seconds, **batches**, **chemical** and how long it lasts, and the **sludge counter**.
 - **Warnings** as a bar at the top of the page.
-- **Power consumption** as a chart over 6 hours, 24 hours or 7 days. The line is the average power of each minute and the light area the minimum and maximum. Above the chart are the average power and energy of the range. The pointer shows the reading at that time.
+- **Power consumption** as a chart over 6 hours, 24 hours or 7 days. The chart is normalised to a voltage of 230 V with the same formula as in the script, so the voltage does not move the levels (aeration about 57 W, pump-in about 43 W). In the 6 and 24 hour views the chart has a point a minute, in the 7 day view a 15-minute average. Above the chart are the measured average power and energy of the range. The pointer shows the normalised power and the measured power and voltage.
 - **Events** while the app is open: phase changes, completed batches, warnings, chemical and counter entries, and script starts.
 - **Device**: script and Shelly versions, uptime and clock state.
 
@@ -50,9 +50,11 @@ Everything goes through the Shelly WebSocket RPC (`ws://<shelly>/rpc`):
 | Script state | `Script.Eval` → `JSON.stringify(stateObject())` | 6 s and after an event |
 | Power and voltage | `EM1.GetStatus` or `NotifyStatus` sent by the Shelly | 3 s |
 | Events | the script's `uponor` events (`NotifyEvent`) | at once |
-| Power history | `EM1Data.GetData` (one record a minute: energy, minimum and maximum power) | 7 days at first, then the new minutes every minute |
+| Power history | `EM1Data.GetData` (one record a minute: energy, minimum and maximum power, voltage) | 7 days at first, then the new minutes every minute |
 
 The script's state endpoint `http://<shelly>/script/<id>/state` does not work for a browser: the Shelly answers 503 when an HTTP request carries the `Origin` header of another page (see [`shelly-limits.md`](shelly-limits.md)). So the app reads the same state with `Script.Eval`. The script needed no changes; the name of the function `stateObject()` is now part of the agreed interface.
+
+The power of a minute is taken from its minimum and maximum power. The minute energy of the Shelly comes in steps of about 0.207 Wh, so an average power from it would jump in steps of 12.4 W (see [`shelly-limits.md`](shelly-limits.md)). If the power changed during the minute, the energy average is used, kept between the minimum and maximum. The power is normalised with (P − 4) · (230 / U)² + 4 when P is over 10 W.
 
 The app does not show the phase history, because the Shelly does not store it. The event log starts when the app is opened.
 
