@@ -54,7 +54,7 @@ The app connects to the Shelly in the home network. The easiest way is to let th
 Two scripts go on the Shelly:
 
 - `uponor-clean-app` is a small loader page. It starts with the Shelly and uses about 2 kB of memory (peak under 4 kB).
-- `uponor-clean-app-data` and `uponor-clean-app-data2` are the app itself, packed (about 91,000 characters in all, at most 48,000 per script). They are never started; they are only storage. If the app grows, it continues in the scripts `-data3` and so on.
+- `uponor-clean-app-data` and `uponor-clean-app-data2` are the app itself, packed (about 94,000 characters in all, at most 48,000 per script). They are never started; they are only storage. If the app grows, it continues in the scripts `-data3` and so on.
 
 The easiest way is to let the app make the scripts itself. They can also be made in the Shelly web UI or with the Python tool. No way touches the detection script. The names must be exactly these, because the loader finds the app by its name and the app tells the detection script apart by name.
 

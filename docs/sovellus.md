@@ -54,7 +54,7 @@ Sovellus ottaa yhteyden Shellyyn kotiverkossa. Helpointa on antaa Shellyn jakaa 
 Shellyyn tehdään kaksi skriptiä:
 
 - `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 2 kt (huippu alle 4 kt).
-- `uponor-clean-app-data` ja `uponor-clean-app-data2` ovat itse sovellus pakattuna (yhteensä noin 91 000 merkkiä, enintään 48 000 merkkiä skriptiä kohden). Niitä ei käynnistetä koskaan, vaan ne ovat pelkkä varasto. Jos sovellus kasvaa, se jatkuu skripteissä `-data3` jne.
+- `uponor-clean-app-data` ja `uponor-clean-app-data2` ovat itse sovellus pakattuna (yhteensä noin 94 000 merkkiä, enintään 48 000 merkkiä skriptiä kohden). Niitä ei käynnistetä koskaan, vaan ne ovat pelkkä varasto. Jos sovellus kasvaa, se jatkuu skripteissä `-data3` jne.
 
 Helpointa on antaa sovelluksen tehdä skriptit itse. Ne voi tehdä myös Shellyn web-käyttöliittymässä tai Python-työkalulla. Mikään tapa ei koske tunnistusskriptiin. Nimien pitää olla tarkalleen nämä, koska latainsivu etsii sovelluksen nimellä ja sovellus erottaa tunnistusskriptin nimen perusteella.
 
