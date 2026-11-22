@@ -4,9 +4,26 @@
 
 `app/uponor-clean-app.html` näyttää puhdistamon tilan ja sähkönkulutuksen suoraan Shellystä. Home Assistantia ei tarvita. Sovellus on yksi HTML-tiedosto, joka ei hae mitään internetistä. Shelly voi jakaa sen itse, jolloin se aukeaa kotiverkossa myös puhelimella.
 
-![Selainsovellus](img/sovellus.jpg)
+Sovelluksessa on kaksi näkymää, joiden välillä vaihdetaan otsikon vieressä: **Kuva** ja **Tiedot**.
 
-## Mitä sovellus näyttää
+![Selainsovellus: Kuva](img/sovellus_kuva.jpg)
+
+## Kuva
+
+Kuva-näkymä on sama piirros kuin Home Assistant -kortissa ([kortin ohje](../ha-card/README.md)):
+
+- puhdistamo sivuleikkauksena tai ylhäältä, letkut, pumppujen virtaus, säiliöiden pinnat ja lietekerros vaiheen mukaan
+- vaihe ja sen eteneminen, seuraava ulospumppaus, panokset, teho, energia vuorokaudessa, pinnan arvio, kemikaali ja lietemuistutus
+- aikajana tehoineen 2, 6 tai 48 tunnin ajalta; aikajanaa voi selata ja toistaa, jolloin piirros näyttää valitun hetken
+- lokikirja
+
+Kemikaalin määrän ja lietelaskurin voi syöttää kynäkuvakkeesta. Sovellus tallentaa ne suoraan Shellyn skriptille.
+
+Teho ja energia tulevat Shellyn tallentamasta minuuttihistoriasta (noin 7 vuorokautta). Vaiheita, panoksia ja varoituksia Shelly ei tallenna. Siksi aikajanan vaiheet, lokikirja ja panokset päivittäin karttuvat siitä alkaen, kun sovellus on ollut auki. Selain muistaa ne 8 vuorokautta, mutta vain samassa selaimessa. Kun sovellus avataan ensimmäistä kertaa, aikajanalla näkyy vain nykyinen vaihe.
+
+## Tiedot
+
+![Selainsovellus: Tiedot](img/sovellus.jpg)
 
 - **Nyt**: vaihe, jakso ja vaihekoodi (esim. `S103`), vaiheen alkamisaika ja eteneminen firmwaren vaiheajoista.
 - **Seuraava ulospumppaus** kellonaikana ja aikana siihen. Odotusjaksossa sovellus näyttää, milloin loma-automatiikka alkaa, jos aloitustasoa ei saavuteta. Lisäksi näkyy viimeisin ulospumppaus.
@@ -29,7 +46,7 @@ Sovellus ottaa yhteyden Shellyyn kotiverkossa. Helpointa on antaa Shellyn jakaa 
 Shellyyn tehdään kaksi skriptiä:
 
 - `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 2 kt (huippu alle 4 kt).
-- `uponor-clean-app-data` on itse sovellus pakattuna (noin 29 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto. Jos sovellus kasvaa yli 45 000 merkin, se jatkuu skripteissä `uponor-clean-app-data2`, `-data3` jne.
+- `uponor-clean-app-data` ja `uponor-clean-app-data2` ovat itse sovellus pakattuna (yhteensä noin 86 000 merkkiä, enintään 45 000 merkkiä skriptiä kohden). Niitä ei käynnistetä koskaan, vaan ne ovat pelkkä varasto. Jos sovellus kasvaa, se jatkuu skripteissä `-data3` jne.
 
 Helpointa on antaa sovelluksen tehdä skriptit itse. Ne voi tehdä myös Shellyn web-käyttöliittymässä tai Python-työkalulla. Mikään tapa ei koske tunnistusskriptiin. Nimien pitää olla tarkalleen nämä, koska latainsivu etsii sovelluksen nimellä ja sovellus erottaa tunnistusskriptin nimen perusteella.
 
@@ -46,7 +63,7 @@ Uusi versio asennetaan samoin: avaa se koneella ja paina **Päivitä Shellyyn**.
 #### Web-käyttöliittymästä
 
 1. Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`), avaa **Scripts** ja valitse **Create script**. Anna nimeksi `uponor-clean-app-data`.
-2. Avaa GitHubissa tiedosto `app/uponor-clean-app-data.txt`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C), liitä se editoriin ja tallenna (levykekuvake). Tiedosto on noin 29 000 merkkiä, joten se mahtuu editoriin (enintään 50 000 merkkiä). Jos `app`-kansiossa on myös `uponor-clean-app-data2.txt` (tai `-data3.txt`), tee jokaiselle oma skripti samannimisenä. **Älä käynnistä tätä skriptiä äläkä ota sille käyttöön Run on startup -asetusta**: se on pakattua dataa eikä ohjelmakoodia.
+2. Avaa GitHubissa tiedosto `app/uponor-clean-app-data.txt`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C), liitä se editoriin ja tallenna (levykekuvake). Tiedosto on enintään 45 000 merkkiä, joten se mahtuu editoriin (enintään 50 000 merkkiä). Tee samoin skripti `uponor-clean-app-data2` tiedostosta `uponor-clean-app-data2.txt` (ja `-data3` jne., jos sellaisia on). **Älä käynnistä tätä skriptiä äläkä ota sille käyttöön Run on startup -asetusta**: se on pakattua dataa eikä ohjelmakoodia.
 3. Palaa **Scripts**-sivulle, valitse **Create script** ja anna nimeksi `uponor-clean-app`.
 4. Liitä editoriin tiedoston `app/uponor_clean_app_loader.js` sisältö samalla tavalla, tallenna ja käynnistä (**Start**). Konsoliin tulee rivi `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Palaa **Scripts**-sivulle ja ota `uponor-clean-app`-skriptille käyttöön **Run on startup**.
@@ -73,7 +90,7 @@ Sovellusta päivitettäessä vanha poistetaan ja uusi tehdään tilalle. **Päiv
 
 #### Tila ja Shellyn firmware-päivitykset
 
-Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen (1.3.0) kanssa vapaata on noin 170 kt.
+Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen (1.4.0) kanssa vapaata on noin 115 kt.
 
 Shelly ei kerro, paljonko vapaata tilaa firmware-päivitys tarvitsee. Shellyn ESP32-laitteiden firmware perustuu Mongoose OS:ään (siksi esim. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) toimii sen päivitysmekanismilla); Gen4:n osalta tätä ei ole varmistettu. Mongoose OS:n [ohjeen](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md) mukaan päivitys kirjoittaa uuden firmwaren ja sen tiedostojärjestelmän erilliseen osioon ja siirtää sinne käyttäjän tiedostot, kuten skriptit. Jos jokin vaihe epäonnistuu, päivitys keskeytyy ja vanha firmware jää käyttöön. Käyttäjän tiedostojen pitää siis mahtua uuden firmwaren tiedostojärjestelmään.
 
@@ -108,12 +125,16 @@ Kaikki kulkee Shellyn WebSocket-rajapinnan kautta (`ws://<shelly>/rpc`):
 | Teho ja jännite | `EM1.GetStatus` tai Shellyn lähettämä `NotifyStatus` | 3 s |
 | Tapahtumat | skriptin `uponor`-tapahtumat (`NotifyEvent`) | heti |
 | Tehohistoria | `EM1Data.GetData` (minuuttitiedot: energia, pienin ja suurin teho, jännite) | alussa 7 vrk, sitten minuutin välein uudet |
+| Energiamittari | `EM1Data.GetStatus` (`total_act_energy`) | minuutin välein |
+| Skriptin komponentit | `KVS.Get` → `uc_vc` (kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla) | yhteyden alussa |
 
 Skriptin tilakysely `http://<shelly>/script/<id>/state` ei kelpaa selaimelle: Shelly vastaa 503, jos HTTP-kyselyssä on toisen sivun `Origin`-otsake (ks. [`shelly-rajoitteet.md`](shelly-rajoitteet.md)). Siksi sovellus lukee saman tilan `Script.Eval`-kutsulla. Skriptiin ei tarvittu muutoksia; funktion `stateObject()` nimi on nyt sovitun rajapinnan osa.
 
 Minuutin teho lasketaan minuutin pienimmästä ja suurimmasta tehosta. Shellyn minuuttienergia on porrastettu noin 0,207 Wh:n askeliin, joten siitä laskettu keskiteho hyppisi 12,4 W:n portain (ks. [`shelly-rajoitteet.md`](shelly-rajoitteet.md)). Jos teho muuttui kesken minuutin, käytetään energiasta laskettua keskiarvoa pienimmän ja suurimman tehon välissä. Teho normalisoidaan kaavalla (P − 4) · (230 / U)² + 4, kun P on yli 10 W.
 
 Shellyn jakamana latainsivu hakee pakatun sovelluksen samasta osoitteesta `Script.GetCode`-kyselyillä, purkaa sen selaimessa ja avaa sen. Kyselyt menevät samaan osoitteeseen kuin sivu, joten `Origin`-rajoite ei koske niitä.
+
+Kuva-näkymä on Home Assistant -kortti `ha-card/uponor-clean-card.js` sellaisenaan. `app/tools/build_app.js` lisää sen sovellukseen (tiivistettynä, jos terser on asennettu: `npm install --no-save terser@5.31.6`) ja tekee pakatut tiedostot uudelleen. Sovellus antaa kortille Home Assistantin tilalle pienen sovittimen: skriptin tila entiteetteinä, niiden historia selaimen muistista, tehohistoria ja energiamittari Shellystä sekä `number.set_value` Shellyn `Number.Set`-kutsuna skriptin komponenteille.
 
 **Asenna Shellyyn** tallentaa sivun sellaisena kuin selain sen latasi (`document.documentElement.outerHTML` ennen kuin skripti muuttaa sivua), pakkaa sen selaimessa (gzip ja base64, 76 merkin rivit) ja kirjoittaa sen WebSocketin kautta `Script.PutCode`-kutsuilla 1 024 merkin paloina. Latainsivun koodi on sovelluksen sisällä samana kuin tiedostossa `app/uponor_clean_app_loader.js`.
 
@@ -137,5 +158,7 @@ Jäljitelmä osaa myös tallentaa skriptejä ja vastata niiden HTTP-osoitteisiin
 python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 # avaa http://127.0.0.1:8098/script/<id>/app
 ```
+
+`test/app_picture_test.js` kokeilee Kuva-näkymää: kortti, vaihe, tehohistoria, energia, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö sekä kielen vaihto.
 
 `test/app_install_test.js` kokeilee Asenna Shellyyn -painiketta jäljitelmää vastaan Playwrightilla: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen, monen osan asennus, Python-työkalu, liian vähäinen tila ja kolme käynnissä olevaa skriptiä.

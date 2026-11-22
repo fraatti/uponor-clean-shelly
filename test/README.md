@@ -87,6 +87,12 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 node test/app_data_test.js
 ```
 
+`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
+
+```
+node test/app_picture_test.js
+```
+
 `app_install_test.js` kokeilee sovelluksen *Asenna Shellyyn* -painiketta jäljitelmää vastaan: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen ja versiotieto, asennus neljään osaan ja takaisin yhteen, Python-työkalun ylimääräisten osien poisto, liian vähäinen tila (`--fs-free`) ja kolme käynnissä olevaa skriptiä. Jäljitelmä sallii kuten Shelly enintään kolme käynnissä olevaa skriptiä eikä hyväksy käynnissä olevan skriptin koodin muuttamista. Tarvitsee Playwrightin ja Chromiumin.
 
 ```

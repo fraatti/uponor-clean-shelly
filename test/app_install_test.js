@@ -3,7 +3,7 @@
 //   node test/app_install_test.js
 // 1. open app/uponor-clean-app.html as a file, connect to the mock, press Install
 // 2. open the address the Shelly now serves: the app loads from the Shelly and connects
-// 3. the served app sees the same version; installing in three parts and back in one works
+// 3. the served app sees the same version; installing in more parts and back to the usual split works
 // 4. the Python tool removes extra parts; a full file system and three running scripts give errors;
 //    an update fits where only the space of the deleted old app makes room; the Remove button
 //    (the mock: detection script 1, at most 3 scripts running, --fs-free sets the free space)
@@ -49,14 +49,17 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
 
 (async () => {
   const browser = await chromium.launch();
-  let mock = await startMock(8091);
+  let mock = await startMock(8091, ['--fs-free', '300000']);
   try {
     // 1. install from a file
     const file = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8091&lang=fi');
     const r = await pressInstall(file);
     check(/ei ole vielä asennettu/.test(r.before), 'before: ' + r.before);
     check(/^Valmis/.test(r.after) && /^http:\/\/127\.0\.0\.1:8091\/script\/\d+\/app$/.test(r.url), 'install: ' + r.after);
-    check(String(await listScripts(file)) === 'uponor-clean-v3*,uponor-clean-app-data,uponor-clean-app*', 'scripts: ' + (await listScripts(file)));
+    const names0 = await listScripts(file);
+    const dataParts = (l) => l.filter((n) => /^uponor-clean-app-data\d*$/.test(n)).length;
+    const usual = dataParts(names0);
+    check(/^uponor-clean-v3\*,uponor-clean-app-data(,uponor-clean-app-data\d)*,uponor-clean-app\*$/.test(String(names0)), 'scripts: ' + names0);
 
     // 2. the Shelly serves the app
     const served = await openApp(browser, r.url);
@@ -64,23 +67,23 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
     check(appScript(html) === appScript(fs.readFileSync(APP, 'utf8')), 'served app has the same script as the file');
     check((await served.textContent('#foot')).includes(VERSION), 'served app version ' + VERSION);
 
-    // 3. the served app sees its own version; three parts and back to one
+    // 3. the served app sees its own version; more parts and back to the usual split
     await served.click('#setb');
     await served.waitForFunction(() => /tämä versio|this version/.test(document.getElementById('d-inst-s').textContent), null, { timeout: 30000 });
     check(true, 'served app: ' + (await served.textContent('#d-inst-s')));
     const three = await file.evaluate(() => window.__ucApp.installApp({ partMax: 9000 }));
-    check(three.parts >= 3, 'install in ' + three.parts + ' parts');
+    check(three.parts > usual, 'install in ' + three.parts + ' parts (usually ' + usual + ')');
     const servedParts = await openApp(browser, r.url);
     check(await servedParts.evaluate(() => !!window.__ucApp.selfLength), 'served app loads from ' + three.parts + ' parts');
     const one = await file.evaluate(() => window.__ucApp.installApp());
     const names = await listScripts(file);
-    check(one.parts === 1 && !names.some((n) => /data\d/.test(n)), 'back to one part, extra parts removed: ' + names);
+    check(one.parts === usual && dataParts(names) === usual, 'back to ' + usual + ' parts, extra parts removed: ' + names);
 
     // 4a. the Python tool removes extra parts too
     await file.evaluate(() => window.__ucApp.installApp({ partMax: 9000 }));
     execFileSync('python3', [path.join(root, 'shelly', 'tools', 'sovellus_shellyyn.py'), '127.0.0.1:8091'], { stdio: 'pipe' });
     const names2 = await listScripts(file);
-    check(!names2.some((n) => /data\d/.test(n)), 'Python tool removed extra parts: ' + names2);
+    check(dataParts(names2) === usual, 'Python tool removed extra parts: ' + names2);
     const servedPy = await openApp(browser, r.url);
     check(await servedPy.evaluate(() => !!window.__ucApp.selfLength), 'app installed by the Python tool loads');
     mock.kill();
@@ -94,13 +97,13 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
     mock.kill();
 
     // 4c. an update deletes the old app first, so it fits where old + new would not
-    mock = await startMock(8094, ['--fs-free', '160000']);
+    mock = await startMock(8094, ['--fs-free', '240000']);
     const tight = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8094&lang=fi');
     const t1 = await pressInstall(tight);
     const t2 = await tight.evaluate(async () => { try { return 'ok ' + (await window.__ucApp.installApp()).free; } catch (e) { return 'error ' + e.message; } });
     check(/^Valmis/.test(t1.after) && /^ok /.test(t2), 'update with tight space: ' + t2);
     const ids1 = await listScripts(tight);
-    check(String(ids1) === 'uponor-clean-v3*,uponor-clean-app*,uponor-clean-app-data', 'after the update: ' + ids1);
+    check(/^uponor-clean-v3\*,uponor-clean-app\*,uponor-clean-app-data(,uponor-clean-app-data\d)*$/.test(String(ids1)), 'after the update: ' + ids1);
     const servedT = await openApp(browser, t1.url);
     check(await servedT.evaluate(() => !!window.__ucApp.selfLength), 'same address after the update: ' + t1.url);
 
@@ -116,7 +119,7 @@ const listScripts = (page) => page.evaluate(async () => (await window.__ucApp.rp
     mock.kill();
 
     // 4e. three scripts already running
-    mock = await startMock(8093);
+    mock = await startMock(8093, ['--fs-free', '300000']);
     const busy = await openApp(browser, 'file://' + APP + '?host=127.0.0.1:8093&lang=fi');
     await busy.evaluate(async () => {
       const c = window.__ucApp.rpc;

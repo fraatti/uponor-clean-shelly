@@ -104,6 +104,18 @@ function call(method, p) {
       const w = dev.power, u = dev.voltage || 230;
       return { id: 0, current: Math.round(w / u * 1000) / 1000, voltage: u, act_power: w, aprt_power: Math.round(w * 1.08 * 10) / 10, pf: 0.92, freq: 50, calibration: 'factory' };
     }
+    case 'EM1Data.GetStatus':
+      // the energy meter: a start value plus the simulated energy (energyAt: Wh since the start of the simulation)
+      return { id: 0, total_act_energy: Math.round((136000 + energyAt(dev.t)) * 100) / 100, total_act_ret_energy: 0 };
+    case 'KVS.Get': {
+      if (!dev.kvs.has(p.key)) throw { code: -105, message: 'Argument key, value ' + p.key + ' not found!' };
+      return { etag: 'mock', value: dev.kvs.get(p.key) };
+    }
+    case 'Number.Set': {
+      const r = dev.externalSet('number:' + p.id, p.value);
+      if (r && r.err) throw { code: r.err, message: r.msg };
+      return null;
+    }
     case 'EM1Data.GetRecords':
       return { data_blocks: [{ ts: T0 / 1000, period: 60, records: (lastRecordTs() - T0 / 1000) / 60 + 1 }] };
     case 'EM1Data.GetData': {
