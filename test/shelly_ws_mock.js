@@ -3,7 +3,7 @@
 // full speed, then in real time. Answers the RPC calls the app makes over ws://host:port/rpc and
 // sends the script's "uponor" events as NotifyEvent. No dependencies.
 //
-// Usage: node shelly_ws_mock.js [--port 8098] [--days 7] [--seed 3] [--password secret]
+// Usage: node shelly_ws_mock.js [--port 8098] [--days 7] [--seed 3] [--password secret] [--fs-free 190000]
 //        then open app/uponor-clean-app.html?host=127.0.0.1:8098
 //        (the mock also serves the app at http://127.0.0.1:8098/app)
 'use strict';
@@ -19,6 +19,7 @@ const PORT = Number(arg('port', 8098));
 const DAYS = Number(arg('days', 7));
 const SEED = Number(arg('seed', 3));
 const PASSWORD = arg('password', null);
+const FS_FREE0 = Number(arg('fs-free', 190000));   // free file system space before the extra scripts (bytes)
 const REALM = 'shellyemminig4-mock';
 const APP = path.join(__dirname, '..', 'app', 'uponor-clean-app.html');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -80,15 +81,18 @@ function call(method, p) {
     case 'Shelly.GetDeviceInfo':
       return { name: null, id: REALM, model: 'S4EM-001PXCEU16', gen: 4, fw_id: '20261109-150305/2.2.0-mock', ver: '2.2.0', app: 'MiniEMG4', auth_en: !!PASSWORD, auth_domain: PASSWORD ? REALM : null };
     case 'Sys.GetStatus':
-      return { time: null, unixtime: Math.floor(dev.t / 1000), uptime: Math.floor(dev.t / 1000) - bootUnix, reset_reason: 1 };
+      return { time: null, unixtime: Math.floor(dev.t / 1000), uptime: Math.floor(dev.t / 1000) - bootUnix, reset_reason: 1, fs_size: 786432, fs_free: fsFree() };
     case 'Script.List':
       return { scripts: [{ id: sid, name: 'uponor-clean-v3', enable: true, running: true }].concat([...extra.values()].map((x) => ({ id: x.id, name: x.name, enable: x.enable, running: x.running }))) };
     case 'Script.Create': { const id = nextId++; extra.set(id, { id, name: p.name, code: '', enable: false, running: false, ep: {} }); return { id }; }
-    case 'Script.PutCode': { const x = script(p.id); if (!x) return {}; x.code = (p.append ? x.code : '') + (p.code || ''); return { len: x.code.length }; }
+    case 'Script.PutCode': { const x = script(p.id); if (!x) return {}; if (x.running) throw { code: -103, message: 'Script is running' };
+      if ((p.code || '').length > 0 && fsFree() - (p.code || '').length < 0) throw { code: -103, message: 'No space left' }; x.code = (p.append ? x.code : '') + (p.code || ''); return { len: x.code.length }; }
     case 'Script.GetCode': { const x = script(p.id); const c = x ? x.code : '', off = Number(p.offset || 0), len = Number(p.len || 2048); const data = c.slice(off, off + len); return { data, left: Math.max(0, c.length - off - data.length) }; }
     case 'Script.SetConfig': { const x = script(p.id); if (x && p.config && 'enable' in p.config) x.enable = !!p.config.enable; return { restart_required: false }; }
     case 'Script.Stop': { const x = script(p.id); if (x) { x.running = false; x.ep = {}; } return { was_running: true }; }
-    case 'Script.Start': { const x = script(p.id); if (x) startExtra(x); return { was_running: false }; }
+    case 'Script.Start': { const x = script(p.id); if (!x) return {}; if (!x.running && 1 + [...extra.values()].filter((y) => y.running).length >= 3) throw { code: -103, message: 'Too many scripts running' };
+      startExtra(x); return { was_running: false }; }
+    case 'Script.Delete': { const x = script(p.id); if (!x) throw { code: -105, message: 'Argument id, value ' + p.id + ' not found!' }; if (x.running) throw { code: -103, message: 'Script is running' }; extra.delete(x.id); return null; }
     case 'Script.GetStatus': { const x = script(p.id); return x ? { id: x.id, running: x.running, mem_used: x.running ? 1520 : 0, mem_peak: x.running ? 2210 : 0, mem_free: 9800 } : { id: sid, running: true, mem_used: 15036, mem_peak: 17430 }; }
     case 'Script.Eval': {
       if (p.id !== sid) throw { code: -105, message: 'Argument id, value ' + p.id + ' not found!' };
@@ -120,6 +124,7 @@ function call(method, p) {
 // scripts other than the recognition script: their code, and HTTP endpoints when started
 const extra = new Map(); let nextId = sid + 1;
 const script = (id) => extra.get(Number(id));
+const fsFree = () => FS_FREE0 - [...extra.values()].reduce((a, x) => a + Math.ceil(x.code.length / 4096) * 4096, 0);
 function startExtra(x) {
   x.ep = {};
   vm.runInNewContext(x.code, { HTTPServer: { registerEndpoint: (name, fn) => { x.ep[name] = fn; } }, Shelly: { getCurrentScriptId: () => x.id }, print: (...a) => console.log('[script ' + x.id + ']', ...a) });

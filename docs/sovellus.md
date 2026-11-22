@@ -29,14 +29,24 @@ Sovellus ottaa yhteyden Shellyyn kotiverkossa. Helpointa on antaa Shellyn jakaa 
 Shellyyn tehdään kaksi skriptiä:
 
 - `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 2 kt (huippu alle 4 kt).
-- `uponor-clean-app-data` on itse sovellus pakattuna (noin 23 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto.
+- `uponor-clean-app-data` on itse sovellus pakattuna (noin 29 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto. Jos sovellus kasvaa yli 45 000 merkin, se jatkuu skripteissä `uponor-clean-app-data2`, `-data3` jne.
 
-Skriptit voi tehdä Shellyn web-käyttöliittymässä, jolloin koneelle ei tarvitse asentaa mitään, tai Python-työkalulla. Kumpikaan tapa ei koske tunnistusskriptiin. Nimien pitää olla tarkalleen nämä, koska latainsivu etsii sovelluksen nimellä ja sovellus erottaa tunnistusskriptin nimen perusteella.
+Helpointa on antaa sovelluksen tehdä skriptit itse. Ne voi tehdä myös Shellyn web-käyttöliittymässä tai Python-työkalulla. Mikään tapa ei koske tunnistusskriptiin. Nimien pitää olla tarkalleen nämä, koska latainsivu etsii sovelluksen nimellä ja sovellus erottaa tunnistusskriptin nimen perusteella.
+
+#### Sovelluksen asetuksista (helpoin)
+
+1. Lataa `app/uponor-clean-app.html` GitHubista koneelle ja avaa se selaimella (Chrome, Edge, Firefox tai Safari).
+2. Anna Shellyn osoite ja yhdistä.
+3. Avaa asetukset (rataskuvake) ja paina **Asenna Shellyyn**.
+
+Sovellus tallentaa itsensä Shellyyn, käynnistää latainsivun ja näyttää sovelluksen osoitteen. Ennen kirjoittamista se tarkistaa, että Shellyyn jää vähintään 64 kt vapaata tilaa, ja lopuksi se lukee kirjoittamansa skriptit takaisin ja vertaa ne. Asetuksissa näkyy myös, mikä versio Shellyssä on.
+
+Päivitys tehdään samoin: avaa uusi versio koneella ja paina **Päivitä Shellyyn**. Asennus onnistuu myös Home Assistantin kautta avatusta sovelluksesta.
 
 #### Web-käyttöliittymästä
 
 1. Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`), avaa **Scripts** ja valitse **Create script**. Anna nimeksi `uponor-clean-app-data`.
-2. Avaa GitHubissa tiedosto `app/uponor-clean-app-data.txt`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C), liitä se editoriin ja tallenna (levykekuvake). Tiedosto on noin 23 000 merkkiä, joten se mahtuu editoriin (enintään 50 000 merkkiä). **Älä käynnistä tätä skriptiä äläkä ota sille käyttöön Run on startup -asetusta**: se on pakattua dataa eikä ohjelmakoodia.
+2. Avaa GitHubissa tiedosto `app/uponor-clean-app-data.txt`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C), liitä se editoriin ja tallenna (levykekuvake). Tiedosto on noin 29 000 merkkiä, joten se mahtuu editoriin (enintään 50 000 merkkiä). Jos `app`-kansiossa on myös `uponor-clean-app-data2.txt` (tai `-data3.txt`), tee jokaiselle oma skripti samannimisenä. **Älä käynnistä tätä skriptiä äläkä ota sille käyttöön Run on startup -asetusta**: se on pakattua dataa eikä ohjelmakoodia.
 3. Palaa **Scripts**-sivulle, valitse **Create script** ja anna nimeksi `uponor-clean-app`.
 4. Liitä editoriin tiedoston `app/uponor_clean_app_loader.js` sisältö samalla tavalla, tallenna ja käynnistä (**Start**). Konsoliin tulee rivi `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Palaa **Scripts**-sivulle ja ota `uponor-clean-app`-skriptille käyttöön **Run on startup**.
@@ -49,11 +59,11 @@ Kun sovellus päivittyy, avaa `uponor-clean-app-data`, korvaa editorin sisältö
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # salasanan kanssa: --salasana SALASANA
 ```
 
-Työkalu tekee molemmat skriptit tai päivittää ne, vertaa ne laitteelta luettuun ja käynnistää latainsivun. Kun sovellus päivittyy, aja työkalu uudelleen.
+Työkalu tekee skriptit tai päivittää ne, vertaa ne laitteelta luettuun, poistaa ylimääräiset osat ja käynnistää latainsivun. Kuten sovellus, se jättää Shellyyn vähintään 64 kt vapaata tilaa. Kun sovellus päivittyy, aja työkalu uudelleen.
 
 #### Sovelluksen osoite
 
-Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. `<id>` on `uponor-clean-app`-skriptin numero (Scripts-listan oikeassa reunassa, esim. `script:3`), ja koko osoite näkyy skriptin konsolissa ja työkalun tulosteessa. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
+Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. `<id>` on `uponor-clean-app`-skriptin numero (Scripts-listan oikeassa reunassa, esim. `script:3`), ja koko osoite näkyy sovelluksen asetuksissa, skriptin konsolissa ja työkalun tulosteessa. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
 
 ### Muut tavat
 
@@ -91,6 +101,8 @@ Minuutin teho lasketaan minuutin pienimmästä ja suurimmasta tehosta. Shellyn m
 
 Shellyn jakamana latainsivu hakee pakatun sovelluksen samasta osoitteesta `Script.GetCode`-kyselyillä, purkaa sen selaimessa ja avaa sen. Kyselyt menevät samaan osoitteeseen kuin sivu, joten `Origin`-rajoite ei koske niitä.
 
+**Asenna Shellyyn** tallentaa sivun sellaisena kuin selain sen latasi (`document.documentElement.outerHTML` ennen kuin skripti muuttaa sivua), pakkaa sen selaimessa (gzip ja base64, 76 merkin rivit) ja kirjoittaa sen WebSocketin kautta `Script.PutCode`-kutsuilla 1 024 merkin paloina. Latainsivun koodi on sovelluksen sisällä samana kuin tiedostossa `app/uponor_clean_app_loader.js`.
+
 Vaiheiden historiaa sovellus ei näytä, koska Shelly ei tallenna sitä. Tapahtumaloki alkaa, kun sovellus avataan.
 
 ## Testaus ilman laitetta
@@ -111,3 +123,5 @@ Jäljitelmä osaa myös tallentaa skriptejä ja vastata niiden HTTP-osoitteisiin
 python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 # avaa http://127.0.0.1:8098/script/<id>/app
 ```
+
+`test/app_install_test.js` kokeilee Asenna Shellyyn -painiketta jäljitelmää vastaan Playwrightilla: asennus tiedostosta, Shellyn jakaman sovelluksen avaaminen, monen osan asennus, Python-työkalu, liian vähäinen tila ja kolme käynnissä olevaa skriptiä.

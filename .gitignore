@@ -24,3 +24,4 @@ test/*.js
 !test/card_v3_test.js
 !test/shelly_ws_mock.js
 !test/app_data_test.js
+!test/app_install_test.js

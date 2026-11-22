@@ -105,6 +105,11 @@ dialog .row { display: flex; gap: 8px; justify-content: flex-end; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .check { display: flex !important; grid-template-columns: none; align-items: center; gap: 8px !important; }
 .check input { width: auto; }
+dialog fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 12px; margin: 0; display: grid; gap: 8px; min-width: 0; }
+dialog legend { font-size: 14px; padding: 0 4px; }
+dialog .inst-s { font-size: 13px; margin: 0; overflow-wrap: anywhere; }
+dialog .inst-s a { color: var(--accent); }
+.btn:disabled { opacity: .55; cursor: default; }
 .stale { opacity: .55; transition: opacity .3s; }
 footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px 0 6px; }
 </style>
@@ -175,6 +180,11 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
     <label class="check" id="d-rem-w"><input type="checkbox" id="d-rem"><span id="d-rem-l"></span></label>
     <label><span id="d-lang-l"></span><select id="d-lang"><option value="auto"></option><option value="fi">Suomi</option><option value="en">English</option></select></label>
     <p class="err" id="d-err"></p>
+    <fieldset id="d-inst"><legend id="d-inst-t"></legend>
+      <p class="hint" id="d-inst-h"></p>
+      <p class="inst-s" id="d-inst-s" aria-live="polite"></p>
+      <div class="row"><button class="btn" type="button" id="d-inst-b"></button></div>
+    </fieldset>
     <div class="row"><button class="btn" type="button" id="d-cancel"></button><button class="btn primary" type="submit" id="d-ok"></button></div>
   </form>
 </dialog>
@@ -182,7 +192,10 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
+// this page as it was loaded, captured before the script changes anything: the Install button
+// stores it on the Shelly, which then serves it at http://<shelly>/script/<id>/app
+const SELF_HTML = '<!doctype html>\n' + document.documentElement.outerHTML;
 
 // ------------------------------------------------------------------ texts
 const TX = {
@@ -210,6 +223,14 @@ const TX = {
     d_title: 'Asetukset', d_hint: 'Sovellus ottaa yhteyden Shellyyn suoraan kotiverkossa (WebSocket). Shellystä avattuna (http://<shelly>/script/<id>/app) osoitetta ei tarvitse antaa. https-osoitteesta avattuna selain estää yhteyden.',
     d_host: 'Shellyn osoite', d_pw: 'Salasana (vain jos Shellyssä on salasana)', d_rem: 'Muista salasana tällä laitteella', d_lang: 'Kieli', d_auto: 'Selaimen kieli', d_cancel: 'Peruuta', d_ok: 'Yhdistä',
     e_https: 'Sivu on avattu https-osoitteesta, joten selain estää yhteyden Shellyyn. Avaa tiedosto koneelta tai http-osoitteesta.',
+    inst_t: 'Asennus Shellyyn', inst_hint: 'Shelly voi jakaa tämän sovelluksen itse. Silloin se aukeaa kotiverkossa millä tahansa laitteella, myös puhelimella, ilman muuta palvelinta. Asennus tekee Shellyyn skriptit uponor-clean-app ja uponor-clean-app-data. Tunnistusskriptiin se ei koske.',
+    inst_conn: 'Yhdistä ensin Shellyyn.', inst_check: 'Tarkistetaan Shellyä…', inst_none: 'Sovellusta ei ole vielä asennettu Shellyyn.',
+    inst_have: 'Shellyssä on sovellus {v}: {url}', inst_same: 'Shellyssä on tämä versio ({v}): {url}', inst_stopped: 'Latainsivu ei ole käynnissä.',
+    inst_btn: 'Asenna Shellyyn', inst_upd: 'Päivitä Shellyyn {v}', inst_again: 'Asenna uudelleen', inst_busy: 'Asennetaan… {p} %',
+    inst_done: 'Valmis. Sovellus aukeaa osoitteesta {url}. Se vie Shellystä {n} kt, ja vapaata tilaa jäi {f} kt.',
+    inst_space: 'Shellyssä ei ole tarpeeksi tilaa: vapaana {f} kt, sovellus vie {n} kt ja vähintään {k} kt jätetään vapaaksi.',
+    inst_start: 'latainsivu ei käynnistynyt ({m}). Shellyssä voi olla käynnissä enintään kolme skriptiä.', inst_verify: 'Shellyltä luettu skripti {n} ei vastaa kirjoitettua',
+    inst_err: 'Asennus ei onnistunut: {m}', inst_nocs: 'Tämä selain ei osaa pakata sovellusta. Käytä Chromea, Edgeä, Firefoxia tai Safaria.',
     e_auth: 'Shelly pyytää salasanaa.', e_badpw: 'Salasana ei kelpaa.', e_noscript: 'Shellystä ei löydy käynnissä olevaa Uponor Clean -skriptiä.', e_eval: 'Skriptin tilaa ei saatu: {m}',
     ago_s: 'juuri nyt', foot: 'Uponor Clean -sovellus {v} · tiedot suoraan Shellystä, vaiheet päätellään sähkönkulutuksesta',
     min: 'min', h: 'h', d: 'vrk',
@@ -238,6 +259,14 @@ const TX = {
     d_title: 'Settings', d_hint: 'The app connects to the Shelly directly in the home network (WebSocket). Opened from the Shelly (http://<shelly>/script/<id>/app), no address is needed. Opened from an https address, the browser blocks the connection.',
     d_host: 'Shelly address', d_pw: 'Password (only if the Shelly has one)', d_rem: 'Remember the password on this device', d_lang: 'Language', d_auto: 'Browser language', d_cancel: 'Cancel', d_ok: 'Connect',
     e_https: 'The page was opened from an https address, so the browser blocks the connection to the Shelly. Open the file from the computer or from an http address.',
+    inst_t: 'Install on the Shelly', inst_hint: 'The Shelly can serve this app itself. Then it opens in the home network on any device, a phone too, without another server. The installation creates the scripts uponor-clean-app and uponor-clean-app-data on the Shelly. It does not touch the detection script.',
+    inst_conn: 'Connect to the Shelly first.', inst_check: 'Checking the Shelly…', inst_none: 'The app is not installed on the Shelly yet.',
+    inst_have: 'The Shelly has app {v}: {url}', inst_same: 'The Shelly has this version ({v}): {url}', inst_stopped: 'The loader is not running.',
+    inst_btn: 'Install on the Shelly', inst_upd: 'Update the Shelly to {v}', inst_again: 'Install again', inst_busy: 'Installing… {p} %',
+    inst_done: 'Done. The app opens at {url}. It takes {n} kB on the Shelly, and {f} kB stayed free.',
+    inst_space: 'Not enough space on the Shelly: {f} kB free, the app takes {n} kB and at least {k} kB is kept free.',
+    inst_start: 'the loader did not start ({m}). At most three scripts can run on the Shelly.', inst_verify: 'script {n} read back from the Shelly differs from what was written',
+    inst_err: 'Installation failed: {m}', inst_nocs: 'This browser cannot pack the app. Use Chrome, Edge, Firefox or Safari.',
     e_auth: 'The Shelly asks for a password.', e_badpw: 'The password is not accepted.', e_noscript: 'No running Uponor Clean script on the Shelly.', e_eval: 'Could not read the script state: {m}',
     ago_s: 'just now', foot: 'Uponor Clean app {v} · data straight from the Shelly; the phases are inferred from the power consumption',
     min: 'min', h: 'h', d: 'd',
@@ -401,6 +430,7 @@ function setTexts() {
   $('c-title').textContent = T.chart; $('c-note').textContent = T.note; $('r7').textContent = T.d7; $('g-title').textContent = T.log; $('i-title').textContent = T.info; $('gempty').textContent = T.log_empty;
   $('d-title').textContent = T.d_title; $('d-hint').textContent = T.d_hint; $('d-host-l').textContent = T.d_host; $('d-pw-l').textContent = T.d_pw;
   $('d-rem-l').textContent = T.d_rem; $('d-lang-l').textContent = T.d_lang; $('d-lang').options[0].textContent = T.d_auto; $('d-cancel').textContent = T.d_cancel; $('d-ok').textContent = T.d_ok;
+  $('d-inst-t').textContent = T.inst_t; $('d-inst-h').textContent = T.inst_hint;
   $('foot').textContent = fmt(T.foot, { v: APP_VERSION });
   $('plot').setAttribute('aria-label', T.chart);
 }
@@ -747,6 +777,7 @@ function openSettings(focusPw) {
   $('d-rem').checked = !!store.get('ha1:' + S.host) || $('d-rem').checked;
   if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute('open', ''); } }
   (focusPw ? $('d-pw') : $('d-host')).focus();
+  if (!instBusy) checkInst();
 }
 $('setb').addEventListener('click', () => openSettings(false));
 $('d-cancel').addEventListener('click', () => $('dlg').close());
@@ -764,6 +795,125 @@ $('dform').addEventListener('submit', (ev) => {
   connect();
 });
 
+// ------------------------------------------------------------------ install on the Shelly
+// The app goes gzip + base64 into the never-started script uponor-clean-app-data (a large app
+// continues in ...-data2, ...-data3), and the small script uponor-clean-app serves a page that
+// unpacks it (app/uponor_clean_app_loader.js, copied below). Only these scripts are touched.
+const LOADER_JS = "// Uponor Clean app loader (github.com/fraatti/uponor-clean-shelly)\n// Serves the browser app from the Shelly itself at http://<shelly>/script/<this id>/app, so the app\n// needs no other server. The app is stored gzip + base64 as the code of the script\n// \"uponor-clean-app-data\" (a large app continues in \"uponor-clean-app-data2\", \"...3\"), which is never\n// started. This page reads it with Script.GetCode (same address, so no cross-origin block), unpacks\n// it in the browser and opens it. Install with the app's own Install button, in the Shelly web UI\n// or with shelly/tools/sovellus_shellyyn.py (docs/app.md).\nlet PAGE = '<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">' +\n    '<title>Uponor Clean<\/title><\/head><body style=\"font:15px system-ui,sans-serif;margin:24px;color:#555\">' +\n    '<p id=\"m\">Ladataan sovellusta&hellip; / Loading the app&hellip;<\/p><script>' +\n    '(async()=>{const m=document.getElementById(\"m\");try{' +\n    'const l=await(await fetch(\"/rpc/Script.List\")).json();' +\n    'const p=(l.scripts||[]).filter(x=>/^uponor-clean-app-data\\\\d*$/.test(x.name)).sort((a,b)=>(+a.name.slice(21)||1)-(+b.name.slice(21)||1));' +\n    'if(!p.length)throw new Error(\"uponor-clean-app-data puuttuu / missing\");' +\n    'let d=\"\";for(const s of p){let o=0;for(let g=0;g<200;g++){const r=await(await fetch(\"/rpc/Script.GetCode?id=\"+s.id+\"&offset=\"+o+\"&len=4096\")).json();' +\n    'if(r.code)throw new Error(r.message||\"GetCode\");d+=r.data||\"\";o+=(r.data||\"\").length;if(!r.left)break}}' +\n    'const b=Uint8Array.from(atob(d.replace(/\\\\s+/g,\"\")),c=>c.charCodeAt(0));' +\n    'const h=await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream(\"gzip\"))).text();' +\n    'document.open();document.write(h);document.close()' +\n    '}catch(e){m.textContent=\"Sovellusta ei saatu ladattua / Could not load the app: \"+e.message}})()' +\n    '<\/script><\/body><\/html>';\n\nHTTPServer.registerEndpoint(\"app\", function (req, res) {\n    res.code = 200;\n    res.headers = [[\"Content-Type\", \"text/html; charset=utf-8\"], [\"Cache-Control\", \"no-store\"]];\n    res.body = PAGE;\n    res.send();\n});\nprint(\"Uponor Clean app: http://<shelly>/script/\" + Shelly.getCurrentScriptId() + \"/app\");\n";
+const NAME_LOADER = 'uponor-clean-app', NAME_DATA = 'uponor-clean-app-data';
+const PART_MAX = 45000;   // characters per data script; the Shelly web editor takes at most 50,000
+const FS_KEEP = 65536;    // bytes of the Shelly file system the installation leaves free
+const partName = (i) => NAME_DATA + (i ? String(i + 1) : '');
+const partNo = (name) => Number(name.slice(NAME_DATA.length)) || 1;
+const kb = (b) => num(b / 1024);
+const link = (u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>';
+const rpcOpen = () => !!(rpc.ws && rpc.ws.readyState === 1);
+let instBusy = false;
+
+async function packApp(html, partMax) {
+  if (typeof CompressionStream === 'undefined') throw new Error(T.inst_nocs);
+  const gz = new Uint8Array(await new Response(new Blob([html]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  let bin = ''; for (let i = 0; i < gz.length; i += 0x8000) bin += String.fromCharCode.apply(null, gz.subarray(i, i + 0x8000));
+  const b64 = btoa(bin), parts = [''];
+  for (let i = 0; i < b64.length; i += 76) {
+    const ln = b64.slice(i, i + 76) + '\n';
+    if (parts[parts.length - 1].length + ln.length > partMax) parts.push('');
+    parts[parts.length - 1] += ln;
+  }
+  return parts;
+}
+async function unpackApp(text) {
+  const b = Uint8Array.from(atob(text.replace(/\s+/g, '')), (c) => c.charCodeAt(0));
+  return new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+async function readCode(id) {
+  let d = '', o = 0;
+  for (let g = 0; g < 400; g++) {
+    const r = await rpc.call('Script.GetCode', { id, offset: o, len: 2048 });
+    const s = r.data || ''; d += s; o += new TextEncoder().encode(s).length;
+    if (!r.left || !s) break;
+  }
+  return d;
+}
+async function putCode(id, code, tick) {
+  const n = Math.max(1, Math.ceil(code.length / 1024));
+  for (let i = 0; i < n; i++) { await rpc.call('Script.PutCode', { id, code: code.slice(i * 1024, (i + 1) * 1024), append: i > 0 }); tick(); }
+  if ((await readCode(id)) !== code) throw new Error(fmt(T.inst_verify, { n: id }));
+}
+async function shellyApp() {
+  const list = (await rpc.call('Script.List')).scripts || [];
+  const parts = list.filter((s) => /^uponor-clean-app-data\d*$/.test(s.name || '')).sort((a, b) => partNo(a.name) - partNo(b.name));
+  return { list, parts, loader: list.find((s) => s.name === NAME_LOADER) };
+}
+
+// writes this app and the loader on the Shelly; opts.partMax only for tests
+async function installApp(opts) {
+  opts = opts || {};
+  const say = opts.progress || (() => {});
+  const parts = await packApp(SELF_HTML, opts.partMax || PART_MAX);
+  const total = parts.reduce((a, p) => a + p.length, 0) + LOADER_JS.length;
+  // room for the new app even if the Shelly keeps the old one until it is overwritten
+  const sys = await rpc.call('Sys.GetStatus');
+  if (typeof sys.fs_free === 'number' && sys.fs_free - total < FS_KEEP) throw new Error(fmt(T.inst_space, { f: kb(sys.fs_free), n: kb(total), k: kb(FS_KEEP) }));
+  const { list, parts: old, loader } = await shellyApp();
+  const steps = parts.reduce((a, p) => a + Math.ceil(p.length / 1024), 0) + Math.ceil(LOADER_JS.length / 1024);
+  let done = 0; const tick = () => say(Math.min(99, Math.round(++done / steps * 100)));
+  for (let i = 0; i < parts.length; i++) {
+    const s = list.find((x) => x.name === partName(i));
+    const id = s ? s.id : (await rpc.call('Script.Create', { name: partName(i) })).id;
+    if (s && s.running) await rpc.call('Script.Stop', { id });
+    await rpc.call('Script.SetConfig', { id, config: { enable: false } });
+    await putCode(id, parts[i], tick);
+  }
+  for (const s of old) {
+    if (partNo(s.name) <= parts.length) continue;
+    if (s.running) await rpc.call('Script.Stop', { id: s.id });
+    await rpc.call('Script.Delete', { id: s.id });
+  }
+  const lid = loader ? loader.id : (await rpc.call('Script.Create', { name: NAME_LOADER })).id;
+  if (!(loader && loader.running && (await readCode(lid)) === LOADER_JS)) {
+    if (loader && loader.running) await rpc.call('Script.Stop', { id: lid });
+    await putCode(lid, LOADER_JS, tick);
+    await rpc.call('Script.SetConfig', { id: lid, config: { enable: true } });
+    try { await rpc.call('Script.Start', { id: lid }); } catch (e) { throw new Error(fmt(T.inst_start, { m: e.message || e })); }
+  } else await rpc.call('Script.SetConfig', { id: lid, config: { enable: true } });
+  say(100);
+  const after = await rpc.call('Sys.GetStatus');
+  return { url: 'http://' + S.host + '/script/' + lid + '/app', size: total, free: after.fs_free, parts: parts.length };
+}
+
+// shows in the settings what the Shelly has
+async function checkInst() {
+  const st = $('d-inst-s'), b = $('d-inst-b');
+  b.textContent = T.inst_btn;
+  if (!rpcOpen()) { st.textContent = T.inst_conn; b.disabled = true; return; }
+  st.textContent = T.inst_check; b.disabled = true;
+  try {
+    const { parts, loader } = await shellyApp();
+    if (!parts.length || !loader) st.textContent = T.inst_none;
+    else {
+      let text = ''; for (const p of parts) text += await readCode(p.id);
+      const m = /APP_VERSION = '([^']+)'/.exec(await unpackApp(text)), v = m ? m[1] : '?';
+      const url = 'http://' + S.host + '/script/' + loader.id + '/app';
+      st.innerHTML = fmt(v === APP_VERSION ? T.inst_same : T.inst_have, { v: esc(v), url: link(url) }) + (loader.running ? '' : ' ' + esc(T.inst_stopped));
+      b.textContent = v === APP_VERSION && loader.running ? T.inst_again : fmt(T.inst_upd, { v: APP_VERSION });
+    }
+  } catch (e) { st.textContent = fmt(T.inst_err, { m: e.message || e }); }
+  b.disabled = false;
+}
+$('d-inst-b').addEventListener('click', async () => {
+  if (instBusy || !rpcOpen()) return;
+  instBusy = true;
+  const st = $('d-inst-s'), b = $('d-inst-b');
+  b.disabled = true; $('d-ok').disabled = true;
+  try {
+    const r = await installApp({ progress: (p) => { st.textContent = fmt(T.inst_busy, { p }); } });
+    st.innerHTML = fmt(T.inst_done, { url: link(r.url), n: kb(r.size), f: kb(r.free) });
+    b.textContent = T.inst_again;
+  } catch (e) { st.textContent = fmt(T.inst_err, { m: e.message || e }); }
+  b.disabled = false; $('d-ok').disabled = false; instBusy = false;
+});
+
 // ------------------------------------------------------------------ start
 $('ranges').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; S.hours = Number(b.dataset.h); store.set('hours', String(S.hours)); renderChart(); });
 $('plot').addEventListener('pointermove', hover);
@@ -774,7 +924,7 @@ setInterval(() => { if (S.state) render(); }, 15000);
 setTexts(); renderLog(); renderInfo(); renderChart();
 if (urlHost) store.set('host', urlHost);
 connect();
-window.__ucApp = { S, sha256, rpc };   // for tests
+window.__ucApp = { S, sha256, rpc, installApp, checkInst, selfLength: SELF_HTML.length };   // for tests
 })();
 </script>
 </body>

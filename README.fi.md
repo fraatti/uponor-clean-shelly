@@ -36,7 +36,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 | `shelly/v2/` | Vanhat skriptit v2.4 ja v2.3 (eivät käytössä) sekä v2.4:n komponenttien varmuuskopio (`backup/`). |
 | `shelly/v3/proto/` | v3-prototyypit laitetestiin ja komponenttien varmuuskopiotyökalu `uc_tools.js` (käytetty siirtymässä). Ohje: `docs/v3-prototyyppitesti.md`. |
 | `shelly/tools/` | `nauhuri.ps1` (Windows-nauhuri vianetsintään: teho sekunnin välein CSV:ksi), `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos), `sovellus_shellyyn.py` (selainsovelluksen asennus Shellyyn). |
-| `app/` | Selainsovellus `uponor-clean-app.html` 1.2.0 (yksi tiedosto, ohje `docs/sovellus.md`) latainsivu `uponor_clean_app_loader.js`, jolla Shelly jakaa sovelluksen itse, ja pakattu sovellus `uponor-clean-app-data.txt` asennukseen Shellyn web-käyttöliittymässä. |
+| `app/` | Selainsovellus `uponor-clean-app.html` 1.3.0 (yksi tiedosto, ohje `docs/sovellus.md`; asentaa itsensä Shellyyn asetuksistaan), latainsivu `uponor_clean_app_loader.js`, jolla Shelly jakaa sovelluksen itse, ja pakattu sovellus `uponor-clean-app-data.txt` asennukseen Shellyn web-käyttöliittymässä. |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.7.4, ohje, esikatselusivu (`preview.html`) ja sen päivitystyökalu (`tools/build_preview.py`). |
 | `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla Shelly-jäljitelmässä, firmwaresimulaattori, skenaariot, kortin testi ja sovelluksen WebSocket-jäljitelmä. |
 | `docs/` | Ohjeet, kuvat (`img/`), firmwaren pseudokoodi, v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |
@@ -47,7 +47,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 | --- | --- |
 | Skripti v3.0.2 | Käytössä 19.11.2026 alkaen (julkaisu [v3.0.2](../../releases/tag/v3.0.2)). v3.0.0–3.0.1 kaatuivat ensimmäisen puhdistusjakson alussa liian syvään kutsupinoon (`docs/v3-testitulokset.md`). Ei vaadi Home Assistantia, luo komponentit itse, firmwaren mukaiset vaiheet ja jaksot, kemikaali- ja lietelaskuri, varoitukset, tapahtumat. |
 | Kortti v1.7.4 | Käytössä. v3-entiteetit, v2-historia ennen v3:a, visuaalinen editori ja kielivalinta, kemikaalin ja lietteen syöttö kortilta. |
-| Sovellus 1.2.0 | Uusi 22.11.2026: `app/uponor-clean-app.html` näyttää livetiedot ja Shellyn tallentaman tehohistorian selaimessa ([ohje](docs/sovellus.md)). 1.1.0: teho ja käyrä normalisoitu 230 V:iin, käyrä minuutin pienimmästä ja suurimmasta tehosta. 1.2.0: Shelly jakaa sovelluksen itse osoitteesta `http://<shelly>/script/<id>/app`, joten se aukeaa kotiverkossa puhelimella ilman Home Assistantia. |
+| Sovellus 1.3.0 | Uusi 22.11.2026: `app/uponor-clean-app.html` näyttää livetiedot ja Shellyn tallentaman tehohistorian selaimessa ([ohje](docs/sovellus.md)). 1.1.0: teho ja käyrä normalisoitu 230 V:iin, käyrä minuutin pienimmästä ja suurimmasta tehosta. 1.2.0: Shelly jakaa sovelluksen itse osoitteesta `http://<shelly>/script/<id>/app`, joten se aukeaa kotiverkossa puhelimella ilman Home Assistantia. 1.3.0: *Asenna Shellyyn* -painike asetuksissa; iso sovellus voidaan jakaa useaan varastoskriptiin. |
 | Nauhuri 1.0 | Uusi 21.11.2026: `shelly/tools/nauhuri.ps1` nauhoittaa tehon vianetsintää varten ([ohje](docs/v3-asennus.md#nauhoitus-vianetsintää-varten)). |
 | Skripti v2.4.0 | Poistettu käytöstä 18.11.2026 ja poistettu laitteelta 19.11.2026. Ei siirtymää eikä paluuta. |
 | Skripti v2.3 | Vanha versio. |

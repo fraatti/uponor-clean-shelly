@@ -29,14 +29,24 @@ The app connects to the Shelly in the home network. The easiest way is to let th
 Two scripts go on the Shelly:
 
 - `uponor-clean-app` is a small loader page. It starts with the Shelly and uses about 2 kB of memory (peak under 4 kB).
-- `uponor-clean-app-data` is the app itself, packed (about 23,000 characters). It is never started; it is only storage.
+- `uponor-clean-app-data` is the app itself, packed (about 29,000 characters). It is never started; it is only storage. If the app grows over 45,000 characters, it continues in the scripts `uponor-clean-app-data2`, `-data3` and so on.
 
-The scripts can be made in the Shelly web UI, with nothing to install on the computer, or with the Python tool. Neither way touches the detection script. The names must be exactly these, because the loader finds the app by its name and the app tells the detection script apart by name.
+The easiest way is to let the app make the scripts itself. They can also be made in the Shelly web UI or with the Python tool. No way touches the detection script. The names must be exactly these, because the loader finds the app by its name and the app tells the detection script apart by name.
+
+#### From the app settings (easiest)
+
+1. Download `app/uponor-clean-app.html` from GitHub to the computer and open it in a browser (Chrome, Edge, Firefox or Safari).
+2. Enter the Shelly address and connect.
+3. Open the settings (gear icon) and press **Install on the Shelly**.
+
+The app stores itself on the Shelly, starts the loader and shows the app address. Before writing it checks that at least 64 kB stays free on the Shelly, and at the end it reads the scripts back and compares them. The settings also show which version the Shelly has.
+
+Updating works the same way: open the new version on the computer and press **Update the Shelly**. The installation also works from the app opened through Home Assistant.
 
 #### In the web UI
 
 1. Open the Shelly web UI (`http://<shelly-ip>/`), open **Scripts** and choose **Create script**. Name it `uponor-clean-app-data`.
-2. On GitHub, open `app/uponor-clean-app-data.txt`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C), paste it into the editor and save (disk icon). The file is about 23,000 characters, so it fits the editor (at most 50,000 characters). **Do not start this script and do not turn on Run on startup for it**: it is packed data, not program code.
+2. On GitHub, open `app/uponor-clean-app-data.txt`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C), paste it into the editor and save (disk icon). The file is about 29,000 characters, so it fits the editor (at most 50,000 characters). If the `app` folder also has `uponor-clean-app-data2.txt` (or `-data3.txt`), make a script with the same name for each. **Do not start this script and do not turn on Run on startup for it**: it is packed data, not program code.
 3. Go back to **Scripts**, choose **Create script** and name it `uponor-clean-app`.
 4. Paste the content of `app/uponor_clean_app_loader.js` into the editor the same way, save and start (**Start**). The console shows the line `Uponor Clean app: http://<shelly>/script/<id>/app`.
 5. Go back to **Scripts** and turn on **Run on startup** for `uponor-clean-app`.
@@ -49,11 +59,11 @@ When the app is updated, open `uponor-clean-app-data`, replace the editor conten
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # with a password: --salasana PASSWORD
 ```
 
-The tool creates or updates both scripts, compares them with what it reads back from the device and starts the loader. When the app is updated, run the tool again.
+The tool creates or updates the scripts, compares them with what it reads back from the device, removes extra parts and starts the loader. Like the app, it leaves at least 64 kB free on the Shelly. When the app is updated, run the tool again.
 
 #### The app address
 
-After that the app opens on any device in the home network, a phone too, at `http://<shelly-ip>/script/<id>/app`, e.g. `http://192.168.0.102/script/3/app`. `<id>` is the number of the `uponor-clean-app` script (at the right edge of the Scripts list, e.g. `script:3`), and the full address shows in the script console and the tool output. Type `http://` at the start. The app does not ask for the Shelly address, because the page comes from the Shelly. Home Assistant, another server or an internet connection is not needed. On a phone the page can be added to the home screen.
+After that the app opens on any device in the home network, a phone too, at `http://<shelly-ip>/script/<id>/app`, e.g. `http://192.168.0.102/script/3/app`. `<id>` is the number of the `uponor-clean-app` script (at the right edge of the Scripts list, e.g. `script:3`), and the full address shows in the app settings, the script console and the tool output. Type `http://` at the start. The app does not ask for the Shelly address, because the page comes from the Shelly. Home Assistant, another server or an internet connection is not needed. On a phone the page can be added to the home screen.
 
 ### Other ways
 
@@ -91,6 +101,8 @@ The power of a minute is taken from its minimum and maximum power. The minute en
 
 When the Shelly serves the app, the loader page reads the packed app from the same address with `Script.GetCode` requests, unpacks it in the browser and opens it. The requests go to the same address as the page, so the `Origin` limit does not apply to them.
 
+**Install on the Shelly** stores the page as the browser loaded it (`document.documentElement.outerHTML` before the script changes the page), packs it in the browser (gzip and base64, 76-character lines) and writes it over the WebSocket with `Script.PutCode` calls in 1,024-character pieces. The loader code is inside the app, the same as in `app/uponor_clean_app_loader.js`.
+
 The app does not show the phase history, because the Shelly does not store it. The event log starts when the app is opened.
 
 ## Testing without the device
@@ -111,3 +123,5 @@ The mock can also store scripts and answer their HTTP addresses, so the installa
 python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 # open http://127.0.0.1:8098/script/<id>/app
 ```
+
+`test/app_install_test.js` tries the Install on the Shelly button against the mock with Playwright: installing from a file, opening the app served by the Shelly, installing in several parts, the Python tool, too little space and three running scripts.
