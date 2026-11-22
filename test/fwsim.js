@@ -1,5 +1,5 @@
 // Firmware simulator: produces a 1 Hz power trace from the Uponor Clean 1 control-unit logic
-// (pseudocode extracted from the firmware). Scenario hooks decide level-switch inputs.
+// (the logic of the firmware). Scenario hooks decide level-switch inputs.
 'use strict';
 
 const PW = { off: 0.0, idle: 3.9, valve: 16.4, dose: 33.0, comp: 43.0, aer: 56.0, boost: 64.8 };

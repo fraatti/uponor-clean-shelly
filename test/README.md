@@ -5,7 +5,7 @@ Testit ajavat oikeaa skriptitiedostoa Nodessa. Shellyn rajapinnat (RPC, KVS, vir
 | Tiedosto | Tehtävä |
 | --- | --- |
 | `harness.js` | Ajoympäristö: lukee HA-historian CSV:n, syöttää tehon ja jännitteen skriptille, kerää tilat ja viestit. |
-| `fwsim.js` | Ohjauskeskuksen firmwaresimulaattori: tuottaa synteettisen tehosarjan pseudokoodin vaiheajoista. |
+| `fwsim.js` | Ohjauskeskuksen firmwaresimulaattori: tuottaa synteettisen tehosarjan firmwaren vaiheajoista. |
 | `scenarios.js` | Firmwareskenaariot (korkea vesi, lähtö tukossa, sähkökatko, odotus- ja lomajakso, testijakso). |
 | `validate.js` | Panosmäärät ja siirtymät oikeaa dataa vasten. |
 | `compare.js` | Kahden version vertailu (esim. v2.3 ja v2.4). |

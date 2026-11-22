@@ -1,5 +1,7 @@
 # Omat mittaukset: Home Assistantin historiavedokset pidetään poissa versionhallinnasta
 *.csv
+# Ohjauskeskuksen firmware pseudokoodina: ei julkaista
+docs/firmware/
 test/data/
 
 node_modules/

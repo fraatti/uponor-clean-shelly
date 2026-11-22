@@ -26,7 +26,7 @@ Home Assistant is not required: the script's components also show in the Shelly 
 | [`ha-card/README.md`](ha-card/README.md) | The Home Assistant card: what it shows, installation, language, options, entering chemical and sludge | [`kortti.md`](docs/kortti.md) |
 | [`docs/shelly-limits.md`](docs/shelly-limits.md) | Limits of the Shelly scripting environment that came up (stack, memory, missing functions, components, Home Assistant) | [`shelly-rajoitteet.md`](docs/shelly-rajoitteet.md) |
 
-Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`](docs/v3-testitulokset.md)), running the tests ([`test/README.md`](test/README.md)), the v3 plan, the prototype tests and the control unit firmware in pseudocode ([`docs/firmware/`](docs/firmware/)).
+Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`](docs/v3-testitulokset.md)), running the tests ([`test/README.md`](test/README.md)), the v3 plan and the prototype tests.
 
 ## Contents
 
@@ -40,7 +40,7 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | `demo/` | Online demo of the app, served by GitHub Pages: `index.html` and `data.js`, built by `app/tools/build_demo.js` from the app, the demo Shelly `app/demo_shelly.js` and a Home Assistant history export ([guide](docs/app.md#demo)). |
 | `ha-card/` | Lovelace card `uponor-clean-card.js` v1.8.3, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
 | `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios, the card test and the WebSocket mock for the app. |
-| `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |
+| `docs/` | Guides, images (`img/`), v2 documentation and the v3 plan summary. |
 
 ## Versions
 
@@ -73,5 +73,5 @@ The repository is private. Before making it public, check:
 - Measurement data (Home Assistant history CSVs) is not under version control (`.gitignore`). Keep it out.
 - `ha-card/preview.html` contains an example cycle computed from the plant's own measurements.
 - `docs/img/` contains screenshots of the own Shelly and Home Assistant. The device MAC address has been removed from the images, the files and the whole history (19 Nov 2026). Screenshots must not show the bottom bar of the Shelly web UI, which shows the MAC address.
-- `docs/firmware/` is based on a third-party firmware dump, and the card guide refers to the Uponor manual. Make sure publishing them is fine.
+- The control unit firmware in pseudocode (`docs/firmware/`) has been removed from the repository and its whole history (23 Nov 2026) and is not published; `.gitignore` keeps it out. The card guide refers to the Uponor manual.
 - Choose a license (e.g. MIT).

@@ -2,7 +2,7 @@
 
 ## Simulaattori (`test/v3_scenarios.js`)
 
-Firmwaren pseudokoodista tehty simulaattori tuottaa tehosarjan ja jokaisen vaiheen oikean alun. Skripti ajetaan Shelly-jäljitelmässä sekunnin välein, kuten laitteessa.
+Firmwaren toimintalogiikasta tehty simulaattori tuottaa tehosarjan ja jokaisen vaiheen oikean alun. Skripti ajetaan Shelly-jäljitelmässä sekunnin välein, kuten laitteessa.
 
 | Skenaario | Vaiheet oikein | Panokset | ETA-virhe enintään | Varoitukset |
 | --- | --- | --- | --- | --- |

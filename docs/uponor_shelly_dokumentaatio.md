@@ -308,7 +308,7 @@ Skripti ajettiin sellaisenaan Node.js-testikehyksessä, joka jäljittelee Shelly
 | `history (9).csv` 13.–23.9. | 9 / 9 | 4 / 8 | identtinen |
 | `history (11).csv` 8.–18.10. | 20 / 20 | 11 / 20 | identtinen |
 
-Lisäksi firmwaren pseudokoodista tehtiin simulaattori, joka tuottaa tehokäyrän (itsetestinotkahdukset ja sekoituspulssit mukana). Kaikki 10 tilannetta läpäisivät:
+Lisäksi firmwaren toimintalogiikasta tehtiin simulaattori, joka tuottaa tehokäyrän (itsetestinotkahdukset ja sekoituspulssit mukana). Kaikki 10 tilannetta läpäisivät:
 
 | Tilanne | Tulos |
 |---|---|

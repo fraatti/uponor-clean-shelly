@@ -40,7 +40,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 | `demo/` | Sovelluksen verkkodemo GitHub Pagesissa: `index.html` ja `data.js`, jotka `app/tools/build_demo.js` tekee sovelluksesta, demo-Shellystä `app/demo_shelly.js` ja Home Assistantin historiavedoksesta ([ohje](docs/sovellus.md#demo)). |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.8.3, ohje, esikatselusivu (`preview.html`) ja sen päivitystyökalu (`tools/build_preview.py`). |
 | `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla Shelly-jäljitelmässä, firmwaresimulaattori, skenaariot, kortin testi ja sovelluksen WebSocket-jäljitelmä. |
-| `docs/` | Ohjeet, kuvat (`img/`), firmwaren pseudokoodi, v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |
+| `docs/` | Ohjeet, kuvat (`img/`), v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |
 
 ## Versiot
 
@@ -73,5 +73,5 @@ Repo on yksityinen. Ennen julkiseksi muuttamista tarkista:
 - Mittausdataa (Home Assistantin historia-CSV:t) ei ole versionhallinnassa (`.gitignore`). Pidä se poissa jatkossakin.
 - `ha-card/preview.html` sisältää oman laitteen mittausdatasta lasketun esimerkkijakson.
 - `docs/img/` sisältää kuvakaappauksia omasta Shellystä ja Home Assistantista. Laitteen MAC-osoite on poistettu kuvista, tiedostoista ja koko historiasta (19.11.2026). Kuvakaappauksissa ei saa näkyä Shellyn käyttöliittymän alapalkkia, jossa MAC-osoite on.
-- `docs/firmware/` perustuu kolmannen osapuolen firmwarevedokseen, ja `docs/kortti.md` viittaa Uponorin käsikirjaan. Varmista, että julkaiseminen on ok.
+- Ohjauskeskuksen firmware pseudokoodina (`docs/firmware/`) on poistettu reposta ja koko historiasta (23.11.2026), eikä sitä julkaista; `.gitignore` pitää sen poissa. `docs/kortti.md` viittaa Uponorin käsikirjaan.
 - Valitse lisenssi (esim. MIT).
