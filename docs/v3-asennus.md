@@ -13,7 +13,7 @@ Lähdekoodi on `shelly/v3/uponor_clean_v3.js`. Laitteelle ladataan sen tiivistet
 - Shelly, jossa on em1- tai pm1-tehomittaus ja firmware 2.2.0 tai uudempi. Testattu laite on Shelly EM Mini Gen4 (S4EM-001PXCEU16), firmware 2.2.0 (`20261109-150305/2.2.0-g7968dca`). Laitteen firmware näkyy Shellyn käyttöliittymän alapalkissa ja Home Assistantissa laitteen tiedoissa.
 - Shelly mittaa puhdistamon syöttöä ja on samassa sähkönsyötössä. Skripti päättelee Shellyn käynnistyssyystä, oliko kyseessä sähkökatko (ohjauskeskus aloittaa uuden puhdistusjakson) vai Shellyn oma uudelleenkäynnistys (ohjauskeskus jatkaa).
 - Laitteella on vapaana 9 virtuaalikomponenttipaikkaa (raja on 10). Skripti luo 8 komponenttia ja ryhmän.
-- Muistia on vapaana vähintään noin 18 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 15 kt (huippu 19 kt), joten muut isot skriptit pitää pysäyttää.
+- Muistia on vapaana vähintään noin 20 kt. Kaikilla skripteillä on yhteensä noin 25 kt. v3 käyttää noin 16 kt (huippu 20 kt), joten muut isot skriptit pitää pysäyttää.
 
 ## 2. Aikavyöhyke
 
@@ -33,7 +33,7 @@ Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`) ja tarkista **Settin
 
    ![Uusi skripti](img/shelly_uusi_skripti.jpg)
 
-3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 40 000 merkkiä. Editoriin mahtuu enintään 50 000 merkkiä, ja pidempi liitos katkeaa ilman varoitusta, joten lähdetiedostoa `uponor_clean_v3.js` ei voi liittää editoriin.
+3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 44 000 merkkiä. Editoriin mahtuu enintään 50 000 merkkiä, ja pidempi liitos katkeaa ilman varoitusta, joten lähdetiedostoa `uponor_clean_v3.js` ei voi liittää editoriin.
 4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.1.0 started`.
 
    ![Skriptieditori](img/shelly_editori.jpg)

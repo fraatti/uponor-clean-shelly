@@ -83,7 +83,7 @@ The warnings show in the Warning component (most important first) and in the sta
 - **The Shelly must measure only the plant.** Other devices on the same circuit mix up the power levels.
 - **The power levels and times are fitted to one plant.** The limits (2, 10, 24, 38.5, 52 and 64 W at 230 V) and the phase times match an Uponor Clean I with control board A and software 2.1.2. Other models, boards, software versions or changed service settings have not been tried. The limits can be changed in the settings (`uc_cfg`), but the phase times are in the code.
 - **Clock times need a synchronised clock.** Without it phases and batches work, but clock times are missing.
-- **The Shelly has room for one script this size.** The script uses 9 of the 10 virtual component slots and about 15–19 kB of the 25 kB script memory, so other large scripts do not fit beside it.
+- **The Shelly has room for one script this size.** The script uses 9 of the 10 virtual component slots and about 16–20 kB of the 25 kB script memory, so other large scripts do not fit beside it.
 - **The script keeps no history.** The device holds only the counters and the current state. The history is in Home Assistant or in the Shelly app's batch chart.
 
 ## Accuracy

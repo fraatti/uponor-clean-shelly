@@ -121,6 +121,62 @@ Laitteella 3.0.2 asennettiin klo 8.05. Ennen käynnistystä `uc_cycle` asetettii
 | Muistin huippu | 19,0 kt |
 | Vapaata muistia | 10,1 kt |
 
+## Versio 3.1.0 (22.11.2026): uudelleenkäynnistykset ja lyhyet katkot
+
+Erillinen katselmointi kävi skriptin läpi, ajoi sen tallennetulla datalla ja simuloi sähkökatkoja jokaisessa vaiheessa. Tavallinen sähkökatko, jossa puhdistamo ja Shelly sammuvat yhdessä, toimi kaikissa vaiheissa ja kaikilla kestoilla. Virheet löytyivät skriptin pysäytyksistä ja Shellyn uudelleenkäynnistyksistä (skriptin tai laiteohjelmiston päivitys), kellosta ja pelkän puhdistamon lyhyistä katkoista. Jokaiselle löydökselle on tapaus testissä `test/v3_restart_test.js`.
+
+| Löydös 3.0.2:ssa | Korjaus 3.1.0:ssa |
+| --- | --- |
+| Panos jäi laskematta, jos skriptin pysäytys tai Shellyn uudelleenkäynnistys osui laskentahetkeen (ulospumppauksen alusta 780 s). Jatkaminen oletti panoksen jo lasketuksi. | Laskettu-tieto päätellään tallennetusta panoksen ajasta (`uc_batch`), ja tauolle osunut panos lasketaan. |
+| Pysäytys lyhyen vaiheen yli (120 s:n lietteenpoisto laskeutusten välissä) jatkoi vanhasta vaiheesta: ulospumppaus näkyi lietteenpoistona, ja panos jäi laskematta. | Firmwaren aikaa pidempi tallennettu vaihe yritetään ensin jatkaa myöhempänä vaiheena (enintään neljä vaihetta eteenpäin). |
+| Annos jäi laskematta, kun uudelleenkäynnistys osui annosteluun. Ilmastuksen jatkaminen sekoituksen aikana antoi aiheettoman ”Process paused?” -varoituksen noin 40 minuutiksi. | Tauon yli mennyt annostelu lasketaan. Tieto siitä, onko annostelukierroksen annos jo laskettu, tallennetaan `uc_cycle`-avaimeen, joten annosta ei lasketa kahdesti. |
+| Uudelleenkäynnistys sisäänpumppauksen lopussa: vaihe tuntematon 19–101 min. | Jatkaminen jakson rajan yli: uusi puhdistusjakso, odotusjakso, seuraava odotuskierros tai lomajakson Odotus II. |
+| Kello asettamatta skriptin käynnistyessä: tallennettu vaihe hylättiin, ja vaihe oli tuntematon enimmillään 101 min. | Tallennettu vaihe odottaa kelloa enintään 5 min. Sillä välin laskettu panos saa aikansa, kun kello asetetaan. |
+| Pelkän puhdistamon 2–5 s:n katko Shellyn pysyessä päällä jäi huomaamatta: vaihe tuntematon 31 min, ennuste väärin jopa 100 min, ulospumppauksen lopussa ylimääräinen panos. Tallennetussa datassa 8.7. klo 17.11 ohjausyksikkö käynnistyi uudelleen ilman 0 W:n lukemaa. | 0 W otetaan heti (puhdistamo ei käydessään ota alle 2 W:a). Ilmastus odotusvaiheen jälkeen tulkitaan ohjausyksikön uudelleenkäynnistykseksi, paitsi lomajakson Odotus I:n lopussa (3000 s) ja täyden odotuskierroksen jälkeen (lietteenpoisto jäi näkemättä). |
+| ”Outlet blocked?” jäi päälle seuraavaan puhdistusjaksoon asti (simulaatiossa 77 h). | Poistuu, kun pinta laskee: ulospumppausta seuraa sisäänpumppaus tai odotusjakso. |
+| Pienempiä: aiheeton ”Process paused?” lomajakson Odotus II:ssa; annos katosi katkossa sekoituksen ensimmäisinä sekunteina; yksittäinen tehopiikki päätti ulospumppauksen; ”Compressor not running” välähti yli 4 h:n katkon jälkeen; panoksen aika puuttui kellon ollessa asettamatta; uudelleenkäynnistyksessä päällä olleesta varoituksesta ei tullut ”off”-tapahtumaa; tilan `since` puuttui uudelleenkäynnistyksen jälkeen; panostapahtuman `ts` oli lähetysaika. | Korjattu. Varoitukset tallennetaan avaimeen `uc_warn`. Panostapahtuman `ts` on panoksen aika. |
+| Seuraavan ulospumppauksen aika heilui sekunnin (Home Assistantissa 217 muutosta vuorokaudessa, niistä 190 vain 1–2 s). | Kellon ero käyntiaikaan pidetään suurimmassa havaitussa arvossa, ja komponentti kirjoitetaan uudelleen vain yli 2 s:n muutoksesta. Simulaatiossa vuorokausi kellon ajautuessa 20 ppm ja ajastinten viiveellä: 4 kirjoitusta, ei yhtään 1–2 s:n muutosta (3.0.2: noin 80). |
+| Syvin kutsuketju 9 tasoa (`… countBatch > checkCounters > setWarning > emit`, sitten `push`), kun laite kaatui 11 tasossa. | Laskurit, niiden KVS-kirjoitukset ja varoitusten tarkistus tehdään `tick()`-funktiossa, ja KVS-arvot muutetaan JSONiksi vasta kirjoitettaessa. Syvin funktio 8 tasoa (`test/v3_depth_test.js`). |
+
+Jäljelle jäävät tiedossa olevat rajat: jos sähköt (myös Shellyltä) katkeavat 1–2 sekunnin ikkunassa juuri panoksen laskentahetkellä tai heti annostelun päättyessä, panos tai annos voi jäädä laskematta, koska skripti ei ehdi nähdä hetkeä. Varmistamatta on edelleen, onko kello laitteella tyhjä uudelleenkäynnistyksen jälkeen ja mitä `reset_reason` on virrankytkennän jälkeen (ks. [rajoitteet](shelly-rajoitteet.md)).
+
+### Sähkökatkot ja uudelleenkäynnistykset (`test/v3_sweep.js`)
+
+Jokaisen jakson jokainen vaihe kolmessa kohdassa (alku, keskikohta, loppu), 912 ajoa. Arvio 4 h sähkön palaamisesta.
+
+| Tilanne | Ajoja | 3.0.2 | 3.1.0 |
+| --- | --- | --- | --- |
+| Puhdistamo ja Shelly yhdessä, 1 s – 5 h (myös kello asettamatta 5 min) | 399 | oikein, tahdistus 14 s:ssa | sama |
+| Pelkkä puhdistamo 2 tai 5 s (Shelly päällä) | 114 | tuntematon enimmillään 31 min, väärä vaihe yli 5 min 52 ajossa, ennuste väärin 10 ajossa ja puuttui yli 30 min 96 ajossa, 2 ylimääräistä panosta | tahdistus 14 s:ssa, ei virheitä |
+| Pelkkä puhdistamo 8 s – 5 h | 228 | oikein, mutta 5 h:n katkon jälkeen ”Compressor not running” 57 ajossa | oikein, ei varoitusta |
+| Shellyn uudelleenkäynnistys, kello asetettu | 57 | tuntematon enimmillään 101 min, 3 annosta katosi | tahdistus 1 s:ssa, ei virheitä |
+| Shellyn uudelleenkäynnistys, kello asettamatta 60 s | 57 | tuntematon enimmillään 101 min, 1 panos ja 3 annosta katosi, aiheeton ”Process paused?” 6 ajossa, ennuste puuttui yli 30 min 13 ajossa | tuntematon enintään 1 min (kellon odotus), ei virheitä |
+| Skriptin 2 min pysäytys | 57 | tuntematon enimmillään 99 min, 1 panos ja 7 annosta katosi, aiheeton ”Process paused?” 2 ajossa | ei tuntematonta, kaikki panokset ja annokset (4 annosta lasketaan tauon jälkeen); 2 ajossa vaihe myöhässä enintään 10 min, koska tauolla alkaneen vaiheen alku on tauon loppu |
+
+Kaikissa 912 ajossa: ei kaatumisia. Taulukko vaiheittain: `node test/v3_sweep.js table`.
+
+### Muut testit
+
+| Testi | 3.1.0 |
+| --- | --- |
+| Skenaariot (`v3_scenarios.js`) | 16/16, luvut samat kuin 3.0.2:ssa |
+| Tallennettu data (`v3_realdata.js`) | 7/7, panokset samat; tuntematonta vähemmän (ks. taulukko yllä) |
+| Laitetesti (`v3_device_test.js`) | kaikki kunnossa, KVS-avaimet ja -arvot rajoissa (myös `uc_warn`) |
+| Uudelleenkäynnistykset (`v3_restart_test.js`) | 38/38 |
+| Kutsupino (`v3_depth_test.js`) | syvin funktio 8 tasoa (raja 8) |
+| Lähde ja tiivistetty (`eqtest_v3.js --real`) | identtiset kaikissa ajoissa |
+
+### Laite 22.11.2026
+
+3.1.0 asennettiin noin klo 20.45 puhdistusjakson esi-ilmastuksen aikana (`Script.PutCode` 1024 merkin paloina, koodi luettiin takaisin ja verrattiin ennen käynnistystä). Skripti jatkoi esi-ilmastuksesta samalla alulla ja samalla ulospumppauksen arviolla, laskurit säilyivät.
+
+| Mittaus | 3.0.2 | 3.1.0 |
+| --- | --- | --- |
+| Tiivistetty koko | 39 714 merkkiä | 44 420 merkkiä |
+| Muisti käytössä | 14,0 kt | 16,4 kt |
+| Muistin huippu | 19,3 kt | 20,0 kt |
+| Vapaata muistia | 9,1 kt | 6,7 kt |
+
 ## Kortti (`test/card_v3_test.js`)
 
 Simuloitu v3-ajo (30 h, puhdistusjaksoja ja lähtö tukossa kerran) syötetään kortille historiana.
@@ -145,3 +201,4 @@ Simuloitu v3-ajo (30 h, puhdistusjaksoja ja lähtö tukossa kerran) syötetään
 | Kemikaali = annostelut × 0,04 | ✓ |
 | Muistin huippu ≤ 16 kt, suoritin ≤ 30 % | Kuivatestissä ✓ (13,8 kt, 6–9 %). Asennettuna huippu 17,6 kt, vapaata 10,3 kt. |
 | Tiivistetty versio toimii kuten lähde | ✓ (kaikkien testien tulokset identtiset) |
+| Sähkökatko tai uudelleenkäynnistys missä vaiheessa tahansa: ei kadonneita panoksia tai annoksia, ei aiheettomia varoituksia (3.1.0) | ✓ (912 ajoa; tiedetty raja: Shellynkin sähkökatko 1–2 s:n ikkunassa laskentahetkellä) |

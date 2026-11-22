@@ -83,7 +83,7 @@ Varoitukset näkyvät Warning-komponentissa (tärkein ensin) ja tilatekstissä, 
 - **Shellyn on mitattava vain puhdistamoa.** Jos samassa piirissä on muita laitteita, niiden teho sekoittaa tehotasot.
 - **Tehotasot ja ajat on sovitettu yhteen puhdistamoon.** Rajat (2, 10, 24, 38,5, 52 ja 64 W 230 V:n jännitteellä) ja vaiheajat vastaavat Uponor Clean I:tä, jonka ohjauskortti A ja ohjelmisto 2.1.2. Muita malleja, kortteja, ohjelmistoversioita tai muutettuja huoltoasetuksia ei ole kokeiltu. Rajoja voi muuttaa asetuksista (`uc_cfg`), mutta vaiheajat ovat koodissa.
 - **Kellonajat tarvitsevat synkronoidun kellon.** Ilman sitä vaiheet ja panokset toimivat, mutta kellonajat puuttuvat.
-- **Shellyssä on tilaa yhdelle näin suurelle skriptille.** Skripti käyttää 9 virtuaalikomponenttipaikkaa 10:stä ja noin 15–19 kt muistista 25 kt:sta, joten muut suuret skriptit eivät mahdu rinnalle.
+- **Shellyssä on tilaa yhdelle näin suurelle skriptille.** Skripti käyttää 9 virtuaalikomponenttipaikkaa 10:stä ja noin 16–20 kt muistista 25 kt:sta, joten muut suuret skriptit eivät mahdu rinnalle.
 - **Historiaa skripti ei tallenna.** Laitteessa on vain laskurit ja nykyinen tila. Historia on Home Assistantissa tai Shelly-sovelluksen panosgraafissa.
 
 ## Tarkkuus

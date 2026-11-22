@@ -13,7 +13,7 @@ The source code is `shelly/v3/uponor_clean_v3.js`. The device gets its compact v
 - A Shelly with an em1 or pm1 power meter and firmware 2.2.0 or newer. Tested on a Shelly EM Mini Gen4 (S4EM-001PXCEU16), firmware 2.2.0 (`20261109-150305/2.2.0-g7968dca`). The firmware version shows in the bottom bar of the Shelly web UI and in the device info in Home Assistant.
 - The Shelly measures the plant's supply and sits on the same supply. From the Shelly's reset reason the script tells a power cut (the control unit starts a new cleaning cycle) from a restart of the Shelly alone (the control unit carries on).
 - 9 free virtual component slots (the limit is 10). The script creates 8 components and a group.
-- At least about 18 kB of free script memory. All scripts share about 25 kB. v3 uses about 15 kB (peak 19 kB), so other large scripts must be stopped.
+- At least about 20 kB of free script memory. All scripts share about 25 kB. v3 uses about 16 kB (peak 20 kB), so other large scripts must be stopped.
 
 ## 2. Time zone
 
@@ -33,7 +33,7 @@ Open the Shelly web UI (`http://<shelly-ip>/`) and check **Settings → Location
 
    ![New script](img/shelly_uusi_skripti.jpg)
 
-3. On GitHub, open `shelly/v3/uponor_clean_v3_shelly.js`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C) and paste it into the editor. The file is about 40,000 characters. The editor takes at most 50,000 characters and cuts a longer paste without any warning, so the source file `uponor_clean_v3.js` cannot be pasted into it.
+3. On GitHub, open `shelly/v3/uponor_clean_v3_shelly.js`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C) and paste it into the editor. The file is about 44,000 characters. The editor takes at most 50,000 characters and cuts a longer paste without any warning, so the source file `uponor_clean_v3.js` cannot be pasted into it.
 4. Save (disk icon) and start (**Start**). The console shows `version 3.1.0 started`.
 
    ![Script editor](img/shelly_editori.jpg)
