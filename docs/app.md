@@ -19,13 +19,15 @@ The Picture view is the same drawing as on the Home Assistant card ([card guide]
 
 The chemical amount and the sludge counter can be entered from the pencil icon. The app writes them straight to the Shelly script.
 
-Power and energy come from the minute history the Shelly stores (about 7 days). The Shelly does not store the phases or the batches, so the app works out the past phases from the minute power (see [Past phases](#past-phases)). The timeline, the batches per day and the level estimate show the past week at once, on any device. While the app is open, it uses the script's own phase, and the browser remembers it for 8 days. Warnings and the logbook build up only while the app is open.
+Power and energy come from the minute history the Shelly stores (about 7 days). The Shelly does not store the phases or the batches, so the app works out the past phases from the minute power (see [Past phases](#past-phases)). The timeline, the batches per day and the level estimate show the past week at once, on any device. While the app is open, it uses the script's own phase, and the browser remembers it for 8 days. Warnings, the next pump-out time and the logbook are known only for the times the app was open; for other times no warning is shown.
 
 ### Past phases
 
 The plant's control unit runs its phases always in the same order and with the same durations, and each phase has its own power level (aeration about 57 W, the compressor about 43 W, the chemical pump about 16 W, idle about 4 W). The app classifies the power level of each minute from the minute's minimum and maximum power and reads the sequence of levels as the control unit's phase order. The cleaning cycle is fitted backwards from the pump-out, because its durations are exact.
 
-Accuracy on the test device: against the script's phases recorded by Home Assistant over 84 hours, the phase was right 98.3 % of the time and the cycle (waiting, cleaning, holiday) 99.9 % of the time, and all 6 pump-outs were found. In the simulator the phase was right 99.2–99.5 % of the time. The short phases are the least exact: dosing (10 s) and sludge return (1–2 min) fit in one minute. The batches are counted from the pump-outs as in the script, and the counter ends at the script's current count. The chemical amount and the sludge counter are counted back from the values the browser saw: each dose has added 0.04 l of chemical (or the script's `dose_l` setting) and each batch has taken one off the sludge counter. A chemical refill or a sludge counter reset while the app was not open cannot be seen in the power.
+Accuracy on the test device: against the script's phases recorded by Home Assistant over 84 hours, the phase was right 98.3 % of the time and the cycle (waiting, cleaning, holiday) 99.9 % of the time, and all 6 pump-outs were found. In the simulator the phase was right 99.2–99.5 % of the time. The short phases are the least exact: dosing (10 s) and sludge return (1–2 min) fit in one minute. When the power history ends in a cleaning cycle (no pump-out yet), the cycle is fitted forwards from the end of its aeration, where the chemical filling starts.
+
+The batch counter, the sludge counter and the chemical amount are counted back from the values the browser saw: each batch (a pump-out of at least 700 s, as in the script) has raised the batch and sludge counters by one, and each dose has taken 0.04 l of chemical (or the script's `dose_l` setting). The counters do not go below zero. The app gets the time of the last sludge counter reset from the script, so a reset while the app was not open is shown at the right time. A chemical refill or a change of the batch counter while the app was not open cannot be seen in the power.
 
 ## Details
 
@@ -116,6 +118,8 @@ A page opened from an `https://` address (e.g. GitHub Pages, Home Assistant remo
 
 **Away from home** the app works over a VPN connection to the home network. The data does not come through the Shelly cloud: the cloud API cannot read the script state or the power history.
 
+**Keep the app open in one place at a time.** The Shelly takes only a few WebSocket connections at a time, and a new connection closes an old one, often Home Assistant's (its Uponor entities are then unavailable for 1–3 s, see [`shelly-limits.md`](shelly-limits.md)). So the app closes its connection when its page has been in the background for a minute, and connects again when the page is shown. It then fetches only the missing minutes.
+
 ## Password
 
 If the Shelly has a password, the app asks for it. It uses the Shelly digest authentication (SHA-256). With *Remember the password on this device*, the browser stores a hash computed from the password, not the password itself. The hash still gives access to the Shelly, so do not use it on a shared computer.
@@ -132,7 +136,7 @@ Everything goes through the Shelly WebSocket RPC (`ws://<shelly>/rpc`):
 | Script state | `Script.Eval` → `JSON.stringify(stateObject())` | 6 s and after an event |
 | Power and voltage | `EM1.GetStatus` or `NotifyStatus` sent by the Shelly | 3 s |
 | Events | the script's `uponor` events (`NotifyEvent`) | at once |
-| Power history | `EM1Data.GetData` (one record a minute: energy, minimum and maximum power, voltage) | 7 days at first, then the new minutes every minute |
+| Power history | `EM1Data.GetData` (one record a minute: energy, minimum and maximum power, voltage) | 7 days when opened, then the new minutes every minute; after a lost connection only the missing minutes |
 | Energy meter | `EM1Data.GetStatus` (`total_act_energy`) | every minute |
 | Script components | `KVS.Get` → `uc_vc` (entering the chemical and the sludge counter with `Number.Set`) | when connecting |
 

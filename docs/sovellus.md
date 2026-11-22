@@ -19,13 +19,15 @@ Kuva-näkymä on sama piirros kuin Home Assistant -kortissa ([kortin ohje](../ha
 
 Kemikaalin määrän ja lietelaskurin voi syöttää kynäkuvakkeesta. Sovellus tallentaa ne suoraan Shellyn skriptille.
 
-Teho ja energia tulevat Shellyn tallentamasta minuuttihistoriasta (noin 7 vuorokautta). Vaiheita ja panoksia Shelly ei tallenna, joten sovellus päättelee menneet vaiheet minuuttitehoista (ks. [Menneet vaiheet](#menneet-vaiheet)). Siksi aikajana, panokset päivittäin ja pinnan arvio näyttävät viimeisen viikon heti, millä laitteella tahansa. Kun sovellus on auki, se käyttää skriptin omaa vaihetta, ja selain muistaa sen 8 vuorokautta. Varoitukset ja lokikirja karttuvat vain silloin, kun sovellus on auki.
+Teho ja energia tulevat Shellyn tallentamasta minuuttihistoriasta (noin 7 vuorokautta). Vaiheita ja panoksia Shelly ei tallenna, joten sovellus päättelee menneet vaiheet minuuttitehoista (ks. [Menneet vaiheet](#menneet-vaiheet)). Siksi aikajana, panokset päivittäin ja pinnan arvio näyttävät viimeisen viikon heti, millä laitteella tahansa. Kun sovellus on auki, se käyttää skriptin omaa vaihetta, ja selain muistaa sen 8 vuorokautta. Varoitukset, seuraavan ulospumppauksen aika ja lokikirja tunnetaan vain ajalta, jolloin sovellus on ollut auki; muulta ajalta varoitusta ei näytetä.
 
 ### Menneet vaiheet
 
 Puhdistamon ohjausyksikkö ajaa vaiheet aina samassa järjestyksessä ja samoilla kestoilla, ja jokaisella vaiheella on oma tehotasonsa (ilmastus noin 57 W, kompressori noin 43 W, kemikaalipumppu noin 16 W, lepo noin 4 W). Sovellus luokittelee jokaisen minuutin tehotason minuutin pienimmästä ja suurimmasta tehosta ja lukee tasojen sarjan ohjausyksikön vaihejärjestyksenä. Puhdistusjakso sovitetaan ulospumppauksesta taaksepäin, koska sen kestot ovat tarkat.
 
-Tarkkuus testilaitteella: Home Assistantin tallentamia skriptin vaiheita vastaan 84 tunnin ajalta vaihe oli oikein 98,3 % ajasta ja jakso (odotus, puhdistus, loma) 99,9 % ajasta, ja kaikki 6 ulospumppausta löytyivät. Simulaattorissa vaihe oli oikein 99,2–99,5 % ajasta. Lyhyet vaiheet ovat epätarkimpia: annostelu (10 s) ja lietteenpalautus (1–2 min) mahtuvat yhteen minuuttiin. Panokset lasketaan ulospumppauksista kuten skriptissä, ja laskuri päättyy skriptin nykyiseen lukemaan. Kemikaalin määrä ja lietelaskuri lasketaan taaksepäin selaimen näkemistä lukemista: jokainen annos on lisännyt kemikaalia 0,04 l (tai skriptin asetuksen `dose_l` verran) ja jokainen panos vähentänyt lietelaskuria yhdellä. Kemikaalin lisäystä tai lietelaskurin nollausta ajalta, jolloin sovellus ei ollut auki, ei voi nähdä tehosta.
+Tarkkuus testilaitteella: Home Assistantin tallentamia skriptin vaiheita vastaan 84 tunnin ajalta vaihe oli oikein 98,3 % ajasta ja jakso (odotus, puhdistus, loma) 99,9 % ajasta, ja kaikki 6 ulospumppausta löytyivät. Simulaattorissa vaihe oli oikein 99,2–99,5 % ajasta. Lyhyet vaiheet ovat epätarkimpia: annostelu (10 s) ja lietteenpalautus (1–2 min) mahtuvat yhteen minuuttiin. Jos tehohistoria päättyy kesken puhdistusjakson (ei vielä ulospumppausta), jakso sovitetaan eteenpäin ilmastuksen lopusta, jolloin kemikaalin täyttö alkaa.
+
+Panoslaskuri, lietelaskuri ja kemikaalin määrä lasketaan taaksepäin selaimen näkemistä lukemista: jokainen panos (ulospumppaus, joka kesti vähintään 700 s, kuten skriptissä) on kasvattanut panos- ja lietelaskuria yhdellä, ja jokainen annos on vähentänyt kemikaalia 0,04 l (tai skriptin asetuksen `dose_l` verran). Laskurit eivät mene alle nollan. Lietelaskurin nollauksen ajan sovellus saa skriptiltä, joten sen ajalta, jolloin sovellus ei ollut auki, nollaus näkyy oikeassa kohdassa. Kemikaalin lisäystä tai panoslaskurin muutosta tältä ajalta ei voi nähdä tehosta.
 
 ## Tiedot
 
@@ -116,6 +118,8 @@ Näin avattuna sovellus kysyy ensimmäisellä kerralla Shellyn osoitteen (esim. 
 
 **Kodin ulkopuolelta** sovellus toimii VPN-yhteydellä kotiverkkoon. Shellyn pilven kautta tiedot eivät tule: pilven rajapinnalla ei voi lukea skriptin tilaa eikä tehohistoriaa.
 
+**Pidä sovellus auki vain yhdessä paikassa kerrallaan.** Shelly ottaa vastaan vain muutaman WebSocket-yhteyden kerrallaan, ja uusi yhteys sulkee jonkin vanhan, usein Home Assistantin (sen Uponor-entiteetit ovat silloin 1–3 s tilassa unavailable, ks. [`shelly-rajoitteet.md`](shelly-rajoitteet.md)). Siksi sovellus sulkee yhteytensä, kun sen sivu on ollut minuutin taustalla, ja yhdistää uudelleen, kun sivu tulee näkyviin. Silloin se hakee vain puuttuvat minuutit.
+
 ## Salasana
 
 Jos Shellyssä on salasana, sovellus pyytää sen. Tunnistus on Shellyn digest-tunnistus (SHA-256). Kun valitset *Muista salasana tällä laitteella*, selaimeen tallentuu salasanasta laskettu tiiviste, ei itse salasanaa. Tiivisteellä pääsee kuitenkin Shellyyn, joten älä valitse muistamista yhteiskäyttöisellä koneella.
@@ -132,7 +136,7 @@ Kaikki kulkee Shellyn WebSocket-rajapinnan kautta (`ws://<shelly>/rpc`):
 | Skriptin tila | `Script.Eval` → `JSON.stringify(stateObject())` | 6 s ja tapahtuman jälkeen |
 | Teho ja jännite | `EM1.GetStatus` tai Shellyn lähettämä `NotifyStatus` | 3 s |
 | Tapahtumat | skriptin `uponor`-tapahtumat (`NotifyEvent`) | heti |
-| Tehohistoria | `EM1Data.GetData` (minuuttitiedot: energia, pienin ja suurin teho, jännite) | alussa 7 vrk, sitten minuutin välein uudet |
+| Tehohistoria | `EM1Data.GetData` (minuuttitiedot: energia, pienin ja suurin teho, jännite) | avattaessa 7 vrk, sitten minuutin välein uudet; yhteyskatkon jälkeen vain puuttuvat minuutit |
 | Energiamittari | `EM1Data.GetStatus` (`total_act_energy`) | minuutin välein |
 | Skriptin komponentit | `KVS.Get` → `uc_vc` (kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla) | yhteyden alussa |
 

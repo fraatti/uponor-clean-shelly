@@ -106,6 +106,13 @@ const cardInfo = (page) => page.evaluate(() => {
     check(Math.abs(cs.sludge0 - 300) <= 1 && cs.sludgeNow === cs.sludgeState, 'sludge counter back in time: ' + cs.sludge0 + ', now ' + cs.sludgeNow + ' = script');
     check(/Kemikaali ≈ [\d,]+ l/.test(cs.kv) && /Lietemuistutus \d+/.test(cs.kv), 'history view shows the chemical and the sludge: ' + (cs.kv.match(/Kemikaali[^A-ZÄÖ]*/) || [''])[0].trim());
 
+    // a dropped connection: the app connects again, keeps the power history it has and starts a new span
+    const rc0 = await page.evaluate(() => ({ recs: window.__ucApp.S.recs.size, spans: window.__ucApp.hist().H.seen.length }));
+    await page.evaluate(() => window.__ucApp.rpc.ws.close());
+    await page.waitForFunction((n) => window.__ucApp.S.connected && window.__ucApp.hist().H.seen.length > n && !window.__ucApp.S.histBusy, rc0.spans, { timeout: 30000 });
+    const rc1 = await page.evaluate(() => ({ recs: window.__ucApp.S.recs.size, spans: window.__ucApp.hist().H.seen.length }));
+    check(rc1.recs >= rc0.recs - 1 && rc1.spans === rc0.spans + 1, 'reconnect: power history kept (' + rc0.recs + ' -> ' + rc1.recs + ' minutes), spans ' + rc0.spans + ' -> ' + rc1.spans);
+
     // observed phases are kept in the browser
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('uc_app_hist:127.0.0.1:8089') || '{}'));
     await page.waitForTimeout(3500);

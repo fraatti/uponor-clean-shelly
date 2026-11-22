@@ -19,8 +19,9 @@ const PORT = Number(arg('port', 8098));
 const DAYS = Number(arg('days', 7));
 const SEED = Number(arg('seed', 3));
 const PASSWORD = arg('password', null);
-const FS_FREE0 = Number(arg('fs-free', 190000));
-const SLOW_CREATE = Number(arg('slow-create', 0));   // ms: Script.Create answers this late (a busy file system)   // free file system space before the extra scripts (bytes)
+const FS_FREE0 = Number(arg('fs-free', 190000));     // free file system space before the extra scripts (bytes)
+const SLOW_CREATE = Number(arg('slow-create', 0));   // ms: Script.Create answers this late (a busy file system)
+const PAGE = Number(arg('page', 31));               // EM1Data records per EM1Data.GetData answer (31 on the device)
 const REALM = 'shellyemminig4-mock';
 const APP = path.join(__dirname, '..', 'app', 'uponor-clean-app.html');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -125,7 +126,7 @@ function call(method, p) {
       const end = Math.min(last, p.end_ts || last);
       const values = [];
       const t0 = ts;
-      while (ts <= end && values.length < 720) { values.push(record(ts)); ts += 60; }
+      while (ts <= end && values.length < PAGE) { values.push(record(ts)); ts += 60; }
       const out = { keys: KEYS, data: values.length ? [{ ts: t0, period: 60, values }] : [] };
       if (ts <= end) out.next_record_ts = ts;
       return out;

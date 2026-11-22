@@ -48,5 +48,26 @@ for (const s of scenarios) {
   check(cmp.cycle >= 95, s.name + ': cycles right ' + cmp.cycle + ' % of the time (>= 95)');
   check(batchesR === batchesGt, s.name + ': pump-outs ' + batchesR + ' = ' + batchesGt);
 }
+// The data can end at any moment, also in a cleaning cycle that has no pump-out yet (the app reads the
+// past when it connects). Cut the data every 7 minutes over a day and compare the last 3 hours.
+{
+  const sim = F.simulate({ t0: T0, seed: 5, durationS: 3 * 86400, startCycle: 'cleaning', tripAt: scenarios[0].sc.tripAt });
+  const all = minutes(sim, T0, T0 + 3 * 86400e3 - 60e3);
+  const at = (arr, t) => { let lo = 0, hi = arr.length - 1, r = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (arr[m].t <= t) { r = m; lo = m + 1; } else hi = m - 1; } return r >= 0 ? arr[r] : null; };
+  let n = 0, falseHol = 0, worst = 100;
+  for (let cut = T0 + 40 * 3600e3; cut < T0 + 64 * 3600e3; cut += 7 * 60e3) {
+    const segs = H.reconstruct(all.filter((r) => r.ts * 1000 < cut)).segs;
+    let k = 0, ok = 0, hol = false;
+    for (let t = cut - 3 * 3600e3; t < cut - 60e3; t += 10e3) {
+      const g = at(sim.gt, t), s = at(segs, t);
+      if (!g || g.ph === 'boot') continue;
+      k++; if (s && s.ph === g.ph && s.cyc === g.cyc) ok++;
+      if (s && s.cyc === 'holiday' && g.cyc !== 'holiday') hol = true;
+    }
+    n++; if (hol) falseHol++; worst = Math.min(worst, ok / k * 100);
+  }
+  check(falseHol === 0, 'data cut at ' + n + ' moments: no holiday programme that did not happen (' + falseHol + ')');
+  check(worst >= 90, 'data cut at ' + n + ' moments: the last 3 h right at least ' + worst.toFixed(1) + ' % of the time (>= 90)');
+}
 console.log(fails ? fails + ' failed' : 'all ok');
 process.exit(fails ? 1 : 0);

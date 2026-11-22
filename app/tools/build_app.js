@@ -35,7 +35,10 @@ const CLOSE = '</script>';
     if (/<\/script|<!--/i.test(code)) throw new Error(part.file + ' contains </script or <!--, which would end the script element');
     const a = page.indexOf(part.open);
     if (a < 0) throw new Error('marker ' + part.open + ' missing in ' + APP);
+    if (page.indexOf(part.open, a + 1) >= 0) throw new Error('marker ' + part.open + ' twice in ' + APP);
     const b = page.indexOf(CLOSE, a);
+    // the part must end before the next script starts, or the app's own script would be replaced
+    if (b < 0 || /<script/i.test(page.slice(a + part.open.length, b))) throw new Error('no ' + CLOSE + ' after ' + part.open + ' in ' + APP);
     page = page.slice(0, a + part.open.length) + code.trim() + page.slice(b);
     const m = part.ver && part.ver.exec(src);
     console.log('app: ' + part.name + (m ? ' ' + m[1] : '') + ' ' + (minify ? 'minified with terser' : 'as is (terser not installed)') + ', ' + src.length + ' -> ' + code.length + ' chars');

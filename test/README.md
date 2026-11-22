@@ -87,7 +87,7 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 node test/app_data_test.js
 ```
 
-`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, minuuttitehoista päätellyt vaiheet ja panokset (uudessa selaimessa aikajana kattaa koko tehohistorian, ja panoksia on yhtä monta kuin skripti laski), selaimen yhteysaikojen etusija päätellyn edellä (myös kun vaihe on sama ennen katkoa ja sen jälkeen), kemikaali ja lietelaskuri taaksepäin annoksista ja panoksista, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`.
+`app_picture_test.js` kokeilee sovelluksen Kuva-näkymää jäljitelmää vastaan: Home Assistant -kortti sovelluksen sovittimen varassa, vaihe, tehohistoria ja energia Shellystä, minuuttitehoista päätellyt vaiheet ja panokset (uudessa selaimessa aikajana kattaa koko tehohistorian, ja panoksia on yhtä monta kuin skripti laski), selaimen yhteysaikojen etusija päätellyn edellä (myös kun vaihe on sama ennen katkoa ja sen jälkeen), kemikaali ja lietelaskuri taaksepäin annoksista ja panoksista, selaimen muistama historia, kemikaalin ja lietelaskurin syöttö `Number.Set`-kutsulla, kielen vaihto ja Tiedot-näkymä. Jäljitelmä vastaa myös kutsuihin `KVS.Get`, `Number.Set` ja `EM1Data.GetStatus`, ja `EM1Data.GetData` palauttaa kuten laite enintään 31 minuuttia kerrallaan (`--page`). Testi tarkistaa myös, että yhteyskatkon jälkeen sovellus säilyttää tehohistorian ja aloittaa uuden yhteysjakson.
 
 ```
 node test/app_picture_test.js
@@ -103,6 +103,14 @@ node test/app_install_test.js
 
 ```
 node test/history_from_power_test.js --verbose
+```
+
+Sama testi katkaisee tehohistorian 7 minuutin välein vuorokauden ajalta ja tarkistaa, että viimeiset 3 tuntia luetaan oikein myös silloin, kun puhdistusjakso on kesken (ei vielä ulospumppausta).
+
+`app_history_test.js` ajaa sovelluksen historian yhdistämistä (sovelluksen HTML:stä otettuna, valekellolla) kuten selain: tilaluku 6 s välein yhteyden aikana, skriptin tila simulaattorin oikeista vaiheista. Se tarkistaa, että taaksepäin lasketut laskurit täsmäävät 2 vuorokauden tauon yli 149 eri yhdistämishetkellä, panoslaskuri ei mene alle nollan, poissa ollessa tehty lietteen tyhjennys näkyy oikeassa kohdassa, varoitus ei jatku poissaoloajalle, seuraavan ulospumppauksen sekunnin heilunta ei kasvata tallennettua historiaa ja juuri vaiheen vaihduttua yhdistäminen ei tuo vanhaa vaihetta näkyviin.
+
+```
+node test/app_history_test.js
 ```
 
 ## Kortti

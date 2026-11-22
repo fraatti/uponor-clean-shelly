@@ -68,15 +68,17 @@
   // reads the runs as firmware phases; returns [{t (ms), ph, cyc}] at each phase start
   function phases(rs) {
     // 1. each run on its own, read as the waiting cycle (or the pump-out with its pump-in)
-    const base = [];
+    const base = [], cleanA = [];
     const add = (arr, t0, t1, ph, cyc) => { if (t1 > t0) arr.push({ t0, t1, ph, cyc }); };
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i], d = (r.t1 - r.t0) / 1000, prev = base[base.length - 1];
       const hol = prev && prev.cyc === 'holiday';
       if (r.c === 'X') add(base, r.t0, r.t1, 'unavailable', 'unknown');
       else if (r.c === 'O') add(base, r.t0, r.t1, 'off', 'unknown');
-      else if (r.c === 'A' && prev && prev.ph === 'pump_in') {
-        // high water ended the pump-in: a new cleaning cycle starts with pre-aeration
+      else if (r.c === 'A' && ((prev && prev.ph === 'pump_in') || d > 35 * 60)) {
+        // high water ended the pump-in, or longer than any waiting or holiday aeration (30 min):
+        // a cleaning cycle, which starts with pre-aeration
+        cleanA.push(r);
         add(base, r.t0, Math.min(r.t1, r.t0 + PRE * 1e3), 'pre_aeration', 'cleaning');
         add(base, r.t0 + PRE * 1e3, r.t1, 'aeration', 'cleaning');
       } else if (r.c === 'A') {
@@ -96,12 +98,17 @@
     }
     // 2. the cleaning cycle backwards from each pump-out start (the firmware durations are exact)
     const over = [];
-    const idleShare = (t0, t1) => { let s = 0; for (const r of rs) if (r.c === 'I') s += Math.max(0, Math.min(t1, r.t1) - Math.max(t0, r.t0)); return s / (t1 - t0); };
-    for (const b of base) {
-      if (b.ph !== 'pump_out') continue;
-      const po = b.t0;
-      if (idleShare(po - 3720e3, po - 1020e3) < 0.8 || idleShare(po - 900e3, po) < 0.8) continue;   // not a full cleaning cycle
-      for (const [a, z, ph] of BACK) add(over, po - a * 1e3, po - z * 1e3, ph, 'cleaning');
+    const end = rs.length ? rs[rs.length - 1].t1 : 0;
+    // the share of idle time in [t0, t1], or 1 when less than 5 minutes of it has data
+    const idleShare = (t0, t1) => {
+      t1 = Math.min(t1, end); if (t1 - t0 < 5 * 60e3) return 1;
+      let s = 0; for (const r of rs) if (r.c === 'I') s += Math.max(0, Math.min(t1, r.t1) - Math.max(t0, r.t0));
+      return s / (t1 - t0);
+    };
+    // the fixed part of a cleaning cycle whose pump-out starts (or would start) at po, up to the end of the data
+    const cleaning = (po) => {
+      if (idleShare(po - 3720e3, po - 1020e3) < 0.8 || idleShare(po - 900e3, po) < 0.8) return false;   // not a full cleaning cycle
+      for (const [a, z, ph] of BACK) add(over, po - a * 1e3, Math.min(po - z * 1e3, end), ph, 'cleaning');
       const chem = po - 3940e3;
       // the aeration before: the aeration run that ends near the chemical filling
       const ar = rs.filter((r) => r.c === 'A' && r.t0 < chem && r.t1 > chem - 5 * 60e3).pop();
@@ -111,7 +118,26 @@
         add(over, st, Math.min(chem, st + PRE * 1e3), 'pre_aeration', 'cleaning');
         add(over, st + PRE * 1e3, chem, 'aeration', 'cleaning');
       }
+      return true;
+    };
+    for (const b of base) if (b.ph === 'pump_out') cleaning(b.t0);
+    // a cleaning cycle still running when the data ends (no pump-out yet): forward from its chemical
+    // filling, which starts when the cleaning aeration ends (the filling itself is often hidden in
+    // minutes that also hold the end of the aeration and the start of the mixing)
+    const covered0 = (t) => over.some((v) => v.t0 <= t && t < v.t1);
+    const forward = (chem) => {
+      const po = chem + 3940e3;
+      if (!cleaning(po)) return;
+      // a pump-out that has started but is still too short to be told from a pump-in
+      const c = rs.find((r) => r.c === 'C' && Math.abs(r.t0 - po) < 3 * 60e3);
+      if (c) { const pe = Math.min(c.t1, po + PUMP_OUT * 1e3); add(over, po, pe, 'pump_out', 'cleaning'); add(over, pe, c.t1, 'pump_in', 'cleaning'); }
+    };
+    for (const r of cleanA) {
+      const nx = rs[rs.indexOf(r) + 1];
+      if (!nx || nx.c === 'C' || nx.c === 'X' || nx.c === 'O' || covered0(r.t1 + 1)) continue;
+      forward(r.t1);
     }
+    for (const b of base) if (b.ph === 'chem_filling' && !covered0(b.t0 + 1)) forward(b.t0);
     // the waiting and holiday cycles forward from the start of each wait (the durations are exact)
     const runAt = (t, c) => rs.find((r) => r.c === c && r.t0 <= t && r.t1 > t);
     const covered = (t) => over.some((v) => v.t0 <= t && t < v.t1);
