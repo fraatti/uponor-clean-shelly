@@ -43,16 +43,16 @@ Batches, Chemical and Sludge can be changed on the device page, on the card or w
 
 The integration creates an event entity for the script, disabled by default. Enable it on the device page: **+N disabled entities → the entity → ⚙ → Enabled**. The integration names it after the script (e.g. `event.storage_room_uponor_clean_1_uponor_clean_v3`). In this installation it was renamed `event.storage_room_uponor_clean_1_events`.
 
-The entity's state is the time of the latest event, and the event's data are in its attributes. Every event has `event_type: uponor`, `type`, `v` (event format version, now 1) and `ts` (Unix time).
+The entity's state is the time of the latest event, and the event's data are in its attributes. Every event has `event_type: uponor`, `type`, `v` (event format version, now 1) and `ts` (Unix time of the event, `null` if the Shelly's clock is not set yet). For a batch, `ts` is the time of the batch (pump-out start + 780 s, script 3.1.0 and newer). It can be a few minutes earlier than the event when the batch was counted after a restart.
 
 | `type` | When | Other attributes |
 | --- | --- | --- |
 | `phase` | The phase or cycle changed | `cycle`, `phase` (key, e.g. `pump_out`), `code` (the firmware's phase code), `eta` (next pump-out, Unix time or `null`) |
-| `warning` | A warning started or ended | `key` (warning key), `on` (`true` or `false`) |
+| `warning` | A warning started or ended | `key` (warning key), `on` (`true` or `false`). A warning that is on when the script restarts stays on (3.1.0 and newer), so its end also comes as an event. |
 | `batch` | A batch finished or the counter was changed | `n` (batches), `user: true` if a user changed it |
 | `chemical` | A dose or a chemical entry | `l` (litres), `days` (days left), `user` |
 | `sludge` | The sludge counter changed | `n`, `reset` (time of the reset), `user` |
-| `start` | The script started | `reason` (`power_cut` or `restart`), `version` |
+| `start` | The script started, or the plant restarted after a power cut while the Shelly stayed on | `reason` (`power_cut` or `restart`), `version` |
 
 The integration looks for a script's events only in the first 5 kB of the script. The second line of the compact version mentions `Shelly.emitEvent("uponor", …)`, so the event entity gets created. Keep that line if you edit the start of the script.
 

@@ -56,8 +56,8 @@ The warnings show in the Warning component (most important first) and in the sta
 
 ### Special situations
 
-- **Power cut**: from the Shelly's reset reason the script knows that the control unit starts a new cleaning cycle from the beginning, and follows it at once.
-- **Restart of the Shelly or the script** (e.g. an update): the script continues from the stored phase and estimates the phases that began during the break from the firmware times.
+- **Power cut**: from the Shelly's reset reason the script knows that the control unit starts a new cleaning cycle from the beginning, and follows it at once. A cut of the plant alone (the Shelly stays on) is recognised too, also one too short to show as 0 W.
+- **Restart of the Shelly or the script** (e.g. an update): the script continues from the stored phase and estimates the phases that began during the break from the firmware times. A batch or a dose that fell in the break is counted, and warnings stay on. If the Shelly's clock is not set yet after a reboot, the stored phase waits for it.
 - **Stop from the radio panel**: the phase is put on hold and continued, shifted, when the same power level returns.
 - **High water** (aeration skipped or cut short) and a **blocked outlet** (a new dosing right after the pump-out) are followed as the firmware handles them.
 - **Test cycle** is recognised and does not add to the batch counter.
@@ -92,6 +92,7 @@ The warnings show in the Warning component (most important first) and in the sta
 | --- | --- |
 | Firmware simulator, 14 scenarios (normal cycles, high water, blocked outlet, power cuts, holiday, test cycle, panel stop, a week of use) | Phases right 99.6–99.9 % of the time, all batches, pump-out estimate ±10 s |
 | Recorded data July–October 2026 | 49 / 49 batches at the same time as v2.4 (±5 s) |
+| Power cuts and restarts in every phase (912 runs, script 3.1.0) | See [`v3-testitulokset.md`](v3-testitulokset.md) |
 | Device from 19 Nov 2026 | In use. Tested on a Shelly EM Mini Gen4 (firmware 2.2.0). |
 
 Details: [`v3-testitulokset.md`](v3-testitulokset.md) (in Finnish).

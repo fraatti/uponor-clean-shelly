@@ -34,7 +34,7 @@ Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`) ja tarkista **Settin
    ![Uusi skripti](img/shelly_uusi_skripti.jpg)
 
 3. Avaa GitHubissa tiedosto `shelly/v3/uponor_clean_v3_shelly.js`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C) ja liitä se editoriin. Tiedosto on noin 40 000 merkkiä. Editoriin mahtuu enintään 50 000 merkkiä, ja pidempi liitos katkeaa ilman varoitusta, joten lähdetiedostoa `uponor_clean_v3.js` ei voi liittää editoriin.
-4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.0.2 started`.
+4. Tallenna (levykekuvake) ja käynnistä (**Start**). Konsoliin tulee rivi `version 3.1.0 started`.
 
    ![Skriptieditori](img/shelly_editori.jpg)
 
@@ -131,7 +131,7 @@ Varoitukset tärkeysjärjestyksessä:
 | `air_leak` | High power, check air hoses | Teho yli 62 W 2 min |
 | `no_signal` | Power reading missing | Tehomittaus puuttuu |
 | `compressor_idle` | Compressor not running | Kompressori ei ole käynyt 4 h |
-| `outlet_blocked` | Outlet blocked? | Ulospumppauksen jälkeen alkoi heti uusi annostelu |
+| `outlet_blocked` | Outlet blocked? | Ulospumppauksen jälkeen alkoi heti uusi annostelu. Poistuu, kun pinta laskee (ulospumppausta seuraa sisäänpumppaus tai odotusjakso). |
 | `high_water` | High water | Ilmastus jäi pois tai katkesi |
 | `paused` | Process paused? | Ohjauskeskus on ollut pysähdyksissä yli 5 min odotettua pidempään (esim. pysäytys paneelista) |
 | `chemical_low` | Chemical low | Kemikaalia alle 10 päivän kulutus |
@@ -162,7 +162,8 @@ Asetuksia voi muuttaa KVS-avaimella `uc_cfg` (JSON), esim. `{"sludge_limit": 600
 | `uc_batch` | `{n, ts}`: panokset ja viimeisimmän ulospumppauksen aika (kirjoitetaan ensimmäisestä muutoksesta) |
 | `uc_chem` | `{l, day, d}`: kemikaali, päivä ja 14 päivän annostelumäärät |
 | `uc_sludge` | `{n, reset}`: lietelaskuri ja viimeisin nollaus |
-| `uc_cycle` | Jakso, vaihe ja niiden alku (jatkaminen skriptin päivityksen jälkeen), odotusjakson alku (lomajakson ennuste) |
+| `uc_cycle` | Jakso, vaihe ja niiden alku (jatkaminen skriptin päivityksen tai Shellyn uudelleenkäynnistyksen jälkeen), onko annostelukierroksen annos laskettu, odotusjakson alku (lomajakson ennuste) |
+| `uc_warn` | Päällä olevat varoitukset (pysyvät päällä uudelleenkäynnistyksen yli) |
 | `uc_base` | Sisäänpumppauksen perustaso tyhjennysvihjettä varten |
 | `uc_cfg` | Käyttäjän asetukset (valinnainen) |
 

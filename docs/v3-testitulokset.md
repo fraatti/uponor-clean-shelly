@@ -1,4 +1,4 @@
-# v3 – testitulokset 18.–19.11.2026
+# v3 – testitulokset 18.–22.11.2026
 
 ## Simulaattori (`test/v3_scenarios.js`)
 
@@ -29,10 +29,10 @@ Home Assistantin historiasta (heinä-, syys- ja lokakuu 2026) ajettu teho ja jä
 
 | Data | Panokset v3 / v2.4 | Aikaero | Tuntematon vaihe | Muuta |
 | --- | --- | --- | --- | --- |
-| 5.–10.7. | 11 / 11 | 0…−5 s | 0,75 % | 9.7. huolto: air_leak, no_power ja high_water oikeasti |
+| 5.–10.7. | 11 / 11 | 0…−5 s | 0,38 % (3.0.2: 0,75 %) | 9.7. huolto: air_leak, no_power ja high_water oikeasti |
 | 4.–7.7. | 4 / 4 | −2…−5 s | 0,00 % | |
 | 7.7. | 2 / 2 | −1…−2 s | 0,00 % | |
-| 8.7. | 1 / 1 | −4 s | 5,5 % | alun synkronointi |
+| 8.7. | 1 / 1 | −4 s | 0,00 % (3.0.2: 5,5 %) | ohjausyksikkö käynnistyi uudelleen klo 17.11 ilman 0 W:n lukemaa; 3.1.0 tunnistaa sen heti, 3.0.2 vasta 31 min kuluttua (aiemmin tässä virheellisesti alun synkronointi) |
 | 11.7. | 2 / 2 | −2…−3 s | 0,00 % | |
 | 13.–23.9. | 9 / 9 | −1…−4 s | 0,10 % | loma 21.9. klo 10.30.48 (v2.4: 10.50), tyhjennysvihje 18.9. klo 13.39 |
 | 8.–18.10. | 20 / 20 | +2…−4 s | 0,05 % | skriptin uudelleenkäynnistykset jatkuvat oikeasta vaiheesta |

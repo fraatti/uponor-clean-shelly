@@ -56,8 +56,8 @@ Varoitukset näkyvät Warning-komponentissa (tärkein ensin) ja tilatekstissä, 
 
 ### Poikkeustilanteet
 
-- **Sähkökatko**: Shellyn käynnistyssyystä skripti tietää, että ohjauskeskus aloittaa uuden puhdistusjakson alusta, ja seuraa sitä heti.
-- **Shellyn tai skriptin uudelleenkäynnistys** (esim. päivitys): skripti jatkaa tallennetusta vaiheesta ja arvioi katkon aikana alkaneet vaiheet firmwaren ajoista.
+- **Sähkökatko**: Shellyn käynnistyssyystä skripti tietää, että ohjauskeskus aloittaa uuden puhdistusjakson alusta, ja seuraa sitä heti. Myös pelkän puhdistamon katko (Shelly pysyy päällä) tunnistetaan, vaikka se olisi liian lyhyt näkyäkseen 0 W:na.
+- **Shellyn tai skriptin uudelleenkäynnistys** (esim. päivitys): skripti jatkaa tallennetusta vaiheesta ja arvioi katkon aikana alkaneet vaiheet firmwaren ajoista. Katkolle osunut panos tai annos lasketaan, ja varoitukset pysyvät päällä. Jos Shellyn kelloa ei ole vielä asetettu uudelleenkäynnistyksen jälkeen, tallennettu vaihe odottaa sitä.
 - **Pysäytys radiopaneelista**: vaihe jätetään odottamaan ja sitä jatketaan siirrettynä, kun sama tehotaso palaa.
 - **Korkea vesi** (ilmastus ohitetaan tai katkeaa) ja **tukossa oleva lähtö** (uusi annostelu heti ulospumppauksen jälkeen) seurataan firmwaren mukaan.
 - **Testijakso** tunnistetaan, eikä se kasvata panoslaskuria.
@@ -92,6 +92,7 @@ Varoitukset näkyvät Warning-komponentissa (tärkein ensin) ja tilatekstissä, 
 | --- | --- |
 | Firmwaresimulaattori, 14 skenaariota (normaalit jaksot, korkea vesi, lähtö tukossa, sähkökatkot, loma, testijakso, paneelipysäytys, viikon käyttö) | Vaiheet oikein 99,6–99,9 % ajasta, kaikki panokset, ulospumppauksen ennuste ±10 s |
 | Tallennettu data heinä–lokakuu 2026 | 49 / 49 panosta samaan aikaan kuin v2.4 (±5 s) |
+| Sähkökatkot ja uudelleenkäynnistykset jokaisessa vaiheessa (912 ajoa, skripti 3.1.0) | Ks. [`v3-testitulokset.md`](v3-testitulokset.md) |
 | Laite 19.11.2026 alkaen | Käytössä. Testattu Shelly EM Mini Gen4:llä (firmware 2.2.0). |
 
 Yksityiskohdat: [`v3-testitulokset.md`](v3-testitulokset.md).

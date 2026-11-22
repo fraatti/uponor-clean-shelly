@@ -29,3 +29,9 @@ test/*.js
 !test/history_from_power_test.js
 !test/app_history_test.js
 !test/em1_minutes.js
+!test/v3ext.js
+!test/v3_restart_test.js
+!test/v3_sweep.js
+!test/eqtest_v3.js
+!test/v3_depth_test.js
+test/sweep_out/

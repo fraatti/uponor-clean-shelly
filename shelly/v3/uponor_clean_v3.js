@@ -26,10 +26,11 @@
  * no Array shift / unshift / concat, no Date.UTC. The call stack is shallow:
  * a native call 11 functions deep stopped the script ("Too much recursion"),
  * so the band handlers only change the state and set flags, and tick() writes
- * the outputs, KVS and events at the top level.
+ * the outputs, counters, KVS and events at the top level. Every native call
+ * (also push, JSON.stringify, Math) counts.
  */
 
-let VERSION = "3.0.2";
+let VERSION = "3.1.0";
 
 // ------------------------------------------------------------------ settings
 // Can be overridden in KVS key "uc_cfg", e.g. {"sludge_limit": 600}. Script memory is
@@ -108,12 +109,14 @@ let H = {};                      // component handles by role
 let shown = {};                  // last value written to each component
 let fieldWritten = { batches: null, chemical: null, sludge: null };
 
+// sub: holiday waiting "w1" / "w2"; in the waiting cycle "w1" = the wait follows a waiting-cycle
+// pump-in (the holiday cycle can start only there)
 let st = {
-    cyc: "unknown", ph: "unknown", phStart: 0, sub: "",      // sub: holiday waiting "w1" / "w2"
-    etaUp: null, aerStart: null, afterPumpOut: false,
+    cyc: "unknown", ph: "unknown", phStart: null, sub: "",
+    etaUp: null, aerStart: null, afterPumpOut: false, doseDone: false,
     pumpOutStart: null, pumpOutExact: false, pumpOutCounted: false,
     waitEntryUnix: null, holidayUnix: null, restart: null, restarted: false,
-    resumeCheck: false, offSinceUnix: null, hold: null
+    resumeCheck: false, resumeDue: false, pendCycle: null, pendUntil: 0, offSinceUnix: null, hold: null
 };
 // band tracking: stable level and its start, candidate level, mixing pulses in the current level
 let bs = {
@@ -128,7 +131,14 @@ let pw = { p: null, pn: null, u: null, lastSeenUp: null, comp: null, highSince: 
 let lastStatusUp = -1000;
 let statusDirty = false;         // status text to be rewritten by tick()
 let cycleDirty = false;          // uc_cycle to be saved by tick()
-let lastNextIso = "";
+let warnDirty = false;           // uc_warn to be saved by tick()
+let cntDirty = 0;                // counters to be written by tick(): 1 batches and sludge, 2 chemical
+let lastNext = null;             // next pump-out time written to the component (unix)
+// clock: unix time - uptime, the largest seen (sys.unixtime is whole seconds, so a plain
+// difference moves by up to a second from one reading to the next)
+let clk = { off: null };
+// uptime of times seen while the clock was not set yet, converted when it is
+let pend = { b: null, we: null, hd: null };
 
 // ------------------------------------------------------------------ helpers
 function log(s) {
@@ -145,10 +155,17 @@ function nowUnix() {
     return null;
 }
 
-function unixAt(tUp) {
+// called by tick() once a second; a step of more than 2 s (time sync, clock drift) starts over
+function clockUpdate() {
     let s = Shelly.getComponentStatus("sys");
-    if (!s || typeof s.unixtime !== "number") return null;
-    return Math.round(s.unixtime - (Shelly.getUptimeMs() / 1000 - tUp));
+    if (!s || typeof s.unixtime !== "number") return;
+    let o = s.unixtime - Shelly.getUptimeMs() / 1000;
+    if (clk.off === null || o > clk.off + 2 || o < clk.off - 2) clk.off = o;
+    else if (o > clk.off) clk.off = o;
+}
+
+function unixAt(tUp) {
+    return clk.off === null ? null : Math.round(clk.off + tUp);
 }
 
 // a measured length matches a firmware time (an unknown length, -1, never matches)
@@ -220,7 +237,7 @@ function flushEvents() {
     evq = [];
     let n = nowUnix();
     for (let i = 0; i < q.length; i++) {
-        q[i].ts = n;
+        if (q[i].ts === undefined || q[i].ts === null) q[i].ts = n;     // a batch has its own time
         if (q[i].type === "phase" && q[i].eta !== null) q[i].eta = unixAt(q[i].eta);
         Shelly.emitEvent("uponor", q[i]);
     }
@@ -243,17 +260,17 @@ function kvsPump() {
     }
     if (v === null) return;
     kvsBusy = true;
-    Shelly.call("KVS.Set", { key: k, value: v }, function (res, err, msg) {
+    Shelly.call("KVS.Set", { key: k, value: typeof v === "string" ? v : JSON.stringify(v) }, function (res, err, msg) {
         kvsBusy = false;
         if (err) log("KVS.Set " + k + " failed: " + err + " " + msg);
         kvsPump();
     });
 }
 
+// the value is turned into JSON when it is written (kvsPump runs from tick() and callbacks)
 function kvsSave(key, value) {
-    let s = typeof value === "string" ? value : JSON.stringify(value);
     if (kvsPending[key] === null || kvsPending[key] === undefined) kvsOrder.push(key);
-    kvsPending[key] = s;           // written by tick() / the previous write's callback
+    kvsPending[key] = value;       // written by tick() / the previous write's callback
 }
 
 function saveBatch() {
@@ -272,8 +289,17 @@ function saveBase() {
     if (base.pin !== null) kvsSave("uc_base", { pin: Math.round(base.pin * 100) / 100 });
 }
 
+// dd: the dose of the current dosing round is counted
 function saveCycle() {
-    kvsSave("uc_cycle", { c: st.cyc, p: st.ph, s: st.sub, ps: unixAt(st.phStart), we: st.waitEntryUnix, hd: st.holidayUnix });
+    kvsSave("uc_cycle", { c: st.cyc, p: st.ph, s: st.sub, ps: st.phStart === null ? null : unixAt(st.phStart),
+        we: st.waitEntryUnix, hd: st.holidayUnix, dd: st.doseDone ? 1 : 0 });
+}
+
+function warnList() {
+    let w = [];
+    let ks = warnKeys();
+    for (let i = 1; i < ks.length; i++) if (warn[ks[i]]) w.push(ks[i]);
+    return w;
 }
 
 // ------------------------------------------------------------------ outputs
@@ -284,6 +310,7 @@ function setVc(role, v) {
 }
 
 function setField(role, v) {
+    if (shown[role] === v && fieldWritten[role] === v) return;
     fieldWritten[role] = v;
     shown[role] = v;
     if (H[role]) H[role].setValue(v);
@@ -337,11 +364,15 @@ function refreshOutputs(force) {
     setVc("phase", st.ph);
     setVc("cycle", st.cyc);
     setVc("warning", topWarning);
+    // the estimate moves by a second or two when it is anchored again at each phase (the phase
+    // starts are measured to the second): only a larger change is written
     let e = etaUnix();
-    let iso = e === null ? "" : isoLocal(e);
-    if (iso !== lastNextIso) {
-        lastNextIso = iso;
-        setVc("next_pumpout", iso);
+    if (e === null ? lastNext !== null : (lastNext === null || Math.abs(e - lastNext) > 2)) {
+        let iso = e === null ? "" : isoLocal(e);
+        if (iso !== "" || e === null) {
+            lastNext = e;
+            setVc("next_pumpout", iso);
+        }
     }
 }
 
@@ -351,6 +382,7 @@ function setPhase(cyc, ph, startUp) {
     st.ph = ph;
     st.phStart = startUp;
     if (ph !== "pump_out") st.afterPumpOut = false;
+    if (ph === "chem_filling") st.doseDone = false;
     emit("phase", { cycle: cyc, phase: ph, code: phaseCode(), eta: st.etaUp });   // eta: uptime, to Unix in flushEvents()
     cycleDirty = true;
     statusDirty = true;
@@ -366,7 +398,12 @@ function setWarning(key, on) {
     on = !!on;
     if (!!warn[key] === on) return;
     warn[key] = on;
+    warnDirty = true;
     emit("warning", { key: key, on: on });
+    updateTop();
+}
+
+function updateTop() {
     let top = "none";
     let ks = warnKeys();
     for (let i = 1; i < ks.length; i++) {
@@ -415,33 +452,29 @@ function rollChemDay() {
     for (let j = 0; j < cnt.doses.length && nd.length < 14; j++) nd.push(cnt.doses[j]);
     cnt.doses = nd;
     cnt.chemDay = day;
-    saveChem();
+    cntDirty |= 2;
 }
 
+// the counters change here; tick() writes the fields and KVS and checks the warnings
 function onDose() {
+    st.doseDone = true;
+    cycleDirty = true;
     rollChemDay();
     if (cnt.doses.length === 0) cnt.doses.push(0);
     cnt.doses[0]++;
-    if (cnt.chem !== null) {
-        cnt.chem = Math.max(0, Math.round((cnt.chem - CFG.dose_l) * 100) / 100);
-        setField("chemical", cnt.chem);
-    }
-    saveChem();
+    if (cnt.chem !== null) cnt.chem = Math.max(0, Math.round((cnt.chem - CFG.dose_l) * 100) / 100);
+    cntDirty |= 2;
     emit("chemical", { l: cnt.chem, days: chemDaysLeft() });
-    checkCounters();
 }
 
 function countBatch(tUp) {
     cnt.batches++;
     cnt.sludge++;
     cnt.lastBatchUnix = unixAt(tUp);
-    setField("batches", cnt.batches);
-    setField("sludge", cnt.sludge);
-    saveBatch();
-    saveSludge();
+    pend.b = cnt.lastBatchUnix === null ? tUp : null;
+    cntDirty |= 1;
     emit("batch", { n: cnt.batches, ts: cnt.lastBatchUnix });
     emit("sludge", { n: cnt.sludge, reset: cnt.sludgeReset });
-    checkCounters();
     log("batch " + cnt.batches);
 }
 
@@ -488,13 +521,18 @@ function startCleaning(tUp, reason) {
     log("cleaning cycle (" + reason + ")");
 }
 
-// newEntry: the waiting cycle starts now (the holiday timer starts), otherwise the next waiting loop
+// newEntry: the waiting cycle starts now (the holiday timer starts), otherwise the next waiting
+// loop. The level has dropped, so the outlet is not blocked.
 function enterWaiting(tUp, newEntry) {
-    if (newEntry) st.waitEntryUnix = unixAt(tUp);
+    if (newEntry) {
+        st.waitEntryUnix = unixAt(tUp);
+        pend.we = st.waitEntryUnix === null ? tUp : null;
+    }
     st.etaUp = null;
     st.restarted = false;
     st.sub = "";
     setWarning("high_water", false);
+    setWarning("outlet_blocked", false);
     setPhase("waiting", "waiting", tUp);
 }
 
@@ -503,12 +541,18 @@ function holidayPossible() {
     let n = nowUnix();
     if (n !== null && st.waitEntryUnix !== null) return n - st.waitEntryUnix >= FW.holiday_after - 3600;
     if (n !== null && cnt.lastBatchUnix !== null) return n - cnt.lastBatchUnix >= 252000;
-    return cnt.lastBatchUnix === null;
+    return cnt.lastBatchUnix === null && pend.b === null;
+}
+
+function setHolidayStart(tUp) {
+    if (st.cyc === "holiday") return;
+    st.holidayUnix = unixAt(tUp);
+    pend.hd = st.holidayUnix === null ? tUp : null;
 }
 
 // sub: "w1" = Waiting I (ends with aeration), "w2" = Waiting II (ends with sludge removal), "" = not known
 function enterHoliday(sub, tUp) {
-    if (st.cyc !== "holiday") st.holidayUnix = unixAt(tUp);
+    setHolidayStart(tUp);
     st.sub = sub;
     st.etaUp = null;
     st.cyc = "holiday";
@@ -517,10 +561,20 @@ function enterHoliday(sub, tUp) {
 }
 
 function holidayStep(ph, tUp, sinceUp) {
-    if (st.cyc !== "holiday") st.holidayUnix = unixAt(sinceUp);
+    setHolidayStart(sinceUp);
     st.sub = "";
     st.etaUp = null;
     setPhase("holiday", ph, tUp);
+}
+
+// after a waiting-cycle pump-in: the firmware checks the holiday time, else the next waiting loop
+function afterWaitIn(tUp) {
+    let e = unixAt(tUp);
+    if (e !== null && st.waitEntryUnix !== null && e - st.waitEntryUnix >= FW.holiday_after - 60) enterHoliday("w1", tUp);
+    else {
+        enterWaiting(tUp, false);
+        st.sub = "w1";
+    }
 }
 
 function chemFilling(tUp, hw, blocked) {
@@ -615,12 +669,7 @@ function toIdle(from, dur, peaks, t) {
         }
         pumpInEnded();
         if (st.cyc === "holiday") enterHoliday("w2", t);
-        else if (st.cyc === "waiting") {
-            // firmware: the holiday check is made after each waiting-cycle pump-in
-            let e = unixAt(t);
-            if (e !== null && st.waitEntryUnix !== null && e - st.waitEntryUnix >= FW.holiday_after - 60) enterHoliday("w1", t);
-            else enterWaiting(t, false);
-        }
+        else if (st.cyc === "waiting") afterWaitIn(t);
         // cleaning-cycle pump-in runs up to 1020 s, waiting and holiday pump-ins 600 s
         else enterWaiting(t, st.cyc === "cleaning" || near(dur, FW.in_max));
     } else if (st.ph === "sludge_removal") enterHoliday("w1", t);   // a wait after sludge removal: holiday cycle
@@ -636,6 +685,7 @@ function toComp(from, dur, peaks, t) {
         else if (st.ph === "sedimentation_2") pumpOutStarts(t, true);
         else if (st.afterPumpOut) {
             st.afterPumpOut = false;
+            setWarning("outlet_blocked", false);
             setPhase("cleaning", "pump_in", t);
         } else if (w && near(dur, FW.wait)) setPhase("waiting", "sludge_removal", t);
         else if (w && (st.sub === "w2" || near(dur, FW.h_wait2))) holidayStep("sludge_removal", t, t);
@@ -674,14 +724,21 @@ function toAer(from, dur, peaks, t) {
         return;
     }
     if (from === "DOSING" || (from === "VALVE" && st.ph === "chem_filling")) {
-        if (from === "VALVE") onDose();     // the dosing level was too short to be seen
+        if (from === "VALVE" && !st.doseDone) onDose();     // the dosing level was too short to be seen
         if (st.cyc === "test") setPhase("test", "aeration", t);
         else cleaningStep("mixing", t);
         return;
     }
     if (from === "IDLE") {
         let w = st.ph === "waiting" && (st.cyc === "waiting" || st.cyc === "holiday");
+        // Idle turns into aeration only at the end of the holiday Waiting I (3000 s). After a
+        // shorter wait the control unit has restarted (a power cut too short to be seen as 0 W).
+        // A full waiting-cycle wait is its aeration with the sludge removal not seen.
+        let wfull = w && st.cyc === "waiting" && dur >= FW.wait - 90;
+        let restart = dur >= 0 && dur < FW.h_wait1 - 90 && !wfull;
         if (st.afterPumpOut) startCleaning(t, "start level reached");
+        else if (restart) startCleaning(t, "aeration after a wait of " + Math.round(dur) + " s");
+        else if (wfull && dur < 1200) setPhase("waiting", "aeration", t);
         else if (w && st.cyc === "holiday" && st.sub !== "w2") holidayStep("aeration", t, t);
         else if (w && (st.cyc === "holiday" || dur >= 1200)) holidayStep("aeration", t, t - dur);
         else if (near(dur, FW.h_wait1)) holidayStep("aeration", t, t - dur);
@@ -747,7 +804,7 @@ function restartTransition(to, t) {
 }
 
 function onTransition(from, to, dur, peaks, t) {
-    if (from === "DOSING" && (dur < 0 || dur >= 5)) onDose();
+    if (from === "DOSING" && !st.doseDone && (dur < 0 || dur >= 5)) onDose();
     if (to === "OFF") {
         st.offSinceUnix = unixAt(t);
         st.etaUp = null;
@@ -820,6 +877,9 @@ function updateBand(t) {
     let pn = pw.pn;
     let b = pn < CFG.off_max ? "OFF" : pn < CFG.idle_max ? "IDLE" : pn <= CFG.valve_max ? "VALVE" :
         pn <= CFG.dosing_max ? "DOSING" : pn <= CFG.comp_max ? "COMP" : pn <= CFG.aer_max ? "AER" : "BOOST";
+    // the dose is given when the dosing level ends and the mixing starts (counted at once, so a
+    // power cut in the first seconds of the mixing does not lose it)
+    if (bs.stable === "DOSING" && !st.doseDone && (b === "AER" || b === "BOOST") && t - bs.since >= 5) onDose();
     // above the compressor level: a pulse if it ends within 12 s, otherwise aeration
     if (b === "BOOST" || (b === "AER" && bs.stable === "COMP")) {
         if (bs.boostSince === null) bs.boostSince = t;
@@ -853,7 +913,9 @@ function updateBand(t) {
         bs.candSince = t;
         if (!ramp) bs.candStart = t;
     }
-    let need = bs.cand === "VALVE" ? CFG.debounce_s + 4 : CFG.debounce_s;
+    // No power is taken at once: the plant never draws under 2 W while it runs, and a cut of a few
+    // seconds restarts the control unit.
+    let need = bs.cand === "OFF" ? 0 : bs.cand === "VALVE" ? CFG.debounce_s + 4 : CFG.debounce_s;
     if (bs.cand === bs.stable || t - bs.candSince < need) return;
     let from = bs.stable;
     let start = bs.candStart;
@@ -898,35 +960,91 @@ function phaseDur(cyc, ph, sub) {
     return i >= 0 ? [FW.pre, FW.aer, FW.chem, FW.dose, FW.mix, FW.sed1, FW.sludge, FW.sed2, FW.out][i] : null;
 }
 
-// The script was stopped for a while (an update): the stored phase may have ended and the
-// next one or two phases begun. Their start is estimated from the firmware times.
+// The script was stopped for a while (an update, a Shelly reboot): the stored phase may have
+// ended and the next phases begun. Their start is estimated from the firmware times. A batch
+// or a dose whose moment fell in the break is counted.
 function resumeNext(b, t) {
+    let cyc = st.cyc;
     let ph = st.ph;
     let sub = st.sub;
     let ps = st.phStart;
-    for (let i = 0; i < 2; i++) {
-        let nx = nextPhase(st.cyc, ph, sub);
+    let out = false;
+    let dose = false;
+    for (let i = 0; i < 4; i++) {
+        let d = phaseDur(cyc, ph, sub);
+        if (d === null) return false;
+        if (ph === "pump_in") {
+            // the pump-in ends at the start level (any time) or after its full length
+            let end = b === "IDLE" ? ps + d : Math.min(t, ps + d);
+            let lim = b === "IDLE" ? (cyc === "holiday" ? FW.h_wait2 : FW.wait) : FW.pre + FW.aer;
+            if ((b !== "IDLE" && b !== "AER" && b !== "VALVE") || end > t + 60 || t - end > lim + 300) return false;
+            if (out) finishPumpOut(-1);
+            if (dose && !st.doseDone) onDose();
+            if (b === "AER") startCleaning(end, "start level reached in a break");
+            else if (b === "VALVE") chemFilling(end, true, false);
+            else if (cyc === "cleaning") enterWaiting(end, true);
+            else if (cyc === "holiday") enterHoliday("w2", end);
+            else afterWaitIn(end);
+            log("resumed after the pump-in");
+            return true;
+        }
+        let nx = nextPhase(cyc, ph, sub);
         if (!nx) return false;
-        ps += phaseDur(st.cyc, ph, sub);
-        if (st.cyc === "holiday" && ph === "sludge_removal") sub = "w1";
-        else if (st.cyc === "holiday") sub = "";
+        if (ph === "dosing") dose = true;
+        if (ph === "pump_out") {
+            out = true;
+            if (st.ph !== "pump_out") {
+                st.pumpOutStart = ps;
+                st.pumpOutCounted = false;
+            }
+        }
+        if (nx === "chem_filling") st.doseDone = false;
+        ps += d;
+        if (cyc === "holiday") sub = ph === "sludge_removal" ? "w1" : "";
         ph = nx;
         if (bandOfPhase(ph) === b) {
-            if (ps > t + 60 || t - ps > phaseDur(st.cyc, ph, sub) + 300) return false;
-            if (st.ph === "pump_out") finishPumpOut(-1);
-            if (st.cyc === "cleaning") anchorEta(ph, ps);
+            if (ps > t + 60 || t - ps > phaseDur(cyc, ph, sub) + 300) return false;
+            if (out) finishPumpOut(-1);
+            if (dose && !st.doseDone) onDose();
+            if (cyc === "cleaning") anchorEta(ph, ps);
             if (ph === "pump_out") {
                 st.pumpOutStart = ps;
                 st.pumpOutExact = false;
                 st.pumpOutCounted = false;
             }
             st.sub = sub;
-            setPhase(st.cyc, ph, ps);
-            log("resumed " + st.cyc + " / " + ph + " (next phase)");
+            setPhase(cyc, ph, ps);
+            log("resumed " + cyc + " / " + ph + " (next phase)");
             return true;
         }
     }
     return false;
+}
+
+function firstGuess(b, t) {
+    if (b === "VALVE") chemFilling(t, false, false);
+    else if (b === "DOSING") cleaningStep("dosing", t);
+    else if (b === "OFF") onTransition("IDLE", "OFF", -1, 0, t);
+}
+
+// Continues the phase stored before the script stopped. A phase past its firmware time is
+// first tried as a later phase (e.g. sedimentation I -> II over the 120 s sludge removal).
+// Called from tick() to keep the call stack short.
+function resumeStored(b, t) {
+    st.resumeCheck = false;
+    let max = st.cyc === "holiday" && st.ph === "waiting" && st.sub !== "w1" ? FW.h_wait2 : phaseDur(st.cyc, st.ph, st.sub);
+    let over = t - st.phStart > max + 60;
+    if (over && resumeNext(b, t)) return;
+    // a wait can be longer (a holiday cycle not seen yet, a stop from the panel)
+    if (bandOfPhase(st.ph) === b && t - st.phStart <= (st.ph === "waiting" ? FW.h_wait2 : max) + 300) {
+        bs.since = (b === "AER" && st.cyc === "cleaning" && st.aerStart !== null) ? st.aerStart : st.phStart;
+        bs.partial = false;
+        log("resumed " + st.cyc + " / " + st.ph);
+        return;
+    }
+    if (!over && resumeNext(b, t)) return;
+    unknownPhase(t, "stored phase does not match the power");
+    firstGuess(b, t);
 }
 
 // the first stable level after the script started
@@ -942,20 +1060,8 @@ function firstBand(b, t) {
         if (restartTransition(b, t)) return;
         st.restart = null;
     }
-    if (st.resumeCheck) {
-        st.resumeCheck = false;
-        if (bandOfPhase(st.ph) === b) {
-            bs.since = (b === "AER" && st.cyc === "cleaning" && st.aerStart !== null) ? st.aerStart : st.phStart;
-            bs.partial = false;
-            log("resumed " + st.cyc + " / " + st.ph);
-            return;
-        }
-        if (resumeNext(b, t)) return;
-        unknownPhase(t, "stored phase does not match the power");
-    }
-    if (b === "VALVE") chemFilling(t, false, false);
-    else if (b === "DOSING") cleaningStep("dosing", t);
-    else if (b === "OFF") onTransition("IDLE", "OFF", -1, 0, t);
+    if (st.resumeCheck) st.resumeDue = true;
+    else firstGuess(b, t);
 }
 
 // ------------------------------------------------------------------ periodic checks
@@ -964,7 +1070,8 @@ function timeRules(t) {
     if (st.ph === "pre_aeration" && t - st.phStart >= FW.pre) setPhase("cleaning", "aeration", st.phStart + FW.pre);
 
     // unidentified compressor run: mixing pulses = pump-in, a long run without them = pump-out
-    if (bs.stable === "COMP" && st.ph === "unknown") {
+    // (not while the stored phase waits for the clock: it tells which pump-out this is)
+    if (bs.stable === "COMP" && st.ph === "unknown" && !st.pendCycle) {
         if (bs.firstPeak !== null && bs.firstPeak - bs.since >= 130) {
             // a run without pulses before the first pulse: pump-out followed by pump-in
             pumpOutStarts(bs.partial ? bs.firstPeak - 1 - FW.out : bs.since, !bs.partial);
@@ -972,14 +1079,21 @@ function timeRules(t) {
         else if (t - bs.since >= 540) pumpOutStarts(bs.since, !bs.partial);
     }
 
-    // batch at the end of the pump-out; the pump-in follows without a visible break
+    // batch at the end of the pump-out; the pump-in follows without a visible break. A pulse in
+    // the first 700 s is not a mixing pulse of the pump-in (the pump-out lasts 780 s).
     if (bs.stable === "COMP" && st.ph === "pump_out" && st.pumpOutStart !== null) {
+        if (bs.firstPeak !== null && bs.firstPeak - st.pumpOutStart < FW.out - 80) {
+            bs.firstPeak = null;
+            bs.peaks = 0;
+        }
         let pulse = bs.firstPeak !== null ? bs.firstPeak - 1 : null;
+        // a power cut before this moment has already ended the pump-out (no power is taken at once)
         if (!st.pumpOutCounted && (t - st.pumpOutStart >= FW.out || pulse !== null)) {
             st.pumpOutCounted = true;
             countBatch(st.pumpOutExact || pulse === null ? st.pumpOutStart + FW.out : pulse);
         }
         if (st.pumpOutCounted && (pulse !== null || (bs.cand === "COMP" && t - st.pumpOutStart >= FW.out + 15))) {
+            setWarning("outlet_blocked", false);
             setPhase("cleaning", "pump_in", pulse !== null ? pulse : st.pumpOutStart + FW.out + 2);
             bs.sumP = 0;
             bs.nP = 0;
@@ -1001,8 +1115,9 @@ function timeRules(t) {
 
     // a wait longer than the waiting-cycle wait: holiday cycle, or a stop from the radio panel
     let idleFor = bs.stable === "IDLE" ? t - bs.since : 0;
+    // after a waiting-cycle pump-in the holiday cycle starts with Waiting I, otherwise not known
     if (st.cyc === "waiting" && st.ph === "waiting" && idleFor >= 1200 && holidayPossible()) {
-        enterHoliday(st.waitEntryUnix !== null ? "w1" : "", bs.since);
+        enterHoliday(st.sub === "w1" ? "w1" : "", bs.since);
     }
     let expected = 0;
     if (st.ph === "sedimentation_1") expected = FW.sed1;
@@ -1027,7 +1142,8 @@ function faultRules(t) {
         if (pw.offSince === null) pw.offSince = t;
     } else pw.offSince = null;
     setWarning("no_power", pw.offSince !== null && t - pw.offSince >= 60);
-    if (pw.lastCompUp === null || (pn !== null && pn > CFG.valve_max)) pw.lastCompUp = t;
+    // the 4 hours start again when the power returns after a cut
+    if (pw.lastCompUp === null || (pn !== null && (pn > CFG.valve_max || pn < CFG.off_max))) pw.lastCompUp = t;
     setWarning("compressor_idle", pn !== null && pw.offSince === null && t - pw.lastCompUp >= 14400);
     if (pw.lastSeenUp === null) pw.lastSeenUp = t;
     setWarning("no_signal", t - pw.lastSeenUp >= 600);
@@ -1035,20 +1151,74 @@ function faultRules(t) {
 
 let lastDayCheck = 0;
 
+// times seen before the clock was set
+function fixPending() {
+    if (pend.b !== null) {
+        cnt.lastBatchUnix = unixAt(pend.b);
+        cntDirty |= 1;
+    }
+    if (pend.we !== null) st.waitEntryUnix = unixAt(pend.we);
+    if (pend.hd !== null) st.holidayUnix = unixAt(pend.hd);
+    pend.b = null;
+    pend.we = null;
+    pend.hd = null;
+    cycleDirty = true;
+    statusDirty = true;
+}
+
+// the stored phase, read before the clock was set
+function applyPendingCycle() {
+    let v = st.pendCycle;
+    st.pendCycle = null;
+    if (st.ph !== "unknown" || st.restart) return;
+    applyCycle(v);
+    if (st.resumeCheck && bs.stable !== "UNKNOWN") st.resumeDue = true;
+}
+
 function tick() {
     let t = upS();
+    clockUpdate();
+    if (clk.off !== null) {
+        if (pend.b !== null || pend.we !== null || pend.hd !== null) fixPending();
+        if (st.pendCycle) applyPendingCycle();
+    } else if (st.pendCycle && t > st.pendUntil) {
+        st.pendCycle = null;
+        log("clock not set in 5 min, the stored phase is dropped");
+    }
     if (readPower()) updateBand(t);
+    if (st.resumeDue) {
+        st.resumeDue = false;
+        resumeStored(bs.stable, bs.since);
+    }
     faultRules(t);
     if (bs.stable !== "UNKNOWN") timeRules(t);
     if (t - lastDayCheck >= 600) {
         lastDayCheck = t;
         rollChemDay();
+        cntDirty |= 4;
+    }
+    if (cntDirty) {
+        if (cntDirty & 1) {
+            setField("batches", cnt.batches);
+            setField("sludge", cnt.sludge);
+            saveBatch();
+            saveSludge();
+        }
+        if (cntDirty & 2) {
+            if (cnt.chem !== null) setField("chemical", cnt.chem);
+            saveChem();
+        }
+        cntDirty = 0;
         checkCounters();
     }
     refreshOutputs(false);
     if (cycleDirty) {
         cycleDirty = false;
         saveCycle();
+    }
+    if (warnDirty) {
+        warnDirty = false;
+        kvsSave("uc_warn", warnList());
     }
     kvsPump();
     flushEvents();
@@ -1065,7 +1235,7 @@ function onFieldChange(role) {
         if (role === "batches") {
             cnt.batches = Math.round(v);
             saveBatch();
-            emit("batch", { n: cnt.batches, ts: cnt.lastBatchUnix, user: true });
+            emit("batch", { n: cnt.batches, user: true });
         } else if (role === "chemical") {
             cnt.chem = Math.round(v * 100) / 100;
             saveChem();
@@ -1088,13 +1258,11 @@ function onFieldChange(role) {
 // "JSON.stringify(stateObject())", because the firmware answers cross-origin HTTP requests
 // with 503. Keep the function name.
 function stateObject() {
-    let w = [];
-    let ks = warnKeys();
-    for (let i = 1; i < ks.length; i++) if (warn[ks[i]]) w.push(ks[i]);
+    let w = warnList();
     let hd = null;
     if (st.cyc === "waiting" && st.waitEntryUnix !== null) hd = st.waitEntryUnix + FW.holiday_after;
     return {
-        version: VERSION, cycle: st.cyc, phase: st.ph, code: phaseCode(), since: st.phStart > 0 ? unixAt(st.phStart) : null,
+        version: VERSION, cycle: st.cyc, phase: st.ph, code: phaseCode(), since: st.phStart === null ? null : unixAt(st.phStart),
         eta: etaUnix(), last_pumpout: cnt.lastBatchUnix, batches: cnt.batches,
         chemical: { l: cnt.chem, days: chemDaysLeft() }, sludge: { n: cnt.sludge, reset: cnt.sludgeReset },
         warnings: w, holiday_at: hd, holiday_since: st.cyc === "holiday" ? st.holidayUnix : null,
@@ -1216,30 +1384,44 @@ function applyLoaded(key, v) {
     } else if (key === "uc_cycle" && v) {
         st.waitEntryUnix = v.we || null;
         st.holidayUnix = v.hd || null;
-        // the stored phase is used only if it can still be running (script or Shelly restart)
-        let n = nowUnix();
-        let ps = n === null || !v.ps ? null : upS() - (n - v.ps);
-        let max = v.p === "waiting" ? FW.h_wait2 : phaseDur(v.c, v.p, v.s);
-        let age = ps === null ? -1000 : upS() - ps;
-        if (max && age > -60 && age <= max + 300) {
-            st.cyc = v.c;
-            st.ph = v.p;
-            st.sub = v.s || "";
-            st.phStart = ps;
-            st.resumeCheck = true;
-            if (st.cyc === "cleaning") anchorEta(st.ph, ps);
-            if (st.ph === "pre_aeration") st.aerStart = ps;
-            if (st.ph === "aeration") st.aerStart = ps - FW.pre;
-            if (st.ph === "pump_out") {
-                st.pumpOutStart = ps;
-                st.pumpOutExact = true;
-                st.pumpOutCounted = age >= FW.out;
-            }
-        }
+        clockUpdate();
+        if (clk.off === null) {
+            // the clock is not set yet after a reboot: wait for it up to 5 min
+            st.pendCycle = v;
+            st.pendUntil = upS() + 300;
+        } else applyCycle(v);
+    } else if (key === "uc_warn" && v) {
+        // the warnings stay on over a restart (an "off" event follows when they end)
+        for (let i = 0; i < v.length; i++) warn[v[i]] = true;
+        if (warn.sludge_emptied) base.hintSince = upS();
     }
 }
 
-let LOAD = ["uc_vc", "uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "uc_cycle"];
+// the stored phase is used if it or the phases after it can still be running (a script or
+// Shelly restart); resumeStored() checks it against the power
+function applyCycle(v) {
+    let ps = !v.ps ? null : v.ps - clk.off;
+    let max = v.p === "waiting" ? FW.h_wait2 : phaseDur(v.c, v.p, v.s);
+    let age = ps === null ? -1000 : upS() - ps;
+    if (!max || age <= -60 || age > max + 7200) return;
+    st.cyc = v.c;
+    st.ph = v.p;
+    st.sub = v.s || "";
+    st.phStart = ps;
+    st.doseDone = !!v.dd;
+    st.resumeCheck = true;
+    if (st.cyc === "cleaning") anchorEta(st.ph, ps);
+    if (st.ph === "pre_aeration") st.aerStart = ps;
+    if (st.ph === "aeration") st.aerStart = ps - FW.pre;
+    if (st.ph === "pump_out") {
+        // counted when the batch time is from this pump-out (it is saved before the phase)
+        st.pumpOutStart = ps;
+        st.pumpOutExact = true;
+        st.pumpOutCounted = cnt.lastBatchUnix !== null && cnt.lastBatchUnix >= v.ps + FW.out - 100;
+    }
+}
+
+let LOAD = ["uc_vc", "uc_cfg", "uc_batch", "uc_chem", "uc_sludge", "uc_base", "uc_cycle", "uc_warn"];
 
 function loadNext(i) {
     if (i >= LOAD.length) {
@@ -1277,11 +1459,14 @@ function finishStart() {
     if (boot) {
         st.restart = { since: 0, reason: "power_cut" };
         st.resumeCheck = false;
+        st.pendCycle = null;
         st.cyc = "unknown";
         st.ph = "unknown";
+        st.phStart = null;
         st.etaUp = null;
     }
     if (!boot && st.resumeCheck) log("stored phase " + st.cyc + " / " + st.ph);
+    if (!boot && st.pendCycle) log("clock not set, the stored phase waits for it");
     setField("batches", cnt.batches);
     setField("sludge", cnt.sludge);
     if (cnt.chem !== null) setField("chemical", cnt.chem);
@@ -1290,9 +1475,10 @@ function finishStart() {
         if (typeof v === "number" && v > 0) cnt.chem = v;
         fieldWritten.chemical = v;
     }
+    updateTop();
     setVc("phase", st.ph);
     setVc("cycle", st.cyc);
-    setVc("warning", "none");
+    setVc("warning", topWarning);
     checkCounters();
     emit("start", { reason: boot ? "power_cut" : "restart", version: VERSION });
     log("version " + VERSION + " started, uptime " + Math.round(up) + " s, batches " + cnt.batches);

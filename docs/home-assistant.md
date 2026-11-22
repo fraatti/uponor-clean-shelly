@@ -43,16 +43,16 @@ Batches-, Chemical- ja Sludge-arvoja voi muuttaa laitteen sivulla, kortilla tai 
 
 Integraatio luo skriptille tapahtumaentiteetin, joka on oletuksena pois käytöstä. Ota se käyttöön laitteen sivulla: **+N disabled entities → entiteetti → ⚙ → Enabled**. Integraatio nimeää sen skriptin mukaan (esim. `event.storage_room_uponor_clean_1_uponor_clean_v3`). Tässä asennuksessa se on nimetty uudelleen `event.storage_room_uponor_clean_1_events`.
 
-Entiteetin tila on viimeisimmän tapahtuman aika, ja tapahtuman tiedot ovat attribuuteissa. Kaikissa tapahtumissa ovat `event_type: uponor`, `type`, `v` (tapahtumamuodon versio, nyt 1) ja `ts` (Unix-aika).
+Entiteetin tila on viimeisimmän tapahtuman aika, ja tapahtuman tiedot ovat attribuuteissa. Kaikissa tapahtumissa ovat `event_type: uponor`, `type`, `v` (tapahtumamuodon versio, nyt 1) ja `ts` (tapahtuman Unix-aika, `null`, jos Shellyn kelloa ei ole vielä asetettu). Panoksessa `ts` on panoksen aika (ulospumppauksen alku + 780 s, skripti 3.1.0 ja uudemmat). Se voi olla muutaman minuutin tapahtumaa aiempi, kun panos laskettiin uudelleenkäynnistyksen jälkeen.
 
 | `type` | Milloin | Muut attribuutit |
 | --- | --- | --- |
 | `phase` | Vaihe tai jakso vaihtui | `cycle`, `phase` (avain, esim. `pump_out`), `code` (firmwaren vaihekoodi), `eta` (seuraava ulospumppaus, Unix-aika tai `null`) |
-| `warning` | Varoitus alkoi tai päättyi | `key` (varoituksen avain), `on` (`true` tai `false`) |
+| `warning` | Varoitus alkoi tai päättyi | `key` (varoituksen avain), `on` (`true` tai `false`). Skriptin uudelleenkäynnistyksessä päällä ollut varoitus pysyy päällä (3.1.0 ja uudemmat), joten myös sen päättyminen tulee tapahtumana. |
 | `batch` | Panos valmis tai laskuria muutettiin | `n` (panokset), `user: true`, jos käyttäjä muutti |
 | `chemical` | Annostelu tai kemikaalin syöttö | `l` (litraa), `days` (riittää päivää), `user` |
 | `sludge` | Lietelaskuri muuttui | `n`, `reset` (nollauksen aika), `user` |
-| `start` | Skripti käynnistyi | `reason` (`power_cut` tai `restart`), `version` |
+| `start` | Skripti käynnistyi, tai puhdistamo käynnistyi uudelleen sähkökatkon jälkeen Shellyn pysyessä päällä | `reason` (`power_cut` tai `restart`), `version` |
 
 Integraatio löytää skriptin tapahtumat vain skriptin ensimmäisestä 5 kt:sta. Tiivistetyn version toinen rivi mainitsee `Shelly.emitEvent("uponor", …)`, joten tapahtumaentiteetti syntyy. Jos muokkaat skriptin alkua, säilytä tämä rivi.
 

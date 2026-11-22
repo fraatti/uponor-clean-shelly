@@ -9,7 +9,7 @@ Testit ajavat oikeaa skriptitiedostoa Nodessa. Shellyn rajapinnat (RPC, KVS, vir
 | `scenarios.js` | Firmwareskenaariot (korkea vesi, lähtö tukossa, sähkökatko, odotus- ja lomajakso, testijakso). |
 | `validate.js` | Panosmäärät ja siirtymät oikeaa dataa vasten. |
 | `compare.js` | Kahden version vertailu (esim. v2.3 ja v2.4). |
-| `eqtest.js` | Varmistaa, että kaksi skriptiä (esim. lähde ja tiivistetty) tuottavat samat tulokset. |
+| `eqtest.js` | Varmistaa, että kaksi v2-skriptiä (esim. lähde ja tiivistetty) tuottavat samat tulokset. v3:lle `eqtest_v3.js`. |
 
 ## Ajaminen
 
@@ -44,10 +44,22 @@ cp ../shelly/v2/puhdistamo_skripti_v2_4.js .     # vertailua varten
 node v3_scenarios.js        # firmwaresimulaattorin skenaariot (-v: konsoli, suodatin nimen osalla)
 node v3_realdata.js         # tallennettu data, vertailu v2.4:ään (data/*.csv)
 node v3_device_test.js      # komponentit, käyttäjän muokkaukset, KVS, uudelleenasennus
+node v3_restart_test.js     # uudelleenkäynnistykset ja lyhyet katkot (noin 3 min)
+node v3_depth_test.js       # kutsupinon syvyys jokaisessa funktiossa (noin 3 min)
+node eqtest_v3.js --real    # lähde ja tiivistetty versio toimivat samoin
 V3_FILE=../shelly/v3/uponor_clean_v3_shelly.js node v3_scenarios.js   # tiivistetty versio
+node v3_sweep.js run 0 2 & node v3_sweep.js run 1 2 & wait; node v3_sweep.js table   # 912 katkoa, noin 40 min kahdella ytimellä
 ```
 
 `v3run.js` ajaa skriptin jäljitelmässä tehosyötteen kanssa (sähkökatkot Shellyn kanssa tai ilman, Shellyn ja skriptin uudelleenkäynnistykset, käyttäjän muokkaukset) ja vertaa vaiheita simulaattorin todellisiin vaiheisiin. Simulaattori (`fwsim.js`) kirjaa jokaisen vaiheen alun ja annostelut, ja siinä voi pysäyttää prosessin paneelista (`pauses`). Tulokset: `docs/v3-testitulokset.md`.
+
+`v3ext.js` laajentaa jäljitelmää: kello, jota ei ole vielä asetettu käynnistyksen jälkeen (tai joka on väärä), kellon ajautuminen käyntiaikaan nähden, ajastinten viive, Shellyn sähkökatkot, ohjelmalliset uudelleenkäynnistykset ja skriptin pysäytykset. Se vertaa ajoa simulaattorin todellisiin vaiheisiin sähkön palaamisesta alkaen (tahdistumisaika, pisin tuntematon jakso, panokset, annokset, varoitukset, ennusteen virhe).
+
+`v3_restart_test.js` ajaa tapaukset, jotka olivat virheitä versiossa 3.0.2: panoksen tai annoksen hetki skriptin pysäytyksen tai uudelleenkäynnistyksen aikana, pysäytys lyhyen lietteenpoiston yli, uudelleenkäynnistys sisäänpumppauksen lopussa, kello asettamatta uudelleenkäynnistyksen jälkeen, pelkän puhdistamon lyhyt katko (myös ilman 0 W:n lukemaa), varoitukset uudelleenkäynnistyksen yli ja seuraavan ulospumppauksen ajan sekunnin heilunta.
+
+`v3_depth_test.js` lisää jokaisen funktion alkuun mittarin, joka laskee skriptin kutsupinon syvyyden. Jäljitelmä tarkistaa syvyyden vain Shellyn rajapintakutsuissa, mutta laite laskee myös esim. `push`- ja `JSON.stringify`-kutsut. Raja on 8 (laite kaatui 11:ssä).
+
+`v3_sweep.js` katkaisee sähköt jokaisen jakson jokaisessa vaiheessa kolmessa kohdassa: puhdistamo ja Shelly yhdessä (1 s – 5 h), pelkkä puhdistamo (2 s – 5 h), Shellyn ohjelmallinen uudelleenkäynnistys (myös kello asettamatta 60 s) ja skriptin 2 min pysäytys. Taulukko: `docs/v3-testitulokset.md`.
 
 `v3_device_test.js` tarkistaa asennuksen kulun: komponenttien luonti `Virtual.Add`-kutsulla (ei `@meta`), nimet ja näkymät, käyttäjän muokkaukset, laskurit KVS:ssä (ei v2:n avaimia), tapahtumat, skriptin uudelleenkäynnistys, poisto (komponentit säilyvät), uudelleenasennus (`uc_vc`) ja puuttuvan komponentin uudelleenluonti.
 

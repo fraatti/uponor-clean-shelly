@@ -34,7 +34,7 @@ Open the Shelly web UI (`http://<shelly-ip>/`) and check **Settings → Location
    ![New script](img/shelly_uusi_skripti.jpg)
 
 3. On GitHub, open `shelly/v3/uponor_clean_v3_shelly.js`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C) and paste it into the editor. The file is about 40,000 characters. The editor takes at most 50,000 characters and cuts a longer paste without any warning, so the source file `uponor_clean_v3.js` cannot be pasted into it.
-4. Save (disk icon) and start (**Start**). The console shows `version 3.0.2 started`.
+4. Save (disk icon) and start (**Start**). The console shows `version 3.1.0 started`.
 
    ![Script editor](img/shelly_editori.jpg)
 
@@ -131,7 +131,7 @@ Warnings in order of importance:
 | `air_leak` | High power, check air hoses | Power above 62 W for 2 min |
 | `no_signal` | Power reading missing | No power reading |
 | `compressor_idle` | Compressor not running | The compressor has not run for 4 h |
-| `outlet_blocked` | Outlet blocked? | A new dose started right after a pump-out |
+| `outlet_blocked` | Outlet blocked? | A new dose started right after a pump-out. Ends when the level drops (a pump-in or the waiting cycle follows the pump-out). |
 | `high_water` | High water | Aeration was skipped or cut short |
 | `paused` | Process paused? | The control unit has been stopped more than 5 min longer than expected (e.g. stopped from the panel) |
 | `chemical_low` | Chemical low | Chemical left for less than 10 days |
@@ -162,7 +162,8 @@ Settings can be changed with the KVS key `uc_cfg` (JSON), for example `{"sludge_
 | `uc_batch` | `{n, ts}`: batches and the time of the last pump-out (written on the first change) |
 | `uc_chem` | `{l, day, d}`: chemical, day and doses for 14 days |
 | `uc_sludge` | `{n, reset}`: sludge counter and last reset |
-| `uc_cycle` | Cycle, phase and their start (to continue after a script update), start of the waiting cycle (holiday forecast) |
+| `uc_cycle` | Cycle, phase and their start (to continue after a script update or a Shelly reboot), whether the dose of the dosing round is counted, start of the waiting cycle (holiday forecast) |
+| `uc_warn` | Warnings that are on (they stay on over a restart) |
 | `uc_base` | Pump-in baseline for the emptying hint |
 | `uc_cfg` | User settings (optional) |
 
