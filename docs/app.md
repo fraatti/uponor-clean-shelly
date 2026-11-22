@@ -10,7 +10,7 @@ The app has two views, switched next to the title: **Picture** and **Details**.
 
 ## Picture
 
-The Picture view is the same drawing as on the Home Assistant card ([card guide](../ha-card/README.md)):
+The Picture view is the same drawing as on the Home Assistant card ([card guide](../ha-card/README.md)). It does not need Home Assistant: the card code is inside the app, and the data comes straight from the Shelly.
 
 - the plant as a side section or from above, the hoses, the pump flows, the tank levels and the sludge blanket by phase
 - the phase and its progress, the next pump-out, batches, power, energy per day, the level estimate, chemical and the sludge reminder
@@ -90,7 +90,7 @@ An update deletes the old app and puts the new one in its place. **Update the Sh
 
 #### Space and Shelly firmware updates
 
-The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app (1.4.0) about 115 kB is free.
+The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app (1.4.0, 87 kB) about 116 kB is free.
 
 Shelly does not say how much free space a firmware update needs. The firmware of the ESP32-based Shellys is based on Mongoose OS (which is why e.g. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) works through its update mechanism); for Gen4 this has not been confirmed. According to the Mongoose OS [guide](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md), an update writes the new firmware and its file system to a separate partition and moves the user's files, such as scripts, there. If a step fails, the update is aborted and the old firmware stays in use. So the user's files must fit in the new firmware's file system.
 
