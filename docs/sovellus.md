@@ -2,7 +2,7 @@
 
 [English](app.md) | **Suomi**
 
-`app/uponor-clean-app.html` näyttää puhdistamon tilan ja sähkönkulutuksen suoraan Shellystä. Home Assistantia ei tarvita. Sovellus on yksi HTML-tiedosto, joka ei hae mitään internetistä.
+`app/uponor-clean-app.html` näyttää puhdistamon tilan ja sähkönkulutuksen suoraan Shellystä. Home Assistantia ei tarvita. Sovellus on yksi HTML-tiedosto, joka ei hae mitään internetistä. Shelly voi jakaa sen itse, jolloin se aukeaa kotiverkossa myös puhelimella.
 
 ![Selainsovellus](img/sovellus.jpg)
 
@@ -22,15 +22,34 @@ Sovellus on suomeksi tai englanniksi (selaimen kielen mukaan tai asetuksista). V
 
 ## Avaaminen
 
-Sovellus ottaa yhteyden Shellyyn kotiverkossa. Avaa se jollakin näistä tavoista:
+Sovellus ottaa yhteyden Shellyyn kotiverkossa. Helpointa on antaa Shellyn jakaa se itse.
 
-1. **Tiedostona**: lataa `app/uponor-clean-app.html` koneelle ja avaa se selaimella.
-2. **Home Assistantin kautta**: kopioi tiedosto Home Assistantin kansioon `/config/www/` (kuten kortti). Sovellus aukeaa kotiverkossa osoitteesta `http://homeassistant.local:8123/local/uponor-clean-app.html`, myös puhelimella. Home Assistant vain jakaa tiedoston; tiedot tulevat suoraan Shellystä.
+### Shellystä (suositus)
+
+Asenna sovellus Shellyyn kerran koneelta, joka on samassa verkossa:
+
+```
+python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # salasanan kanssa: --salasana SALASANA
+```
+
+Työkalu tekee Shellyyn kaksi skriptiä tai päivittää ne:
+
+- `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 1,8 kt (huippu noin 3,2 kt).
+- `uponor-clean-app-data` on itse sovellus pakattuna (noin 23 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto.
+
+Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. Työkalu tulostaa osoitteen. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
+
+Työkalu ei koske tunnistusskriptiin. Kun sovellus päivittyy, aja työkalu uudelleen.
+
+### Muut tavat
+
+1. **Tiedostona**: lataa `app/uponor-clean-app.html` koneelle ja avaa se selaimella. Puhelimessa tiedoston avaaminen riippuu selaimesta, joten puhelimella kannattaa käyttää Shellyn osoitetta.
+2. **Home Assistantin kautta**: kopioi tiedosto Home Assistantin kansioon `/config/www/` (kuten kortti). Sovellus aukeaa kotiverkossa osoitteesta `http://homeassistant.local:8123/local/uponor-clean-app.html`. Home Assistant vain jakaa tiedoston; tiedot tulevat suoraan Shellystä.
 3. **Muulta kotiverkon palvelimelta** `http://`-osoitteesta (esim. NAS).
 
-Ensimmäisellä kerralla sovellus kysyy Shellyn osoitteen (esim. `192.168.0.102`). Osoitteen voi antaa myös linkissä: `uponor-clean-app.html?host=192.168.0.102`. Sovellus muistaa sen samassa selaimessa. Kielen voi valita linkissä `&lang=fi` tai `&lang=en`.
+Näin avattuna sovellus kysyy ensimmäisellä kerralla Shellyn osoitteen (esim. `192.168.0.102`). Osoitteen voi antaa myös linkissä: `uponor-clean-app.html?host=192.168.0.102`. Sovellus muistaa sen samassa selaimessa. Kielen voi valita linkissä `&lang=fi` tai `&lang=en`.
 
-`https://`-osoitteesta (esim. GitHub Pages) avattu sivu ei saa yhteyttä, koska selain estää salaamattoman yhteyden salatulta sivulta. Sovellus kertoo tästä.
+`https://`-osoitteesta (esim. GitHub Pages, Home Assistantin etäyhteys tai keskustelusovelluksen esikatselu) avattu sivu ei saa yhteyttä. Selain estää salatulta sivulta salaamattoman `ws://`-yhteyden, eikä Shellyssä ole salattua paikallista yhteyttä. Sovellus kertoo tästä.
 
 **Kodin ulkopuolelta** sovellus toimii VPN-yhteydellä kotiverkkoon. Shellyn pilven kautta tiedot eivät tule: pilven rajapinnalla ei voi lukea skriptin tilaa eikä tehohistoriaa.
 
@@ -46,7 +65,7 @@ Kaikki kulkee Shellyn WebSocket-rajapinnan kautta (`ws://<shelly>/rpc`):
 
 | Tieto | RPC-kutsu | Väli |
 | --- | --- | --- |
-| Skripti | `Script.List` (nimi alkaa `uponor-clean`) | yhteyden alussa |
+| Skripti | `Script.List` (nimi alkaa `uponor-clean`, ei sovelluksen omat skriptit) | yhteyden alussa |
 | Skriptin tila | `Script.Eval` → `JSON.stringify(stateObject())` | 6 s ja tapahtuman jälkeen |
 | Teho ja jännite | `EM1.GetStatus` tai Shellyn lähettämä `NotifyStatus` | 3 s |
 | Tapahtumat | skriptin `uponor`-tapahtumat (`NotifyEvent`) | heti |
@@ -55,6 +74,8 @@ Kaikki kulkee Shellyn WebSocket-rajapinnan kautta (`ws://<shelly>/rpc`):
 Skriptin tilakysely `http://<shelly>/script/<id>/state` ei kelpaa selaimelle: Shelly vastaa 503, jos HTTP-kyselyssä on toisen sivun `Origin`-otsake (ks. [`shelly-rajoitteet.md`](shelly-rajoitteet.md)). Siksi sovellus lukee saman tilan `Script.Eval`-kutsulla. Skriptiin ei tarvittu muutoksia; funktion `stateObject()` nimi on nyt sovitun rajapinnan osa.
 
 Minuutin teho lasketaan minuutin pienimmästä ja suurimmasta tehosta. Shellyn minuuttienergia on porrastettu noin 0,207 Wh:n askeliin, joten siitä laskettu keskiteho hyppisi 12,4 W:n portain (ks. [`shelly-rajoitteet.md`](shelly-rajoitteet.md)). Jos teho muuttui kesken minuutin, käytetään energiasta laskettua keskiarvoa pienimmän ja suurimman tehon välissä. Teho normalisoidaan kaavalla (P − 4) · (230 / U)² + 4, kun P on yli 10 W.
+
+Shellyn jakamana latainsivu hakee pakatun sovelluksen samasta osoitteesta `Script.GetCode`-kyselyillä, purkaa sen selaimessa ja avaa sen. Kyselyt menevät samaan osoitteeseen kuin sivu, joten `Origin`-rajoite ei koske niitä.
 
 Vaiheiden historiaa sovellus ei näytä, koska Shelly ei tallenna sitä. Tapahtumaloki alkaa, kun sovellus avataan.
 
@@ -69,3 +90,10 @@ node test/shelly_ws_mock.js --port 8097 --days 1 --password salainen   # salasan
 ```
 
 Jäljitelmä simuloi ensin annetun määrän vuorokausia (noin 10 s vuorokautta kohden) ja jatkaa sitten reaaliajassa.
+
+Jäljitelmä osaa myös tallentaa skriptejä ja vastata niiden HTTP-osoitteisiin, joten Shellyyn asennusta voi kokeilla sillä:
+
+```
+python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
+# avaa http://127.0.0.1:8098/script/<id>/app
+```

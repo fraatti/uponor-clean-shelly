@@ -35,8 +35,8 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | `shelly/v3/` | Script v3.0.2: `uponor_clean_v3.js` (source) and `uponor_clean_v3_shelly.js` (compact, loaded on the Shelly). |
 | `shelly/v2/` | Old scripts v2.4 and v2.3 (not in use) and a backup of the v2.4 components (`backup/`). |
 | `shelly/v3/proto/` | v3 prototypes for the device test and the component backup tool `uc_tools.js` (used in the migration). |
-| `shelly/tools/` | `nauhuri.ps1` (Windows recorder for troubleshooting: power once a second to CSV), `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4). |
-| `app/` | Browser app `uponor-clean-app.html` 1.1.0 (a single file, guide `docs/app.md`). |
+| `shelly/tools/` | `nauhuri.ps1` (Windows recorder for troubleshooting: power once a second to CSV), `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4), `sovellus_shellyyn.py` (installs the browser app on the Shelly). |
+| `app/` | Browser app `uponor-clean-app.html` 1.2.0 (a single file, guide `docs/app.md`) and the loader `uponor_clean_app_loader.js`, with which the Shelly serves the app itself. |
 | `ha-card/` | Lovelace card `uponor-clean-card.js` v1.7.4, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
 | `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios, the card test and the WebSocket mock for the app. |
 | `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |
@@ -47,7 +47,7 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | --- | --- |
 | Script v3.0.2 | In use since 19 Nov 2026 (release [v3.0.2](../../releases/tag/v3.0.2)). v3.0.0–3.0.1 stopped at the start of the first cleaning cycle because the call stack got too deep (see the test results). Does not need Home Assistant, creates its own components, follows the firmware's phases and cycles, chemical and sludge counters, warnings, events. |
 | Card v1.7.4 | In use. v3 entities, v2 history before v3, visual editor and language option, entering chemical and sludge on the card. |
-| App 1.1.0 | New on 22 Nov 2026: `app/uponor-clean-app.html` shows live data and the power history stored on the Shelly in a browser ([guide](docs/app.md)). 1.1.0: power and chart normalised to 230 V, chart from the minute's minimum and maximum power. |
+| App 1.2.0 | New on 22 Nov 2026: `app/uponor-clean-app.html` shows live data and the power history stored on the Shelly in a browser ([guide](docs/app.md)). 1.1.0: power and chart normalised to 230 V, chart from the minute's minimum and maximum power. 1.2.0: the Shelly serves the app itself at `http://<shelly>/script/<id>/app`, so it opens on a phone in the home network without Home Assistant. |
 | Recorder 1.0 | New on 21 Nov 2026: `shelly/tools/nauhuri.ps1` records the power for troubleshooting ([guide](docs/v3-install.md#recording-for-troubleshooting)). |
 | Script v2.4.0 | Retired on 18 Nov 2026 and removed from the device on 19 Nov 2026. No migration or return path. |
 | Script v2.3 | Old version. |

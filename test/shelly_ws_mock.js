@@ -22,6 +22,7 @@ const PASSWORD = arg('password', null);
 const REALM = 'shellyemminig4-mock';
 const APP = path.join(__dirname, '..', 'app', 'uponor-clean-app.html');
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const vm = require('vm');
 
 // ---------------------------------------------------------------- plant and script
 const NOW0 = Date.now();
@@ -81,7 +82,14 @@ function call(method, p) {
     case 'Sys.GetStatus':
       return { time: null, unixtime: Math.floor(dev.t / 1000), uptime: Math.floor(dev.t / 1000) - bootUnix, reset_reason: 1 };
     case 'Script.List':
-      return { scripts: [{ id: sid + 1, name: 'other', enable: false, running: false }, { id: sid, name: 'uponor-clean-v3', enable: true, running: true }] };
+      return { scripts: [{ id: sid, name: 'uponor-clean-v3', enable: true, running: true }].concat([...extra.values()].map((x) => ({ id: x.id, name: x.name, enable: x.enable, running: x.running }))) };
+    case 'Script.Create': { const id = nextId++; extra.set(id, { id, name: p.name, code: '', enable: false, running: false, ep: {} }); return { id }; }
+    case 'Script.PutCode': { const x = script(p.id); if (!x) return {}; x.code = (p.append ? x.code : '') + (p.code || ''); return { len: x.code.length }; }
+    case 'Script.GetCode': { const x = script(p.id); const c = x ? x.code : '', off = Number(p.offset || 0), len = Number(p.len || 2048); const data = c.slice(off, off + len); return { data, left: Math.max(0, c.length - off - data.length) }; }
+    case 'Script.SetConfig': { const x = script(p.id); if (x && p.config && 'enable' in p.config) x.enable = !!p.config.enable; return { restart_required: false }; }
+    case 'Script.Stop': { const x = script(p.id); if (x) { x.running = false; x.ep = {}; } return { was_running: true }; }
+    case 'Script.Start': { const x = script(p.id); if (x) startExtra(x); return { was_running: false }; }
+    case 'Script.GetStatus': { const x = script(p.id); return x ? { id: x.id, running: x.running, mem_used: x.running ? 1520 : 0, mem_peak: x.running ? 2210 : 0, mem_free: 9800 } : { id: sid, running: true, mem_used: 15036, mem_peak: 17430 }; }
     case 'Script.Eval': {
       if (p.id !== sid) throw { code: -105, message: 'Argument id, value ' + p.id + ' not found!' };
       if (!/JSON\.stringify\(stateObject\(\)\)/.test(p.code || '')) throw { code: -103, message: 'mock evaluates only JSON.stringify(stateObject())' };
@@ -107,6 +115,15 @@ function call(method, p) {
     }
     default: throw { code: 404, message: 'No handler for ' + method };
   }
+}
+
+// scripts other than the recognition script: their code, and HTTP endpoints when started
+const extra = new Map(); let nextId = sid + 1;
+const script = (id) => extra.get(Number(id));
+function startExtra(x) {
+  x.ep = {};
+  vm.runInNewContext(x.code, { HTTPServer: { registerEndpoint: (name, fn) => { x.ep[name] = fn; } }, Shelly: { getCurrentScriptId: () => x.id }, print: (...a) => console.log('[script ' + x.id + ']', ...a) });
+  x.running = true;
 }
 
 // ---------------------------------------------------------------- WebSocket (RFC 6455, text frames only)
@@ -157,6 +174,23 @@ const server = http.createServer((req, res) => {
   // like the firmware: cross-origin HTTP requests are refused
   if (req.headers.origin) { res.writeHead(503); return res.end(); }
   if (url.pathname === `/script/${sid}/state`) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(dev.httpGet(`/script/${sid}/state`).body); }
+  const em = url.pathname.match(/^\/script\/(\d+)\/([\w-]+)$/);
+  if (em && script(em[1]) && script(em[1]).running && script(em[1]).ep[em[2]]) {
+    const out = { code: 200, headers: [], body: '', send() { const h = {}; for (const [k, v] of this.headers) h[k] = v; res.writeHead(this.code, h); res.end(this.body); } };
+    return script(em[1]).ep[em[2]]({ method: req.method, query: url.search.slice(1) }, out);
+  }
+  const rm = url.pathname.match(/^\/rpc\/?([\w.]*)$/);
+  if (rm) {
+    const answer = (method, params, id) => {
+      try { const r = call(method, params); res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(id === undefined ? r : { id, src: REALM, result: r })); }
+      catch (e) { res.writeHead(id === undefined ? 500 : 200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(id === undefined ? (e.code ? e : { code: -1, message: String(e) }) : { id, src: REALM, error: e.code ? e : { code: -1, message: String(e) } })); }
+    };
+    if (req.method === 'GET' && rm[1]) {
+      const params = {}; for (const [k, v] of url.searchParams) params[k] = /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v === 'true' ? true : v === 'false' ? false : v;
+      return answer(rm[1], params);
+    }
+    if (req.method === 'POST') { let b = ''; req.on('data', (d) => { b += d; }); req.on('end', () => { let m = {}; try { m = JSON.parse(b); } catch (e) { /* bad */ } answer(m.method, m.params, m.id); }); return; }
+  }
   res.writeHead(404); res.end();
 });
 server.on('upgrade', (req, sock) => {

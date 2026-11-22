@@ -182,7 +182,7 @@ footer { color: var(--muted); font-size: 12px; text-align: center; padding: 18px
 <script>
 'use strict';
 (() => {
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 // ------------------------------------------------------------------ texts
 const TX = {
@@ -207,7 +207,7 @@ const TX = {
     ev_chem_user: 'Kemikaali asetettu: {l} l', ev_sludge_user: 'Lietelaskuri asetettu: {n}', ev_start_power_cut: 'Käynnistys sähkökatkon jälkeen', ev_start_restart: 'Skripti käynnistyi uudelleen',
     ev_conn: 'Yhteys Shellyyn', ev_lost: 'Yhteys katkesi',
     info: 'Laite', i_script: 'Skripti', i_fw: 'Shelly', i_up: 'Shelly käynnissä', i_clock: 'Kello', i_synced: 'synkronoitu', i_unsynced: 'ei synkronoitu', i_upd: 'Päivitetty', i_host: 'Osoite',
-    d_title: 'Asetukset', d_hint: 'Avaa tämä tiedosto kotiverkossa olevalla laitteella. Sovellus ottaa yhteyden Shellyyn suoraan (WebSocket). https-osoitteesta avattuna selain estää yhteyden.',
+    d_title: 'Asetukset', d_hint: 'Sovellus ottaa yhteyden Shellyyn suoraan kotiverkossa (WebSocket). Shellystä avattuna (http://<shelly>/script/<id>/app) osoitetta ei tarvitse antaa. https-osoitteesta avattuna selain estää yhteyden.',
     d_host: 'Shellyn osoite', d_pw: 'Salasana (vain jos Shellyssä on salasana)', d_rem: 'Muista salasana tällä laitteella', d_lang: 'Kieli', d_auto: 'Selaimen kieli', d_cancel: 'Peruuta', d_ok: 'Yhdistä',
     e_https: 'Sivu on avattu https-osoitteesta, joten selain estää yhteyden Shellyyn. Avaa tiedosto koneelta tai http-osoitteesta.',
     e_auth: 'Shelly pyytää salasanaa.', e_badpw: 'Salasana ei kelpaa.', e_noscript: 'Shellystä ei löydy käynnissä olevaa Uponor Clean -skriptiä.', e_eval: 'Skriptin tilaa ei saatu: {m}',
@@ -235,7 +235,7 @@ const TX = {
     ev_chem_user: 'Chemical set: {l} l', ev_sludge_user: 'Sludge counter set: {n}', ev_start_power_cut: 'Started after a power cut', ev_start_restart: 'Script restarted',
     ev_conn: 'Connected to the Shelly', ev_lost: 'Connection lost',
     info: 'Device', i_script: 'Script', i_fw: 'Shelly', i_up: 'Shelly up', i_clock: 'Clock', i_synced: 'synchronised', i_unsynced: 'not synchronised', i_upd: 'Updated', i_host: 'Address',
-    d_title: 'Settings', d_hint: 'Open this file on a device in the home network. The app connects to the Shelly directly (WebSocket). Opened from an https address, the browser blocks the connection.',
+    d_title: 'Settings', d_hint: 'The app connects to the Shelly directly in the home network (WebSocket). Opened from the Shelly (http://<shelly>/script/<id>/app), no address is needed. Opened from an https address, the browser blocks the connection.',
     d_host: 'Shelly address', d_pw: 'Password (only if the Shelly has one)', d_rem: 'Remember the password on this device', d_lang: 'Language', d_auto: 'Browser language', d_cancel: 'Cancel', d_ok: 'Connect',
     e_https: 'The page was opened from an https address, so the browser blocks the connection to the Shelly. Open the file from the computer or from an http address.',
     e_auth: 'The Shelly asks for a password.', e_badpw: 'The password is not accepted.', e_noscript: 'No running Uponor Clean script on the Shelly.', e_eval: 'Could not read the script state: {m}',
@@ -387,7 +387,9 @@ const S = {
   hours: Number(store.get('hours')) || 24, recs: new Map(), lastTs: null, histErr: null, histBusy: false, log: [], err: null,
 };
 const urlHost = (qs.get('host') || '').trim();
-S.host = urlHost || store.get('host') || '';
+// served by the Shelly itself (http://<shelly>/script/<id>/app): the Shelly is this address
+const fromShelly = location.protocol === 'http:' && /^\/script\/\d+\/app/.test(location.pathname);
+S.host = urlHost || (fromShelly ? location.host : store.get('host') || '');
 
 // ------------------------------------------------------------------ rendering
 function setTexts() {
@@ -653,7 +655,7 @@ async function connect() {
     S.info = await rpc.call('Shelly.GetDeviceInfo');
     if (S.info && S.info.id && rpc.ha1 === null && sessionPassword) rpc.ha1 = sha256('admin:' + S.info.id + ':' + sessionPassword);
     const list = await rpc.call('Script.List');
-    const sc = (list.scripts || []).filter((s) => /^uponor[-_ ]?clean/i.test(s.name || '')).sort((a, b) => b.running - a.running)[0];
+    const sc = (list.scripts || []).filter((s) => /^uponor[-_ ]?clean(?![-_ ]?app)/i.test(s.name || '')).sort((a, b) => b.running - a.running)[0];
     if (!sc || !sc.running) { S.scriptId = sc ? sc.id : null; setConn('bad', T.conn_noscript); S.err = T.e_noscript; renderInfo(); return; }
     S.scriptId = sc.id;
     if (rpc.ha1 && document.getElementById('d-rem').checked) store.set('ha1:' + S.host, rpc.ha1);
