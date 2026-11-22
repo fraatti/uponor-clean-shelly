@@ -36,7 +36,7 @@ Development notes are in Finnish only: test results ([`docs/v3-testitulokset.md`
 | `shelly/v2/` | Old scripts v2.4 and v2.3 (not in use) and a backup of the v2.4 components (`backup/`). |
 | `shelly/v3/proto/` | v3 prototypes for the device test and the component backup tool `uc_tools.js` (used in the migration). |
 | `shelly/tools/` | `nauhuri.ps1` (Windows recorder for troubleshooting: power once a second to CSV), `lataa_shellyyn.py` (uploads a script over RPC in chunks), `compact.py` (makes the compact version), `make_v24.py` (v2.3 → v2.4), `sovellus_shellyyn.py` (installs the browser app on the Shelly). |
-| `app/` | Browser app `uponor-clean-app.html` 1.2.0 (a single file, guide `docs/app.md`) and the loader `uponor_clean_app_loader.js`, with which the Shelly serves the app itself. |
+| `app/` | Browser app `uponor-clean-app.html` 1.2.0 (a single file, guide `docs/app.md`) the loader `uponor_clean_app_loader.js`, with which the Shelly serves the app itself, and the packed app `uponor-clean-app-data.txt` for installing it in the Shelly web UI. |
 | `ha-card/` | Lovelace card `uponor-clean-card.js` v1.7.4, its guide, a preview page (`preview.html`) and its build tool (`tools/build_preview.py`). |
 | `test/` | Node test environment: runs the real script file with a virtual clock in a Shelly mock, a control unit firmware simulator, scenarios, the card test and the WebSocket mock for the app. |
 | `docs/` | Guides, images (`img/`), the firmware pseudocode, v2 documentation and the v3 plan summary. |

@@ -81,6 +81,12 @@ python3 shelly/tools/sovellus_shellyyn.py 127.0.0.1:8098
 # avaa http://127.0.0.1:8098/script/<id>/app
 ```
 
+`app_data_test.js` tarkistaa, että web-käyttöliittymään liitettävä `app/uponor-clean-app-data.txt` purkautuu täsmälleen nykyiseksi sovellukseksi, mahtuu Shellyn editoriin (50 000 merkkiä) ja että latainsivu etsii sen oikealla nimellä. Tiedoston saa päivitettyä komennolla `python3 shelly/tools/sovellus_shellyyn.py --tiedosto`.
+
+```
+node test/app_data_test.js
+```
+
 ## Kortti
 
 `card_v3_test.js` ajaa simuloidun v3-ajon, syöttää sen kortille Home Assistantin historiana jsdomissa ja tarkistaa vaiheet, ulospumppauksen ajan, kemikaalin, lietelaskurin, editorit ja kortinvalitsimen entiteettihaun. Tarvitsee jsdomin (`npm install jsdom`).

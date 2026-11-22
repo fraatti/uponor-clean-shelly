@@ -36,7 +36,7 @@ Home Assistantia ei tarvita: skriptin komponentit näkyvät myös Shellyn omassa
 | `shelly/v2/` | Vanhat skriptit v2.4 ja v2.3 (eivät käytössä) sekä v2.4:n komponenttien varmuuskopio (`backup/`). |
 | `shelly/v3/proto/` | v3-prototyypit laitetestiin ja komponenttien varmuuskopiotyökalu `uc_tools.js` (käytetty siirtymässä). Ohje: `docs/v3-prototyyppitesti.md`. |
 | `shelly/tools/` | `nauhuri.ps1` (Windows-nauhuri vianetsintään: teho sekunnin välein CSV:ksi), `lataa_shellyyn.py` (lataus Shellyyn RPC:llä), `compact.py` (tiivistys), `make_v24.py` (v2.3 → v2.4 -muunnos), `sovellus_shellyyn.py` (selainsovelluksen asennus Shellyyn). |
-| `app/` | Selainsovellus `uponor-clean-app.html` 1.2.0 (yksi tiedosto, ohje `docs/sovellus.md`) ja latainsivu `uponor_clean_app_loader.js`, jolla Shelly jakaa sovelluksen itse. |
+| `app/` | Selainsovellus `uponor-clean-app.html` 1.2.0 (yksi tiedosto, ohje `docs/sovellus.md`) latainsivu `uponor_clean_app_loader.js`, jolla Shelly jakaa sovelluksen itse, ja pakattu sovellus `uponor-clean-app-data.txt` asennukseen Shellyn web-käyttöliittymässä. |
 | `ha-card/` | Lovelace-kortti `uponor-clean-card.js` v1.7.4, ohje, esikatselusivu (`preview.html`) ja sen päivitystyökalu (`tools/build_preview.py`). |
 | `test/` | Node-testiympäristö: ajaa oikeaa skriptitiedostoa virtuaalikellolla Shelly-jäljitelmässä, firmwaresimulaattori, skenaariot, kortin testi ja sovelluksen WebSocket-jäljitelmä. |
 | `docs/` | Ohjeet, kuvat (`img/`), firmwaren pseudokoodi, v2-dokumentaatio ja v3-suunnitelman tiivistelmä. |

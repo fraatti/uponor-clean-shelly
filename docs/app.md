@@ -26,20 +26,34 @@ The app connects to the Shelly in the home network. The easiest way is to let th
 
 ### From the Shelly (recommended)
 
-Install the app on the Shelly once, from a computer in the same network:
+Two scripts go on the Shelly:
+
+- `uponor-clean-app` is a small loader page. It starts with the Shelly and uses about 2 kB of memory (peak under 4 kB).
+- `uponor-clean-app-data` is the app itself, packed (about 23,000 characters). It is never started; it is only storage.
+
+The scripts can be made in the Shelly web UI, with nothing to install on the computer, or with the Python tool. Neither way touches the detection script. The names must be exactly these, because the loader finds the app by its name and the app tells the detection script apart by name.
+
+#### In the web UI
+
+1. Open the Shelly web UI (`http://<shelly-ip>/`), open **Scripts** and choose **Create script**. Name it `uponor-clean-app-data`.
+2. On GitHub, open `app/uponor-clean-app-data.txt`, choose **Raw**, copy everything (Ctrl+A, Ctrl+C), paste it into the editor and save (disk icon). The file is about 23,000 characters, so it fits the editor (at most 50,000 characters). **Do not start this script and do not turn on Run on startup for it**: it is packed data, not program code.
+3. Go back to **Scripts**, choose **Create script** and name it `uponor-clean-app`.
+4. Paste the content of `app/uponor_clean_app_loader.js` into the editor the same way, save and start (**Start**). The console shows the line `Uponor Clean app: http://<shelly>/script/<id>/app`.
+5. Go back to **Scripts** and turn on **Run on startup** for `uponor-clean-app`.
+
+When the app is updated, open `uponor-clean-app-data`, replace the editor content with the new `uponor-clean-app-data.txt` and save. The loader usually needs no update.
+
+#### With the Python tool
 
 ```
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # with a password: --salasana PASSWORD
 ```
 
-The tool creates or updates two scripts on the Shelly:
+The tool creates or updates both scripts, compares them with what it reads back from the device and starts the loader. When the app is updated, run the tool again.
 
-- `uponor-clean-app` is a small loader page. It starts with the Shelly and uses about 1.8 kB of memory (peak about 3.2 kB).
-- `uponor-clean-app-data` is the app itself, packed (about 23,000 characters). It is never started; it is only storage.
+#### The app address
 
-After that the app opens on any device in the home network, a phone too, at `http://<shelly-ip>/script/<id>/app`, e.g. `http://192.168.0.102/script/3/app`. The tool prints the address. Type `http://` at the start. The app does not ask for the Shelly address, because the page comes from the Shelly. Home Assistant, another server or an internet connection is not needed. On a phone the page can be added to the home screen.
-
-The tool does not touch the detection script. When the app is updated, run the tool again.
+After that the app opens on any device in the home network, a phone too, at `http://<shelly-ip>/script/<id>/app`, e.g. `http://192.168.0.102/script/3/app`. `<id>` is the number of the `uponor-clean-app` script (at the right edge of the Scripts list, e.g. `script:3`), and the full address shows in the script console and the tool output. Type `http://` at the start. The app does not ask for the Shelly address, because the page comes from the Shelly. Home Assistant, another server or an internet connection is not needed. On a phone the page can be added to the home screen.
 
 ### Other ways
 

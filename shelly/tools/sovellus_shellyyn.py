@@ -4,11 +4,16 @@ http://<shellyn-ip>/script/<id>/app. Muuta palvelinta tai Home Assistantia ei ta
 
 Kaytto:
   python3 sovellus_shellyyn.py <shellyn-ip> [--salasana SALASANA]
+  python3 sovellus_shellyyn.py --tiedosto      # vain app/uponor-clean-app-data.txt (web-kayttoliittymaa varten)
 
 Asentaa kaksi skriptia (luo ne, jos niita ei ole, muuten paivittaa):
   uponor-clean-app       pieni latainsivu (app/uponor_clean_app_loader.js), kaynnistyy aina kun Shelly kaynnistyy
   uponor-clean-app-data  sovellus (app/uponor-clean-app.html) gzip-pakattuna ja base64-koodattuna;
                          tama on pelkka varasto eika sita koskaan kaynnisteta
+
+Ilman Pythonia samat kaksi skriptia voi tehda Shellyn web-kayttoliittymassa liittamalla
+app/uponor-clean-app-data.txt ja app/uponor_clean_app_loader.js (ohje docs/sovellus.md).
+Taman tiedoston pakkaus tuottaa saman sisallon kuin uponor-clean-app-data.txt.
 
 Tunnistusskriptiin (uponor-clean-v3) ei kosketa. Vain Pythonin vakiokirjasto.
 """
@@ -24,13 +29,17 @@ from lataa_shellyyn import Shelly, CHUNK  # noqa: E402
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 APP = os.path.join(ROOT, 'app', 'uponor-clean-app.html')
 LOADER = os.path.join(ROOT, 'app', 'uponor_clean_app_loader.js')
+DATA_TXT = os.path.join(ROOT, 'app', 'uponor-clean-app-data.txt')
+EDITOR_MAX = 50000  # Shellyn web-kayttoliittyman editori katkaisee pidemman liitoksen
 NAME_LOADER = 'uponor-clean-app'
 NAME_DATA = 'uponor-clean-app-data'
 
 
 def packed_app():
+    """gzip + base64, 76 merkin riveina. Latainsivu poistaa rivinvaihdot ennen purkua."""
     html = open(APP, 'rb').read()
-    return base64.b64encode(gzip.compress(html, compresslevel=9, mtime=0)).decode('ascii'), len(html)
+    b64 = base64.b64encode(gzip.compress(html, compresslevel=9, mtime=0)).decode('ascii')
+    return '\n'.join(b64[i:i + 76] for i in range(0, len(b64), 76)) + '\n', len(html)
 
 
 def find_or_create(sh, name):
@@ -59,12 +68,22 @@ def put_code(sh, sid, code):
 
 def main():
     ap = argparse.ArgumentParser(description='Asenna selainsovellus Shellyyn.')
-    ap.add_argument('host')
+    ap.add_argument('host', nargs='?')
     ap.add_argument('--salasana', default=None)
+    ap.add_argument('--tiedosto', action='store_true', help='kirjoita vain app/uponor-clean-app-data.txt')
     a = ap.parse_args()
+    data, n_html = packed_app()
+    if a.tiedosto:
+        with open(DATA_TXT, 'w', encoding='ascii', newline='\n') as f:
+            f.write(data)
+        print('%s: sovellus %d merkkia -> %d merkkia' % (os.path.relpath(DATA_TXT, ROOT), n_html, len(data)))
+        if len(data) > EDITOR_MAX:
+            print('VAROITUS: yli %d merkkia, ei mahdu Shellyn web-editoriin.' % EDITOR_MAX)
+        return
+    if not a.host:
+        ap.error('anna Shellyn osoite tai --tiedosto')
     sh = Shelly(a.host, a.salasana)
 
-    data, n_html = packed_app()
     loader = open(LOADER, encoding='utf-8').read()
 
     sid, new = find_or_create(sh, NAME_DATA)

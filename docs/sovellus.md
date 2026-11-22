@@ -26,20 +26,34 @@ Sovellus ottaa yhteyden Shellyyn kotiverkossa. Helpointa on antaa Shellyn jakaa 
 
 ### Shellystä (suositus)
 
-Asenna sovellus Shellyyn kerran koneelta, joka on samassa verkossa:
+Shellyyn tehdään kaksi skriptiä:
+
+- `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 2 kt (huippu alle 4 kt).
+- `uponor-clean-app-data` on itse sovellus pakattuna (noin 23 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto.
+
+Skriptit voi tehdä Shellyn web-käyttöliittymässä, jolloin koneelle ei tarvitse asentaa mitään, tai Python-työkalulla. Kumpikaan tapa ei koske tunnistusskriptiin. Nimien pitää olla tarkalleen nämä, koska latainsivu etsii sovelluksen nimellä ja sovellus erottaa tunnistusskriptin nimen perusteella.
+
+#### Web-käyttöliittymästä
+
+1. Avaa Shellyn web-käyttöliittymä (`http://<shellyn-ip>/`), avaa **Scripts** ja valitse **Create script**. Anna nimeksi `uponor-clean-app-data`.
+2. Avaa GitHubissa tiedosto `app/uponor-clean-app-data.txt`, valitse **Raw**, kopioi koko sisältö (Ctrl+A, Ctrl+C), liitä se editoriin ja tallenna (levykekuvake). Tiedosto on noin 23 000 merkkiä, joten se mahtuu editoriin (enintään 50 000 merkkiä). **Älä käynnistä tätä skriptiä äläkä ota sille käyttöön Run on startup -asetusta**: se on pakattua dataa eikä ohjelmakoodia.
+3. Palaa **Scripts**-sivulle, valitse **Create script** ja anna nimeksi `uponor-clean-app`.
+4. Liitä editoriin tiedoston `app/uponor_clean_app_loader.js` sisältö samalla tavalla, tallenna ja käynnistä (**Start**). Konsoliin tulee rivi `Uponor Clean app: http://<shelly>/script/<id>/app`.
+5. Palaa **Scripts**-sivulle ja ota `uponor-clean-app`-skriptille käyttöön **Run on startup**.
+
+Kun sovellus päivittyy, avaa `uponor-clean-app-data`, korvaa editorin sisältö uudella `uponor-clean-app-data.txt`:llä ja tallenna. Latainsivua ei yleensä tarvitse päivittää.
+
+#### Python-työkalulla
 
 ```
 python3 shelly/tools/sovellus_shellyyn.py 192.168.0.102            # salasanan kanssa: --salasana SALASANA
 ```
 
-Työkalu tekee Shellyyn kaksi skriptiä tai päivittää ne:
+Työkalu tekee molemmat skriptit tai päivittää ne, vertaa ne laitteelta luettuun ja käynnistää latainsivun. Kun sovellus päivittyy, aja työkalu uudelleen.
 
-- `uponor-clean-app` on pieni latainsivu. Se käynnistyy Shellyn mukana ja vie muistia noin 1,8 kt (huippu noin 3,2 kt).
-- `uponor-clean-app-data` on itse sovellus pakattuna (noin 23 000 merkkiä). Sitä ei käynnistetä koskaan, vaan se on pelkkä varasto.
+#### Sovelluksen osoite
 
-Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. Työkalu tulostaa osoitteen. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
-
-Työkalu ei koske tunnistusskriptiin. Kun sovellus päivittyy, aja työkalu uudelleen.
+Sen jälkeen sovellus aukeaa millä tahansa kotiverkon laitteella, myös puhelimella, osoitteesta `http://<shellyn-ip>/script/<id>/app`, esim. `http://192.168.0.102/script/3/app`. `<id>` on `uponor-clean-app`-skriptin numero (Scripts-listan oikeassa reunassa, esim. `script:3`), ja koko osoite näkyy skriptin konsolissa ja työkalun tulosteessa. Kirjoita alkuun `http://`. Shellyn osoitetta ei kysytä, koska sivu tulee Shellyltä. Home Assistantia, muuta palvelinta tai internetyhteyttä ei tarvita. Puhelimessa sivun voi lisätä aloitusnäytölle.
 
 ### Muut tavat
 
