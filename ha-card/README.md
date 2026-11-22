@@ -31,7 +31,7 @@ Phase durations come from the control unit's firmware (board A settings, label V
 - **Logbook** derived from the history: batch started (with filling time and number of wait cycles, also when high water skips the aeration), chemical dose, pump-out, batch completed, holiday automation, plant restart after a power cut (a batch that starts from rest without pump-in), warnings, data gaps.
 - **Warnings** from script v3 (no power, high power, no signal, compressor idle, outlet blocked, high water, paused, chemical low, sludge due, sludge emptied), v2.4 (high water, outlet blocked) and v2.3 (high power, no power, compressor not running) appear as a banner, in the logbook and on the timeline.
 - **Chips**: batch counter, batches over the last 7 days with a per-day bar strip, wastewater per day (batches × 170 l), pump-out ETA or last batch, power, energy per day, process level, chemical left in litres, days since the sludge was emptied, and the sludge reminder count (800 batches).
-- **Chemical amount**: click the Chemical value to enter how much is in the tank now. With script v3 the card writes it to the Shelly's Chemical number and the script subtracts 0.4 dl per dose; with v2 the card stores it in two helpers with the current batch counter. The level shows in the side view tank, on the top-view lid and in the chemical tank legend.
+- **Chemical amount**: click the Chemical value to enter how much is in the tank now. A full tank is 20 l (`chemical_capacity`), and a larger number is saved as 20 l. With script v3 the card writes it to the Shelly's Chemical number and the script subtracts 0.4 dl per dose; with v2 the card stores it in two helpers with the current batch counter. The level shows in the side view tank, on the top-view lid and in the chemical tank legend.
 - **Sludge counter** (script v3): click the sludge reminder after the sedimentation tank was emptied and save 0. The date of emptying comes from the counter reset in the history, or from `sludge_emptied`; when that date no longer fits the counter, the card estimates it from the counter and the batch rate (shown with ≈).
 - **Visual editor**: name, language, view, timeline, sludge date, entity pickers and plant settings. A card added from the card picker finds the v3 entities by itself.
 - English and Finnish, chosen from the Home Assistant profile language or set per card (`language`). Follows the light or dark theme.
@@ -41,7 +41,7 @@ Phase durations come from the control unit's firmware (board A settings, label V
 
 1. Copy `uponor-clean-card.js` to `/config/www/`.
 2. In Home Assistant: **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.8.2`
+   - URL: `/local/uponor-clean-card.js?v=1.8.3`
    - Resource type: **JavaScript module**
    Change the `?v=` number whenever you replace the file, so browsers load the new version.
 3. Add the card to a dashboard. It is designed for full width: use a **Panel** view, or a **Sections** view where the card spans the full width.
@@ -113,7 +113,7 @@ chemical_refill_counter: input_number.uponor_chemical_refill_counter
 | `sludge_reminder_batches` | `800` | Batches until the plant's sludge reminder (E051) |
 | `chemical_amount` | none | Litres in the chemical tank at `chemical_refill_counter`, as an `input_number` entity (recommended) or a number |
 | `chemical_refill_counter` | none | Batch counter value when the amount was set, as an `input_number` entity (recommended) or a number. Enables the chemical estimate. |
-| `chemical_capacity` | `20` | Tank capacity in litres (for the percentage) |
+| `chemical_capacity` | `20` | Tank capacity in litres: a full tank for the percentage and the largest amount that can be entered |
 | `chemical_dose_dl` | `0.4` | Dose per batch (the manual: about 0.4 dl) |
 | `chemical_fill_liters` | `15` | Amount used when `chemical_amount` is not set |
 

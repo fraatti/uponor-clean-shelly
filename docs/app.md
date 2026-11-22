@@ -19,7 +19,7 @@ The Picture view is the same drawing as on the Home Assistant card ([card guide]
 
 On a computer screen the whole view fits the window without scrolling: the drawing with the timeline under it on the left, the phase, figures and logbook on the right. The drawing's size follows the window height. On a phone the parts are one under another.
 
-The chemical amount and the sludge counter can be entered from the pencil icon. The app writes them straight to the Shelly script.
+The chemical amount and the sludge counter can be entered from the pencil icon. The app writes them straight to the Shelly script. A full chemical tank is 20 l, and a larger number is saved as 20 l.
 
 Power and energy come from the minute history the Shelly stores (about 7 days). The Shelly does not store the phases or the batches, so the app works out the past phases from the minute power (see [Past phases](#past-phases)). The timeline, the batches per day and the level estimate show the past week at once, on any device. While the app is open, it uses the script's own phase, and the browser remembers it for 8 days. Warnings, the next pump-out time and the logbook are known only for the times the app was open; for other times no warning is shown.
 
@@ -102,7 +102,7 @@ If the installation stops, for example because the connection breaks, the Shelly
 
 #### Space and Shelly firmware updates
 
-The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app (1.6.2, 95 kB) and script 3.1.0 about 104 kB is free.
+The scripts are in the same file system as the Shelly's own files and settings. On the test device (Shelly Mini EM Gen4, firmware 2.2.0) the file system is 768 kB, and with the app (1.6.3, 95 kB) and script 3.1.0 about 104 kB is free.
 
 Shelly does not say how much free space a firmware update needs. The firmware of the ESP32-based Shellys is based on Mongoose OS (which is why e.g. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) works through its update mechanism); for Gen4 this has not been confirmed. According to the Mongoose OS [guide](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md), an update writes the new firmware and its file system to a separate partition and moves the user's files, such as scripts, there. If a step fails, the update is aborted and the old firmware stays in use. So the user's files must fit in the new firmware's file system.
 

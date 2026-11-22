@@ -19,7 +19,7 @@ Kuva-näkymä on sama piirros kuin Home Assistant -kortissa ([kortin ohje](../ha
 
 Tietokoneen näytöllä koko näkymä mahtuu ikkunaan ilman vierittämistä: piirros ja sen alla aikajana ovat vasemmalla, vaihe, tiedot ja lokikirja oikealla. Piirroksen koko seuraa ikkunan korkeutta. Puhelimessa osat ovat allekkain.
 
-Kemikaalin määrän ja lietelaskurin voi syöttää kynäkuvakkeesta. Sovellus tallentaa ne suoraan Shellyn skriptille.
+Kemikaalin määrän ja lietelaskurin voi syöttää kynäkuvakkeesta. Sovellus tallentaa ne suoraan Shellyn skriptille. Täysi kemikaaliastia on 20 l, ja sitä suurempi luku tallennetaan 20 litrana.
 
 Teho ja energia tulevat Shellyn tallentamasta minuuttihistoriasta (noin 7 vuorokautta). Vaiheita ja panoksia Shelly ei tallenna, joten sovellus päättelee menneet vaiheet minuuttitehoista (ks. [Menneet vaiheet](#menneet-vaiheet)). Siksi aikajana, panokset päivittäin ja pinnan arvio näyttävät viimeisen viikon heti, millä laitteella tahansa. Kun sovellus on auki, se käyttää skriptin omaa vaihetta, ja selain muistaa sen 8 vuorokautta. Varoitukset, seuraavan ulospumppauksen aika ja lokikirja tunnetaan vain ajalta, jolloin sovellus on ollut auki; muulta ajalta varoitusta ei näytetä.
 
@@ -102,7 +102,7 @@ Jos asennus keskeytyy esimerkiksi yhteyskatkon takia, Shellyyn voi jäädä kesk
 
 #### Tila ja Shellyn firmware-päivitykset
 
-Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen (1.6.2, 95 kt) ja skriptin 3.1.0 kanssa vapaata on noin 104 kt.
+Skriptit ovat samassa tiedostojärjestelmässä kuin Shellyn omat tiedostot ja asetukset. Testilaitteessa (Shelly Mini EM Gen4, firmware 2.2.0) tiedostojärjestelmä on 768 kt, ja sovelluksen (1.6.3, 95 kt) ja skriptin 3.1.0 kanssa vapaata on noin 104 kt.
 
 Shelly ei kerro, paljonko vapaata tilaa firmware-päivitys tarvitsee. Shellyn ESP32-laitteiden firmware perustuu Mongoose OS:ään (siksi esim. [mgos32-to-tasmota32](https://github.com/tasmota/mgos32-to-tasmota32) toimii sen päivitysmekanismilla); Gen4:n osalta tätä ei ole varmistettu. Mongoose OS:n [ohjeen](https://mongoose-os.com/docs/mongoose-os/userguide/ota.md) mukaan päivitys kirjoittaa uuden firmwaren ja sen tiedostojärjestelmän erilliseen osioon ja siirtää sinne käyttäjän tiedostot, kuten skriptit. Jos jokin vaihe epäonnistuu, päivitys keskeytyy ja vanha firmware jää käyttöön. Käyttäjän tiedostojen pitää siis mahtua uuden firmwaren tiedostojärjestelmään.
 

@@ -47,7 +47,7 @@
     <label for="theme">Theme</label>
     <select id="theme"><option value="">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
   </div>
-  <p class="note">The card below runs on power data recorded in Home Assistant from 8–18 October 2026 (Shelly EM Mini Gen4). Phases and messages were recomputed from that data with Shelly script v2.4. The simulated clock plays the data forward: scroll back on the timeline, press play, or pick a logbook entry to jump. Click the chemical value to set the amount in the tank. Process-tank and sedimentation levels are estimates from the phase history, not measurements. Card version 1.8.2.</p>
+  <p class="note">The card below runs on power data recorded in Home Assistant from 8–18 October 2026 (Shelly EM Mini Gen4). Phases and messages were recomputed from that data with Shelly script v2.4. The simulated clock plays the data forward: scroll back on the timeline, press play, or pick a logbook entry to jump. Click the chemical value to set the amount in the tank. Process-tank and sedimentation levels are estimates from the phase history, not measurements. Card version 1.8.3.</p>
   <div id="host"></div>
 </div>
 <script>
@@ -55,10 +55,10 @@ customElements.define('ha-card', class extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }).innerHTML = '<style>:host{display:block;background:var(--card-background-color);border-radius:12px;border:1px solid var(--divider-color)}</style><slot></slot>'; }
 });
 </script>
-<script>/*! uponor-clean-card v1.8.2 – animated Uponor Clean I card for Home Assistant. MIT licence. */
+<script>/*! uponor-clean-card v1.8.3 – animated Uponor Clean I card for Home Assistant. MIT licence. */
 (() => {
 /* Uponor Clean Card – core: constants, translations, history model */
-const UC_VERSION = '1.8.2';
+const UC_VERSION = '1.8.3';
 
 const UC_DEFAULTS = {
   name: 'Uponor Clean I',
@@ -148,7 +148,8 @@ const UC_I18N = {
       high_power: 'High power – check the air hoses and the compressor', no_power: 'No power – check the plant supply',
       no_comp: 'Compressor not running', signal: 'Power signal missing', paused: 'Process paused? (e.g. stopped from the panel)',
       chemical_low: 'Chemical low – refill and set the amount', sludge_due: 'Sludge emptying due', sludge_emptied: 'Sludge emptied? Reset the sludge counter' },
-    chem_now: 'Chemical in the tank now', chem_save: 'Save', chem_cancel: 'Cancel', chem_l: 'l',
+    chem_now: 'Chemical in the tank now', chem_save: 'Save', chem_cancel: 'Cancel', chem_l: 'l', chem_full: 'full tank {n} l',
+    chem_cap: 'A full tank is {n} l; a larger amount is saved as {n} l.',
     chem_note: 'Counting restarts from batch {n}, {d} dl per batch.', chem_need: 'Add input_number helpers for chemical_amount and chemical_refill_counter to set the amount here (see README).',
     chem_note3: 'The Shelly script subtracts 0.4 dl per dose from this amount.', chem_left: '≈ {n} batches', chem_saved: 'Saved', sludge_rem: 'Sludge reminder', sludge_rem_v: '{n} / {m} batches',
     sed_tank: 'Sedimentation tank 2.5 m³', proc_tank: 'Process tank 1 m³', control_unit: 'Control unit',
@@ -189,7 +190,8 @@ const UC_I18N = {
       high_power: 'Suuri teho – tarkista ilmaletkut ja kompressori', no_power: 'Ei tehoa – tarkista puhdistamon syöttö',
       no_comp: 'Kompressori ei käy', signal: 'Tehosignaali puuttuu', paused: 'Prosessi pysähtynyt? (esim. paneelista)',
       chemical_low: 'Kemikaali vähissä – täytä ja syötä määrä', sludge_due: 'Lietteen tyhjennys ajankohtainen', sludge_emptied: 'Liete tyhjennetty? Nollaa lietelaskuri' },
-    chem_now: 'Kemikaalia astiassa nyt', chem_save: 'Tallenna', chem_cancel: 'Peruuta', chem_l: 'l',
+    chem_now: 'Kemikaalia astiassa nyt', chem_save: 'Tallenna', chem_cancel: 'Peruuta', chem_l: 'l', chem_full: 'täysi astia {n} l',
+    chem_cap: 'Täysi astia on {n} l; suurempi määrä tallennetaan {n} litrana.',
     chem_note: 'Laskenta alkaa panoksesta {n}, {d} dl panosta kohden.', chem_need: 'Lisää chemical_amount- ja chemical_refill_counter-kohtiin input_number-apurit, niin määrän voi asettaa tästä (ks. README).',
     chem_note3: 'Shelly-skripti vähentää tästä määrästä 0,4 dl annostelua kohden.', chem_left: '≈ {n} panosta', chem_saved: 'Tallennettu', sludge_rem: 'Lietemuistutus', sludge_rem_v: '{n} / {m} panosta',
     sed_tank: 'Saostussäiliö 2,5 m³', proc_tank: 'Prosessisäiliö 1 m³', control_unit: 'Ohjauskeskus',
@@ -1698,6 +1700,7 @@ ha-card, .card { display:block; padding:12px 16px 10px; overflow:hidden; box-siz
 .chemed { display:none; margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--uc-chip); font-size:13.5px; }
 .chemed.open { display:block; } .chemed .row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .chemed label { color:var(--uc-fg); font-weight:500; } .chemed .note { color:var(--uc-muted); font-size:12.5px; margin-top:6px; }
+.chemed .cap { color:var(--uc-muted); }
 .chemed input { font:inherit; width:84px; padding:4px 8px; border-radius:8px; border:1px solid var(--uc-line); background:var(--uc-card); color:var(--uc-fg); font-variant-numeric:tabular-nums; }
 .chemed input:focus-visible, .chemed button:focus-visible { outline:2px solid var(--uc-accent); outline-offset:1px; }
 .chemed button { font:inherit; font-size:13px; padding:4px 12px; border-radius:8px; border:1px solid var(--uc-line); background:var(--uc-card); color:var(--uc-fg); cursor:pointer; }
@@ -2311,9 +2314,10 @@ class UponorCleanCard extends HTMLElement {
     const can = !!cfg.entities.chemical || (am && am.ent && rc && rc.ent && live !== null && isFinite(live));
     const val = ch ? Math.round(ch.liters * 10) / 10 : (+cfg.chemical_fill_liters || 15);
     ed.innerHTML = can
-      ? `<div class="row"><label for="chem-in">${T.chem_now}</label><input id="chem-in" type="number" min="0" max="${cap}" step="0.1" value="${val}"> ${T.chem_l}
+      ? `<div class="row"><label for="chem-in">${T.chem_now}</label><input id="chem-in" type="number" min="0" max="${cap}" step="0.1" value="${Math.min(val, cap)}"> ${T.chem_l}
+          <span class="cap">(${ucFmt(T.chem_full, { n: this._num(cap, 0) })})</span>
           <button class="pri" data-a="save">${T.chem_save}</button><button data-a="cancel">${T.chem_cancel}</button></div>
-         <div class="note">${cfg.entities.chemical ? T.chem_note3 : ucFmt(T.chem_note, { n: live, d: this._num(+cfg.chemical_dose_dl || 0.4, 1) })}</div>`
+         <div class="note">${ucFmt(T.chem_cap, { n: this._num(cap, 0) })} ${cfg.entities.chemical ? T.chem_note3 : ucFmt(T.chem_note, { n: live, d: this._num(+cfg.chemical_dose_dl || 0.4, 1) })}</div>`
       : `<div class="note">${T.chem_need}</div><div class="row" style="margin-top:6px"><button data-a="cancel">${T.chem_cancel}</button></div>`;
     ed.classList.add('open');
     const inp = ed.querySelector('input'); if (inp) { inp.focus(); inp.select(); }
@@ -2321,7 +2325,8 @@ class UponorCleanCard extends HTMLElement {
   _closeChem() { const ed = this.$('chemed'); ed.classList.remove('open'); ed.innerHTML = ''; }
   async _saveChem() {
     const cfg = this._cfg; const ed = this.$('chemed'); const inp = ed.querySelector('input'); if (!inp) return;
-    const v = parseFloat(String(inp.value).replace(',', '.')); if (!isFinite(v) || v < 0) { inp.focus(); return; }
+    let v = parseFloat(String(inp.value).replace(',', '.')); if (!isFinite(v) || v < 0) { inp.focus(); return; }
+    v = Math.min(v, +cfg.chemical_capacity || 20);      // more than a full tank is a full tank
     if (cfg.entities.chemical) {
       try {
         await this._hass.callService('number', 'set_value', { entity_id: cfg.entities.chemical, value: Math.round(v * 10) / 10 });

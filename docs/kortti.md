@@ -47,7 +47,7 @@ Shelly-skriptin tekstit (Status, varoitusten otsikot) ovat englanniksi. Kortti k
 
 1. Kopioi `ha-card/uponor-clean-card.js` Home Assistantin kansioon `/config/www/` (esim. File editor -lisäosalla tai Samballa).
 2. **Settings → Dashboards → ⋮ → Resources → Add resource**
-   - URL: `/local/uponor-clean-card.js?v=1.8.2`
+   - URL: `/local/uponor-clean-card.js?v=1.8.3`
    - Tyyppi: **JavaScript module**
 
    Vaihda `?v=`-numero aina, kun korvaat tiedoston, jotta selaimet lataavat uuden version.
@@ -98,14 +98,14 @@ sludge_emptied: "2026-09-18"
 | `sludge_emptied` | – | Lietteen tyhjennyspäivä (`YYYY-MM-DD`), valinnainen |
 | `sludge_reminder_batches` | `800` | Lietemuistutuksen raja panoksina |
 | `batch_volume` | `170` | Panoksen koko (l) jätevesiarviota varten |
-| `chemical_capacity` | `20` | Kemikaaliastian koko (l) prosenttia varten |
+| `chemical_capacity` | `20` | Kemikaaliastian koko (l): täysi astia prosenttia varten ja suurin syötettävä määrä |
 | `history_days` | `8` | Ladattavan historian pituus (vrk) |
 
 v2-skriptin asetukset (`status`, `sludge_reset_counter`, `chemical_amount`, `chemical_refill_counter` ym.) on kuvattu tiedostossa `ha-card/README.md`.
 
 ## Kemikaali ja liete kortilla
 
-**Kemikaali**: napsauta kemikaaliarvoa, syötä astiassa nyt oleva määrä litroina ja tallenna. Kortti kirjoittaa sen Shellyn Chemical-komponenttiin, ja skripti vähentää 0,4 dl jokaisesta annostelusta. Alle 10 päivän kulutuksella tulee varoitus.
+**Kemikaali**: napsauta kemikaaliarvoa, syötä astiassa nyt oleva määrä litroina ja tallenna. Täysi astia on 20 l (`chemical_capacity`), ja sitä suurempi luku tallennetaan 20 litrana. Kortti kirjoittaa sen Shellyn Chemical-komponenttiin, ja skripti vähentää 0,4 dl jokaisesta annostelusta. Alle 10 päivän kulutuksella tulee varoitus.
 
 ![Kemikaalin syöttö](img/ha_kemikaali.jpg)
 

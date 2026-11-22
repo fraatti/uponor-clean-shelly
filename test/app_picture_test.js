@@ -133,6 +133,18 @@ const cardInfo = (page) => page.evaluate(() => {
     await page.waitForTimeout(1500);
     i = await cardInfo(page);
     check(/15,5 l/.test(i.kv), 'card shows the new chemical amount');
+    // the editor tells the size of a full tank, and more than a full tank is saved as a full tank
+    const ed = await page.evaluate(async () => {
+      const c = document.querySelector('uponor-clean-card'), r = c.shadowRoot;
+      c._openChem();
+      const text = r.getElementById('chemed').innerText;
+      r.getElementById('chem-in').value = '25';
+      await c._saveChem();
+      return text.replace(/\s+/g, ' ');
+    });
+    await page.waitForFunction(() => window.__ucApp.S.state.chemical.l === 20, null, { timeout: 15000 }).catch(() => {});
+    check(/täysi astia 20 l/.test(ed) && /Täysi astia on 20 l/.test(ed) && (await page.evaluate(() => window.__ucApp.S.state.chemical.l)) === 20,
+      'chemical editor: full tank 20 l shown, 25 l saved as 20 l (' + ed.slice(0, 80) + ')');
 
     // language follows the app
     await page.click('#setb');
